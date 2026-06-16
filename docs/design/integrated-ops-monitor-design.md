@@ -137,8 +137,12 @@ flowchart TB
         IF["«interface»\nZIF_MON_DATA_PROVIDER"]
     end
 
+    subgraph AGG["집계 계층 (Aggregation)"]
+        A1["ZCL_MON_AGGREGATOR\n- Top-N 집계\n- 시간 버킷 집계"]
+    end
+
     subgraph UI["화면 계층 (UI)"]
-        U1["ZCL_MON_UI_DASHBOARD\n- Splitter Container\n- 3 x ALV Grid + 요약"]
+        U1["ZCL_MON_UI_DASHBOARD\n- Splitter Container\n- 요약 + 차트(CL_GUI_CHART_ENGINE)\n- 3 x ALV Grid"]
     end
 
     SEL --> C1
@@ -148,10 +152,14 @@ flowchart TB
     IF -.implements.- D3
     D1 --> DB1[("TBTCO / TBTCP")]
     D2 --> DB2[("SNAP")]
-    D3 --> DB3[("SXMSPMAST / SXMSPEMAS / SXMSPERROR")]
+    D3 --> DB3[("SXMSPERROR / SXMSPMAST / SXMSPEMAS")]
+    C1 --> A1
+    A1 --> C1
     C1 --> U1
     U1 --> CTRL
 ```
+
+> 차트 데이터는 **신규 DB 조회 없이** 각 프로바이더가 이미 반환한 에러 행에서 `ZCL_MON_AGGREGATOR`가 파생 집계(Top-N / 시간 버킷)한다.
 
 ### 4.3 컴포넌트(클래스) 구성
 
@@ -162,7 +170,8 @@ flowchart TB
 | `ZCL_MON_DP_DUMP` | Class | ST22 덤프 조회 (`SNAP` / 표준 FM) |
 | `ZCL_MON_DP_INTERFACE` | Class | SXI 인터페이스 에러 조회 (`SXMSPMAST` 외) |
 | `ZCL_MON_CONTROLLER` | Class | 프로바이더 등록·실행, 결과 취합, 화면 연계 |
-| `ZCL_MON_UI_DASHBOARD` | Class | Splitter/ALV 생성·이벤트 처리·드릴다운 |
+| `ZCL_MON_AGGREGATOR` | Class | 가져온 에러 행에서 차트용 집계(Top-N / 시간 버킷) 산출 |
+| `ZCL_MON_UI_DASHBOARD` | Class | Splitter/ALV/차트 생성·이벤트 처리·드릴다운·관점 토글 |
 | `ZCL_MON_NAVIGATOR` | Class | 영역별 표준 상세화면 호출(읽기전용) 캡슐화 |
 | `Z_OPS_MONITOR` (Report) | Program | 선택화면 정의, INITIALIZATION, 컨트롤러 기동 |
 
@@ -209,8 +218,8 @@ flowchart TB
 
 > 기본은 `A`만 조회한다. (확장 옵션으로 "전체 상태 보기" 제공 가능 — 13장 참조)
 
-#### 5.1.3 조회 조건
-- 기간: `STRTDATE/STRTTIME`(실제 시작) 또는 `ENDDATE/ENDTIME`(종료) 기준 → **종료시각 기준 권장**(에러 발생 시점 의미). *(Open Issue O-1에서 확정)*
+#### 5.1.3 조회 조건  ✅ 확정(O-1)
+- 기간: **`ENDDATE` / `ENDTIME`(종료시각) 기준** 으로 조회한다. (취소된 잡의 종료시각 = 실패 시점)
 - 필터(옵션): 잡명(`JOBNAME`), 사용자(`SDLUNAME`).
 
 #### 5.1.4 출력 구조 (`ZMON_S_BATCH` 개념)
@@ -229,20 +238,20 @@ flowchart TB
 - (A) `TBTCO` 직접 SELECT + 필요 시 `TBTCP` 조인/조회. — 성능·단순성 우수, **권장**
 - (B) 표준 FM `BP_JOB_SELECT` 사용. — 표준 로직 재사용, 단 출력 구조 가공 필요
 
-#### 5.1.6 드릴다운(읽기전용)
-- 잡 로그 표시 FM `BP_JOBLOG_SHOW`(잡명/잡카운트 전달) — 표시 전용.
-- 또는 `CALL TRANSACTION 'SM37'`(조회 모드) — *Open Issue O-2.*
+#### 5.1.6 드릴다운(읽기전용)  ✅ 확정(O-2)
+- 잡 로그 표시 FM **`BP_JOBLOG_SHOW`**(잡명/잡카운트 전달)로 로그를 표시한다. (FM 존재 확인됨)
+- 필요 시 **`BP_JOBLOG_READ`**(로그 읽기)도 함께 사용 가능. 두 FM 호출은 `ZCL_MON_NAVIGATOR`에 캡슐화한다.
 
 ---
 
 ### 5.2 ST22 — ABAP 런타임 에러(Short Dump)
 
-#### 5.2.1 사용 표준 테이블 / FM
+#### 5.2.1 사용 표준 테이블 / FM  ✅ 확정(O-3)
 | 오브젝트 | 유형 | 설명 |
 |----------|------|------|
 | `SNAP` | Table | 런타임 에러 스냅샷. 1개 덤프 = 다수 레코드, **헤더 레코드 `SEQNO = '000'`** |
-| `RS_ST22_GET_SHORTDUMPS` 등 | FM | ST22 표준 조회 FM (덤프 목록을 정형 구조로 반환) — *시그니처는 빌드 단계 검증(O-3)* |
 
+> 조회는 **`SNAP` 직접 SELECT(헤더 `SEQNO='000'`)** 로 확정한다. (표준 FM은 사용하지 않음)
 > `SNAP`은 **클라이언트 종속(MANDT 포함)** 이다.
 
 #### 5.2.2 에러 판별 기준
@@ -260,58 +269,53 @@ flowchart TB
 | `UNAME` | SNAP | 사용자 |
 | `MANDT` | SNAP | 클라이언트 |
 | `AHOST` | SNAP | 애플리케이션 서버 |
-| `RT_ERROR` | SNAP/FM | 런타임 에러 ID(예: `MESSAGE_TYPE_X`) |
-| `PROGNAME` | SNAP/FM | 발생 프로그램 |
-| `INCLUDE` / `LINE` | SNAP/FM | 인클루드/라인 |
+| `RT_ERROR` | SNAP | 런타임 에러 ID(예: `MESSAGE_TYPE_X`) |
+| `PROGNAME` | SNAP | 발생 프로그램 |
+| `INCLUDE` / `LINE` | SNAP | 인클루드/라인 |
 
-> 런타임 에러 ID·프로그램·라인 등 일부 항목은 `SNAP`의 압축 영역에 저장되어 **직접 SELECT만으로는 추출이 번거롭다.** 따라서 **표준 FM(목록 조회)로 정형 구조를 받는 방식을 1순위로 권장**하고, 직접 SELECT는 건수 집계/보조 필터에 활용한다. (O-3에서 최종 확정)
+> 런타임 에러 ID·프로그램·라인 등 일부 항목은 `SNAP`의 압축/인코딩 영역에 저장되어 있어 직접 추출이 제한될 수 있다. **추출 가능한 항목은 SNAP 기반으로 채우고, 추출이 어려운 항목은 코드에 `"TODO` 주석으로 표시**한다. (차트 Top-N 기준은 런타임 에러 유형, 추출 제한 시 `PROGNAME`으로 폴백 — 6장 참조)
 
-#### 5.2.5 드릴다운(읽기전용)
-- 표준 덤프 표시 화면 호출(예: ST22 상세 / 표준 표시 FM) — 표시 전용. *(O-3에서 호출 방식 확정)*
+#### 5.2.5 드릴다운(읽기전용)  ✅ 확정(O-3)
+- **`CALL TRANSACTION 'ST22'`** (표시 모드)로 표준 덤프 상세 화면을 호출한다. (읽기전용 진입, `ZCL_MON_NAVIGATOR`에 캡슐화)
 
 ---
 
 ### 5.3 SXI_MONITOR — 인터페이스(XML 메시지) 에러
 
-#### 5.3.1 사용 표준 테이블
-| 테이블 | 설명 | 주요 사용 필드(후보) |
-|--------|------|----------------------|
-| `SXMSPMAST` | XML 메시지 마스터(헤더) | `MSGGUID`, `PID`, `EXEPIPELINE`, `ITFACTION`, `QOS`, `MSGSTATE`(상태) |
-| `SXMSPEMAS` | 확장 마스터(상태/송수신 정보) | `MSGSTATE`, 송신/수신 파티·서비스, 인터페이스명 |
-| `SXMSPERROR` | 에러 정보 | `ERROR_CATEGORY`, `ERROR_CODE`, (에러 텍스트) |
-| `SXMSPHIST` | 처리 이력(필요 시 보조) | 상태 변경 이력 |
+#### 5.3.1 사용 표준 테이블  ✅ 확정(O-4)
+| 테이블 | 설명 | 확인된/사용 필드 |
+|--------|------|------------------|
+| `SXMSPERROR` | **에러 정보(에러 판별·기간 필터의 기점)** | `MSGGUID`, `PID`, `ERRSTAT`(에러 상태), `EXETIMEST`(실행 시각) |
+| `SXMSPMAST` | XML 메시지 마스터(헤더) | `MSGGUID`, `PID`, `MSGSTATE`, `ITFACTION`, `EXETIMEST`, `INITTIMEST`, `SENDTIMEST` |
+| `SXMSPEMAS` | 확장 마스터(상세/송수신 정보) | `MSGGUID`, `PID` 등 (송/수신·인터페이스명 필드명은 SE11 검증 — O-9) |
 
+> ⚠️ **`EXEPIPELINE` 필드는 미존재** 확인됨 → 설계에서 제거. 파이프라인 식별은 `PID`/`ITFACTION` 사용.
 > 위 테이블은 **클라이언트 종속(MANDT)** 이며 ABAP Integration Engine 환경에서 유효하다.
-> 정확한 상태 필드명/조인 키/에러 상태 코드 집합은 **대상 시스템 릴리즈 기준으로 검증 필요**(O-4).
 
-#### 5.3.2 에러 판별 기준(설계안)
-다음 두 가지 방식 중 하나(또는 조합)로 에러를 식별한다. — O-4에서 확정.
+#### 5.3.2 에러 판별 기준  ✅ 확정(O-4) — 방식 A
+- **`SXMSPERROR`에 에러 레코드가 존재하는 메시지를 에러로 간주**한다.
+- 조회 효율을 위해 **`SXMSPERROR`를 기간(`EXETIMEST`)으로 먼저 SELECT** 한 뒤, `MSGGUID`(+`PID`)로 `SXMSPMAST`/`SXMSPEMAS`를 조인하여 상세를 채운다.
 
-- **방식 A (에러 레코드 존재 기반, 견고)**: `SXMSPERROR`에 해당 `MSGGUID`의 에러 레코드가 존재하는 메시지를 에러로 간주.
-- **방식 B (상태 코드 기반)**: `MSGSTATE`가 에러 상태(시스템 오류/취소 등)인 메시지를 에러로 간주.
-
-> 권장: **방식 A를 기준**으로 하고, 방식 B를 보조 필터로 결합하여 "처리 중/재시도 대기"와 "실제 오류"를 구분한다.
-
-#### 5.3.3 조회 조건
-- 기간: 메시지 처리 시각(타임스탬프) 범위. (SXMSPMAST의 타임스탬프/일자 필드 기준, 인덱스 활용 — O-4)
-- 필터(옵션): 인터페이스명, 송/수신 서비스, 방향(Inbound/Outbound), 어댑터, 클라이언트.
+#### 5.3.3 조회 조건  ✅ 확정(O-4)
+- 기간: **`EXETIMEST`(실행 시각) 기준**. 선택화면의 로컬 일자/시간을 **긴 형식(Long) UTC 타임스탬프로 변환**하여 비교한다. (7.2 / 7.3 참조)
+- 필터(옵션): 인터페이스명(`SO_IFACE`), 클라이언트(`P_MAND`). (송/수신 서비스·방향은 필드 검증 후 확장 — O-9)
 
 #### 5.3.4 출력 구조 (`ZMON_S_IFACE` 개념)
 | 필드 | 출처 | 설명 |
 |------|------|------|
 | `ICON` | (산출) | 신호등 아이콘(적색) |
-| `TIMESTAMP`(일자/시간) | SXMSPMAST | 처리 시각 |
-| `DIRECTION` | SXMSPEMAS | Inbound/Outbound |
-| `IF_NAME` | SXMSPEMAS | 인터페이스명 |
-| `SENDER` / `RECEIVER` | SXMSPEMAS | 송신/수신 서비스(파티) |
-| `ADAPTER` | SXMSPMAST | 어댑터/파이프라인 |
-| `MSGSTATE` / `STATE_TX` | SXMSPEMAS | 메시지 상태/텍스트 |
-| `ERR_CATEGORY` | SXMSPERROR | 에러 카테고리 |
-| `ERR_CODE` | SXMSPERROR | 에러 코드 |
+| `EXE_DATE`/`EXE_TIME` | EXETIMEST 변환 | 실행(에러) 일시(로컬 환산 표시) |
+| `IF_NAME` | SXMSPMAST/EMAS | 인터페이스(`ITFACTION` 또는 IF명 — O-9) |
+| `SENDER` / `RECEIVER` | SXMSPEMAS | 송신/수신 서비스 *(필드 검증 — O-9)* |
+| `MSGSTATE` / `STATE_TX` | SXMSPMAST | 메시지 상태/텍스트 |
+| `ERRSTAT` | SXMSPERROR | 에러 상태/카테고리 |
+| `PID` | SXMSPERROR/MAST | 파이프라인/처리 단계 |
 | `MSGGUID` | SXMSPMAST | 메시지 GUID(드릴다운 키) |
 
-#### 5.3.5 드릴다운(읽기전용)
-- 메시지 GUID 기준 표준 메시지 표시 화면 호출(SXI_MONITOR / SXMB_MONI 표시) — 표시 전용. *(O-4에서 확정)*
+> `SXMSPEMAS`의 송/수신·인터페이스명 정확한 필드는 **`"TODO: SE11 검증`(O-9)** 으로 표기하고, 미확정 항목은 잠정 후보 필드로 작성한다.
+
+#### 5.3.5 드릴다운(읽기전용)  ✅ 확정(O-4)
+- **`CALL TRANSACTION 'SXI_MONITOR'`** 로 표준 메시지 모니터를 표시 모드로 호출한다. (`ZCL_MON_NAVIGATOR`에 캡슐화)
 
 ---
 
