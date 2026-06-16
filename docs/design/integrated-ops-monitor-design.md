@@ -5,7 +5,7 @@
 | 문서명 | 통합 운영 모니터링 프로그램 (SM37 / ST22 / SXI_MONITOR) 상세 설계서 |
 | 대상 시스템 | SAP S/4HANA (ABAP Integration Engine 사용) |
 | 화면 환경 | SAP GUI (Classic Dynpro + OO ALV) |
-| 문서 버전 | v0.1 (Draft) |
+| 문서 버전 | v0.2 (Draft) |
 | 작성 목적 | ABAP 개발 착수 전 기능/데이터/화면/로직 확정을 위한 기술 설계 |
 | 상태 | 검토 대기 (Review) |
 
@@ -346,6 +346,7 @@ flowchart TB
 | `SO_USER` | Select-Option | - | 사용자 필터(SM37/ST22) |
 | `P_MAND` | MANDT | `SY-MANDT` | 클라이언트 필터(ST22/SXI) |
 | `SO_IFACE` | Select-Option | - | 인터페이스명 필터(SXI) |
+| `P_TOPN` | I | 5 | 차트 Top-N 개수(영역별 집중도 차트) |
 
 > **월요일/명절 대응**: 기본 24H로 두되, `P_HOURS`를 72 등으로 늘리거나 `P_FRDAT/P_FRTIM`을 직접 수정하여 조회 범위를 확장할 수 있다.
 
@@ -355,32 +356,58 @@ flowchart TB
 
 > 위 이미지는 설계 기준의 SAP GUI 선택 화면 예시이며, 실제 필드 배치/레이블은 빌드 단계에서 조정될 수 있다.
 
-### 6.2 대시보드 레이아웃 (Screen 0100)
+### 6.2 대시보드 레이아웃 (Screen 0100)  ✅ 확정(O-5)
 
-`CL_GUI_DOCKING_CONTAINER`(또는 Custom Control) 위에 `CL_GUI_SPLITTER_CONTAINER`를 배치하여 **상단 요약 + 하단 3분할 ALV** 로 구성한다.
+`CL_GUI_DOCKING_CONTAINER`(또는 Custom Control) 위에 `CL_GUI_SPLITTER_CONTAINER`를 배치하여 **상단 요약 + 차트 패널 + 하단 3분할 ALV** 의 3단 구조로 구성한다.
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
-│ [요약]  🔴 배치에러 5건   🔴 덤프 3건   🟡 인터페이스 12건   조회:24H   │  ← 1행 요약
+│ [요약]  🔴 배치에러 5건   🔴 덤프 3건   🟡 인터페이스 12건   조회:24H   │  ← ① 신호등 요약(얇게)
+├──────────────────────────────────────────────────────────────────────┤
+│ [차트] 에러 집중도 Top-N            관점: [영역별 Top-N ▼]              │  ← ② 관점 선택형 차트
+│   Z_BATCH_DAILY (SM37) ████████ 12                                     │
+│   MESSAGE_TYPE_X (ST22) █████ 7                                         │
+│   IF_ORDER_OUT  (SXI)   ████ 5      ...                                 │
 ├───────────────────┬───────────────────┬──────────────────────────────┤
-│  ▣ SM37 배치 에러   │  ▣ ST22 덤프        │  ▣ SXI 인터페이스 에러         │
-│  ─────────────────  │  ─────────────────  │  ──────────────────────────   │
+│  ▣ SM37 배치 에러   │  ▣ ST22 덤프        │  ▣ SXI 인터페이스 에러         │  ← ③ 3분할 ALV
 │  ALV Grid #1       │  ALV Grid #2        │  ALV Grid #3                  │
-│  (TBTCO/TBTCP)     │  (SNAP)             │  (SXMSPMAST 외)               │
-│                    │                     │                               │
+│  (TBTCO/TBTCP)     │  (SNAP)             │  (SXMSPERROR 외)              │
 │  ⇧더블클릭→잡로그    │  ⇧더블클릭→덤프상세  │  ⇧더블클릭→메시지상세           │
 └───────────────────┴───────────────────┴──────────────────────────────┘
 ```
 
-- 분할 방식: 세로 3분할(좌/중/우). 화면 폭 부족 시 **2행 레이아웃(상단 1 + 하단 2)** 또는 분할비 조정 가능(O-5).
-- 각 ALV 상단에는 영역 제목과 건수를 표시한다.
-- 분할 경계는 드래그 가능(Splitter)하여 사용자가 영역 비율을 조정할 수 있다.
+- **레이아웃 구조**: `CL_GUI_SPLITTER_CONTAINER`로 세로 3단(요약/차트/ALV) 구성. ALV 영역은 다시 세로 3분할(좌/중/우).
+- 각 ALV 상단에 영역 제목과 건수를 표시하고, 분할 경계는 드래그로 비율 조정 가능.
+- 차트 영역 높이도 분할바로 조정 가능(관심 시 차트를 키우거나 ALV를 키움).
 
-**화면 목업 (대시보드)**
+**화면 목업 (대시보드 — 차트 포함)**
 
-![SAP GUI 통합 모니터링 대시보드 목업](images/sap-dashboard-screen.png)
+![SAP GUI 통합 모니터링 대시보드 목업(차트 포함)](images/sap-dashboard-screen-v2.png)
 
-> 위 이미지는 상단 신호등 요약 + 3분할 ALV(SM37 / ST22 / SXI) 구성의 SAP GUI 대시보드 예시이다. 컬럼 구성/표시 항목은 6.4 필드 카탈로그를 따른다.
+> 상단 신호등 요약 + 관점 선택형 차트(기본: 영역별 Top-N) + 3분할 ALV 구성. 컬럼/표시 항목은 6.4 필드 카탈로그를 따른다.
+
+### 6.2a 차트 패널 설계 (관점 선택형)  ✅ 확정(O-5)
+
+- **렌더링 기술**: `CL_GUI_CHART_ENGINE`(IGS 기반). **IGS 가용 확인됨**(O-9 해소).
+- **차트 데이터**: 신규 DB 조회 없이 각 프로바이더가 반환한 **에러 행에서 `ZCL_MON_AGGREGATOR`가 파생 집계**.
+- **관점(Perspective) 토글** — 차트 패널 우측 상단 드롭다운으로 전환:
+
+| 관점 | 차트 유형 | 집계 내용 | 기본 |
+|------|-----------|-----------|------|
+| **영역별 Top-N 집중도** | 가로 막대(Pareto) | 영역별 상위 N개 반복 원인을 영역 색상으로 구분 표시 | ✅ 기본값 |
+| 시간대별 추이 | 누적 막대(Stacked Column) | 조회기간을 **적응형 버킷**으로 나눠 시간대별 영역별 건수 | 토글 |
+
+- **Top-N 기준 키(영역별)**:
+
+| 영역 | Top-N 기준 키 | 폴백 |
+|------|---------------|------|
+| SM37 | `JOBNAME`(잡명) | - |
+| ST22 | 런타임 에러 유형(`RT_ERROR`) | 추출 제한 시 `PROGNAME` |
+| SXI | 인터페이스(`ITFACTION`/IF명) | `ERRSTAT` |
+
+- **N 값**: 기본 **5**, 선택화면 파라미터 `P_TOPN`으로 변경 가능.
+- **적응형 버킷(시간대별 추이)**: 조회 범위에 따라 버킷 크기 자동 결정 — 예) ≤ 24H → 1시간, ≤ 7일 → 1일, 그 이상 → 적절 단위. (가변 조회기간 대응)
+- **색상 규약**: SM37 / ST22 / SXI 각각 고정 색상을 부여하여 차트·범례 일관성 유지.
 
 ### 6.3 요약 영역 설계
 - 상단 요약 줄에 영역별 **건수 + 신호등 아이콘**을 표시한다.
@@ -401,7 +428,8 @@ flowchart TB
 `ICON` / `DATUM` / `UZEIT` / `UNAME` / `MANDT` / `AHOST` / `RT_ERROR` / `PROGNAME` / `INCLUDE` / `LINE`
 
 #### 6.4.3 SXI ALV
-`ICON` / `DATE` / `TIME` / `DIRECTION` / `IF_NAME` / `SENDER` / `RECEIVER` / `ADAPTER` / `STATE_TX` / `ERR_CATEGORY` / `ERR_CODE` / `MSGGUID`(숨김 가능)
+`ICON` / `EXE_DATE` / `EXE_TIME` / `IF_NAME` / `SENDER` / `RECEIVER` / `MSGSTATE`(STATE_TX) / `ERRSTAT` / `PID` / `MSGGUID`(숨김 가능)
+> 시각 컬럼은 `EXETIMEST`(UTC)를 로컬로 환산해 표시. 송/수신·IF명 필드는 SE11 검증 후 확정(O-9).
 
 > 공통: 정렬/필터/합계/레이아웃 저장/엑셀 다운로드 등 ALV 표준 기능 활성화. 컬럼 폭/순서는 빌드 시 필드카탈로그에서 조정.
 
@@ -426,6 +454,7 @@ sequenceDiagram
     participant R as Report (Z_OPS_MONITOR)
     participant C as ZCL_MON_CONTROLLER
     participant P as Data Providers (Batch/Dump/Iface)
+    participant G as ZCL_MON_AGGREGATOR
     participant V as ZCL_MON_UI_DASHBOARD
 
     U->>R: 트랜잭션 실행
@@ -434,11 +463,16 @@ sequenceDiagram
     R->>C: run( 조회조건 )
     loop 선택된 영역별
         C->>P: get_data( 조회조건 )
-        P->>P: 표준 테이블 SELECT / 표준 FM 호출 (READ-ONLY)
+        P->>P: 표준 테이블 SELECT (READ-ONLY)
         P-->>C: 출력 테이블 + 건수
     end
-    C->>V: display( 결과집합 )
-    V->>V: Splitter + 3 ALV + 요약 렌더링
+    C->>G: aggregate( 결과집합, 관점/Top-N )
+    G-->>C: 차트 데이터(Top-N / 버킷)
+    C->>V: display( 결과집합 + 차트 데이터 )
+    V->>V: Splitter + 요약 + 차트(CL_GUI_CHART_ENGINE) + 3 ALV 렌더링
+    U->>V: 관점 토글 변경
+    V->>G: aggregate( 새 관점 )
+    G-->>V: 차트 데이터 → 차트 갱신
     U->>V: 라인 더블클릭
     V->>V: navigate_to_detail( 행 키 )
     V-->>U: 표준 상세화면(표시 전용)
@@ -467,14 +501,17 @@ P_TODAT = SY-DATUM. P_TOTIM = SY-UZEIT.
 
 > **일자+시간 경계 처리 주의**: 조회 기간이 일자 경계(자정)를 넘는 경우(예: 어제 14:00 ~ 오늘 14:00), 단순 `DATUM BETWEEN`만으로는 시간 경계가 누락/초과될 수 있다. → 각 프로바이더는 **(일자, 시간) 복합 조건** 또는 타임스탬프 비교로 정확히 필터링한다. (7.3 참조)
 
-### 7.3 기간 필터 적용 규칙(영역별)
+### 7.3 기간 필터 적용 규칙(영역별)  ✅ 확정 반영
 | 영역 | 기준 필드 | 필터 방식 |
 |------|-----------|-----------|
-| SM37 | `TBTCO` 종료(또는 시작) 일자/시간 | 복합조건: 시작일=종료일이면 시간 BETWEEN, 다중일이면 경계일만 시간 비교 |
+| SM37 | `TBTCO-ENDDATE` + `ENDTIME`(종료시각, O-1) | 복합조건: 시작일=종료일이면 시간 BETWEEN, 다중일이면 경계일만 시간 비교 |
 | ST22 | `SNAP-DATUM` + `SNAP-UZEIT` | 동일 복합조건 방식 |
-| SXI | 메시지 처리 타임스탬프 | 타임스탬프 직접 비교(가장 정확) |
+| SXI | `SXMSPERROR-EXETIMEST`(UTC 타임스탬프, O-4) | **로컬 FROM/TO → 긴 형식 UTC 타임스탬프 변환 후** 직접 비교 |
 
-> 구현 단순화를 위해 공통 유틸 메서드 `build_datetime_range( )`를 두어 (FROM일/시, TO일/시) → WHERE 조건/RANGE를 생성하는 로직을 **단일화** 한다.
+- 공통 유틸 메서드 `build_datetime_range( )`로 (FROM일/시, TO일/시) → 일자/시간 기반 WHERE/RANGE 생성 로직을 **단일화**(SM37/ST22).
+- SXI는 별도 유틸 `convert_local_to_utc_tstmp( )`로 로컬 일자/시간을 **긴 형식 UTC 타임스탬프(`TIMESTAMPL` 등)** 로 변환 후 `EXETIMEST` 범위 비교. (시스템/사용자 타임존 기준 변환은 `CL_ABAP_TSTMP` / 표준 변환 사용)
+
+> **타임존 주의**: `*TIMEST` 계열은 UTC 기준이므로 화면 입력(로컬)과 직접 비교하면 안 되며, 반드시 변환 후 비교한다. 표시(ALV)에서는 UTC → 로컬 환산하여 보여준다.
 
 ### 7.4 모듈화/확장 포인트
 - 신규 영역(예: SM21 시스템 로그, AL08, RZ20) 추가 시: `ZIF_MON_DATA_PROVIDER`를 구현한 **신규 프로바이더 클래스만 작성**하고 컨트롤러 레지스트리에 등록 → 화면/요약은 공통 로직이 자동 처리.
@@ -544,11 +581,14 @@ P_TODAT = SY-DATUM. P_TOTIM = SY-UZEIT.
 | `ZCL_MON_DP_DUMP` | Class | ST22 프로바이더 |
 | `ZCL_MON_DP_INTERFACE` | Class | SXI 프로바이더 |
 | `ZCL_MON_CONTROLLER` | Class | 컨트롤러 |
-| `ZCL_MON_UI_DASHBOARD` | Class | 대시보드 UI |
+| `ZCL_MON_AGGREGATOR` | Class | 차트용 집계(Top-N / 시간 버킷) |
+| `ZCL_MON_UI_DASHBOARD` | Class | 대시보드 UI(요약/차트/3 ALV) |
 | `ZCL_MON_NAVIGATOR` | Class | 드릴다운 네비게이터 |
-| `ZMON_S_BATCH` / `ZMON_S_DUMP` / `ZMON_S_IFACE` / `ZMON_S_SUMMARY` | Structure | 출력 구조 |
+| `ZMON_S_BATCH` / `ZMON_S_DUMP` / `ZMON_S_IFACE` / `ZMON_S_SUMMARY` / `ZMON_S_CHART` | Structure | 출력/차트 구조 |
 | `ZMON_T_*` | Table Type | 출력 테이블 타입 |
 | Dynpro `0100` | Screen | 대시보드 화면(Custom Control 포함) |
+
+> 차트는 `CL_GUI_CHART_ENGINE`(IGS) 사용. 차트 데이터 XML(또는 데이터/커스터마이징)은 `ZCL_MON_UI_DASHBOARD`/`ZCL_MON_AGGREGATOR`에서 구성한다.
 
 > DDIC 구조(`ZMON_S_*`)는 표준 테이블 필드를 기반으로 정의한다.
 
@@ -567,6 +607,10 @@ P_TODAT = SY-DATUM. P_TOTIM = SY-UZEIT.
 | TC-08 | FROM>TO 입력 | 검증 오류 메시지 |
 | TC-09 | 대량 데이터 기간 | 응답 시간/메모리 확인, 풀스캔 미발생 |
 | TC-10 | 읽기전용 검증 | 변경/COMMIT/Enqueue 미발생(코드 검수) |
+| TC-11 | 차트 기본 표시(영역별 Top-N) | 상위 N개 원인이 영역 색상으로 정상 표시 |
+| TC-12 | 차트 관점 토글(시간대별 추이) | 적응형 버킷으로 추이 차트 재렌더링 |
+| TC-13 | `P_TOPN` 변경 | Top-N 막대 개수 반영 |
+| TC-14 | SXI 타임존 변환 | 로컬→UTC 변환 후 정확히 조회, 표시값 로컬 환산 확인 |
 
 ---
 
@@ -581,18 +625,27 @@ P_TODAT = SY-DATUM. P_TOTIM = SY-UZEIT.
 ---
 
 ## 14. 가정 및 미결 사항(Open Issues)
+
+### 14.1 확정된 항목 (Resolved)
+| ID | 항목 | 확정 내용 |
+|----|------|-----------|
+| ✅ O-1 | SM37 기간 기준 | **종료시각(`ENDDATE`/`ENDTIME`) 기준** |
+| ✅ O-2 | SM37 드릴다운 | **`BP_JOBLOG_SHOW`**(+`BP_JOBLOG_READ`), 네비게이터 캡슐화 (FM 존재 확인) |
+| ✅ O-3 | ST22 조회/표시 | 조회=**`SNAP` 직접 SELECT(`SEQNO='000'`)**, 표시=**`CALL TRANSACTION 'ST22'`** |
+| ✅ O-4 | SXI 조회/판별 | 판별=**`SXMSPERROR` 에러레코드 존재(방식 A)**, 기간=**`EXETIMEST`(로컬→UTC 변환)**, `SXMSPERROR`→`SXMSPMAST`/`SXMSPEMAS` `MSGGUID`(+`PID`) 조인, 표시=**`CALL TRANSACTION 'SXI_MONITOR'`**, `EXEPIPELINE` 미존재로 제거 |
+| ✅ O-5 | 화면 레이아웃/차트 | **요약 + 관점 선택형 차트 + 3분할 ALV**. 차트 기본=영역별 Top-N(가로 막대), 토글=시간대별 추이(적응형 버킷), `P_TOPN` 기본 5 |
+| ✅ O-9 | IGS/차트 렌더링 | **IGS 가용 확인** → `CL_GUI_CHART_ENGINE` 사용 |
+
+### 14.2 잔여 미결 항목 (Open)
 | ID | 항목 | 내용 / 결정 필요사항 | 잠정안 |
 |----|------|----------------------|--------|
-| O-1 | SM37 기간 기준 | 시작시각 vs 종료시각 중 무엇을 기간 기준으로 할지 | 종료시각 기준 |
-| O-2 | SM37 드릴다운 방식 | `BP_JOBLOG_SHOW` vs `CALL TRANSACTION SM37` | FM 우선 |
-| O-3 | ST22 조회/표시 방식 | 표준 FM 시그니처 및 덤프 표시 FM 확정(`SNAP` 직접 vs FM) | FM 1순위 |
-| O-4 | SXI 테이블/상태코드 | `SXMSPMAST/SXMSPEMAS/SXMSPERROR` 정확한 필드·조인·에러 상태코드 집합, 기간 인덱스 | 에러레코드 존재(방식 A) |
-| O-5 | 화면 분할 레이아웃 | 세로 3분할 vs 2행 혼합, 분할 비율 | 세로 3분할 |
 | O-6 | 신호등 임계치 | 황색 경고 기준(건수/상태) 정의 여부 | 적/녹 2단계 우선 |
 | O-7 | 권한 객체 | 영역별 AUTHORITY-CHECK 객체/필드 확정 | 8.2 표 기준 |
 | O-8 | 결과 건수 상한 | 최대 행수 제한 파라미터 도입 여부 | 미적용(기간으로 제어) |
+| O-10 | `SXMSPEMAS` 세부 필드 | 송/수신 서비스·인터페이스명·방향의 정확한 필드명(SE11 검증) | 후보 필드 + `"TODO` 표기 |
+| O-11 | ST22 `RT_ERROR` 추출 | `SNAP`에서 런타임 에러 유형 추출 가능 범위 | 추출 가능분 사용, 제한 시 `PROGNAME` 폴백 |
 
-> 위 Open Issue들은 본 설계서 검토 단계 및 대상 시스템 사전 점검(테이블/FM/권한 확인)을 통해 확정한 뒤 ABAP 소스 작성에 반영한다.
+> 14.1은 확정되어 코드에 반영한다. 14.2의 O-10/O-11은 빌드 단계에서 대상 시스템(SE11/실데이터)로 검증하며, 미확정 부분은 코드에 `"TODO: SE11 검증` 주석으로 명시한다.
 
 ---
 
@@ -600,3 +653,4 @@ P_TODAT = SY-DATUM. P_TOTIM = SY-UZEIT.
 | 버전 | 일자 | 내용 |
 |------|------|------|
 | v0.1 | 2026-06-16 | 최초 작성(Draft) — 개요/요구사항/아키텍처/데이터소스/화면/로직/권한/성능/테스트/확장/Open Issues |
+| v0.2 | 2026-06-16 | O-1~O-5 확정 반영(SM37 종료시각·드릴다운, ST22 SNAP·ST22호출, SXI 필드/UTC/방식A) + **관점 선택형 차트 패널(`CL_GUI_CHART_ENGINE`)** 및 `ZCL_MON_AGGREGATOR` 추가, IGS(O-9) 해소, Open Issues 재정리(O-10/O-11) |
