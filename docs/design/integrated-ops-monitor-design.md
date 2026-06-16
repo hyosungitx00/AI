@@ -312,3 +312,154 @@ flowchart TB
 
 #### 5.3.5 드릴다운(읽기전용)
 - 메시지 GUID 기준 표준 메시지 표시 화면 호출(SXI_MONITOR / SXMB_MONI 표시) — 표시 전용. *(O-4에서 확정)*
+
+---
+
+## 6. 화면 설계
+
+### 6.1 선택 화면(Selection Screen)
+
+```
+┌─ 조회 기간 ────────────────────────────────────────────────┐
+│  시작 일자  [P_FRDAT]   시작 시간 [P_FRTIM]                  │
+│  종료 일자  [P_TODAT]   종료 시간 [P_TOTIM]                  │
+│  (편의) 조회 범위(시간) [P_HOURS] 기본 24  ← 클릭 시 기간 재계산 │
+├─ 조회 영역 선택 ──────────────────────────────────────────┤
+│  [X] 배치 잡 에러(SM37)  [X] 런타임 에러(ST22)  [X] 인터페이스(SXI) │
+├─ 추가 필터(옵션) ─────────────────────────────────────────┤
+│  잡명 [SO_JOB]   사용자 [SO_USER]   클라이언트 [P_MAND]       │
+│  인터페이스명 [SO_IFACE]                                     │
+└────────────────────────────────────────────────────────────┘
+```
+
+| 화면 필드 | 타입 | 기본값 | 설명 |
+|-----------|------|--------|------|
+| `P_FRDAT` / `P_FRTIM` | D / T | 현재시각 −24H | 조회 시작 일자/시간 |
+| `P_TODAT` / `P_TOTIM` | D / T | 현재시각 | 조회 종료 일자/시간 |
+| `P_HOURS` | I | 24 | 편의용 조회 시간(H). 변경 시 FROM/TO 자동 재계산(7.2 참조) |
+| `CB_SM37` / `CB_ST22` / `CB_SXI` | C(체크박스) | 'X' | 조회 영역 On/Off |
+| `SO_JOB` | Select-Option | - | 잡명 필터(SM37) |
+| `SO_USER` | Select-Option | - | 사용자 필터(SM37/ST22) |
+| `P_MAND` | MANDT | `SY-MANDT` | 클라이언트 필터(ST22/SXI) |
+| `SO_IFACE` | Select-Option | - | 인터페이스명 필터(SXI) |
+
+> **월요일/명절 대응**: 기본 24H로 두되, `P_HOURS`를 72 등으로 늘리거나 `P_FRDAT/P_FRTIM`을 직접 수정하여 조회 범위를 확장할 수 있다.
+
+### 6.2 대시보드 레이아웃 (Screen 0100)
+
+`CL_GUI_DOCKING_CONTAINER`(또는 Custom Control) 위에 `CL_GUI_SPLITTER_CONTAINER`를 배치하여 **상단 요약 + 하단 3분할 ALV** 로 구성한다.
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│ [요약]  🔴 배치에러 5건   🔴 덤프 3건   🟡 인터페이스 12건   조회:24H   │  ← 1행 요약
+├───────────────────┬───────────────────┬──────────────────────────────┤
+│  ▣ SM37 배치 에러   │  ▣ ST22 덤프        │  ▣ SXI 인터페이스 에러         │
+│  ─────────────────  │  ─────────────────  │  ──────────────────────────   │
+│  ALV Grid #1       │  ALV Grid #2        │  ALV Grid #3                  │
+│  (TBTCO/TBTCP)     │  (SNAP)             │  (SXMSPMAST 외)               │
+│                    │                     │                               │
+│  ⇧더블클릭→잡로그    │  ⇧더블클릭→덤프상세  │  ⇧더블클릭→메시지상세           │
+└───────────────────┴───────────────────┴──────────────────────────────┘
+```
+
+- 분할 방식: 세로 3분할(좌/중/우). 화면 폭 부족 시 **2행 레이아웃(상단 1 + 하단 2)** 또는 분할비 조정 가능(O-5).
+- 각 ALV 상단에는 영역 제목과 건수를 표시한다.
+- 분할 경계는 드래그 가능(Splitter)하여 사용자가 영역 비율을 조정할 수 있다.
+
+### 6.3 요약 영역 설계
+- 상단 요약 줄에 영역별 **건수 + 신호등 아이콘**을 표시한다.
+- 신호등 규칙(기본안, O-6에서 임계치 확정):
+
+| 색상 | 아이콘 | 조건(예시) |
+|------|--------|------------|
+| 🔴 적색 | `ICON_RED_LIGHT` | 에러 건수 ≥ 1 |
+| 🟡 황색 | `ICON_YELLOW_LIGHT` | (확장) 경고성 상태 존재 |
+| 🟢 녹색 | `ICON_GREEN_LIGHT` | 에러 0건 |
+
+### 6.4 ALV 필드 카탈로그(요약)
+
+#### 6.4.1 SM37 ALV
+`ICON` / `JOBNAME` / `JOBCOUNT` / `STATUS_TX` / `PROGNAME` / `SDLUNAME` / `STRTDATE` / `STRTTIME` / `ENDDATE` / `ENDTIME`
+
+#### 6.4.2 ST22 ALV
+`ICON` / `DATUM` / `UZEIT` / `UNAME` / `MANDT` / `AHOST` / `RT_ERROR` / `PROGNAME` / `INCLUDE` / `LINE`
+
+#### 6.4.3 SXI ALV
+`ICON` / `DATE` / `TIME` / `DIRECTION` / `IF_NAME` / `SENDER` / `RECEIVER` / `ADAPTER` / `STATE_TX` / `ERR_CATEGORY` / `ERR_CODE` / `MSGGUID`(숨김 가능)
+
+> 공통: 정렬/필터/합계/레이아웃 저장/엑셀 다운로드 등 ALV 표준 기능 활성화. 컬럼 폭/순서는 빌드 시 필드카탈로그에서 조정.
+
+### 6.5 드릴다운(이벤트) 매핑
+| 영역 | 이벤트 | 처리 | 호출 대상(읽기전용) |
+|------|--------|------|----------------------|
+| SM37 | `double_click` | 선택 행의 `JOBNAME`/`JOBCOUNT` 전달 | 잡 로그 표시 |
+| ST22 | `double_click` | 선택 행의 덤프 키 전달 | 덤프 상세 표시 |
+| SXI | `double_click` | 선택 행의 `MSGGUID` 전달 | 메시지 상세 표시 |
+
+> 모든 드릴다운은 `ZCL_MON_NAVIGATOR`를 경유하여 **표시 모드** 로만 호출한다.
+
+---
+
+## 7. 처리 로직 설계
+
+### 7.1 전체 처리 흐름
+
+```mermaid
+sequenceDiagram
+    participant U as 사용자
+    participant R as Report (Z_OPS_MONITOR)
+    participant C as ZCL_MON_CONTROLLER
+    participant P as Data Providers (Batch/Dump/Iface)
+    participant V as ZCL_MON_UI_DASHBOARD
+
+    U->>R: 트랜잭션 실행
+    R->>R: INITIALIZATION (기본 기간 −24H 산정)
+    U->>R: 조회 조건 입력 후 실행(F8)
+    R->>C: run( 조회조건 )
+    loop 선택된 영역별
+        C->>P: get_data( 조회조건 )
+        P->>P: 표준 테이블 SELECT / 표준 FM 호출 (READ-ONLY)
+        P-->>C: 출력 테이블 + 건수
+    end
+    C->>V: display( 결과집합 )
+    V->>V: Splitter + 3 ALV + 요약 렌더링
+    U->>V: 라인 더블클릭
+    V->>V: navigate_to_detail( 행 키 )
+    V-->>U: 표준 상세화면(표시 전용)
+```
+
+### 7.2 기본 조회기간 산정 로직 (FR-04 / FR-05)
+
+`INITIALIZATION` 시점에 **현재시각 −24H ~ 현재시각** 을 계산하여 선택화면 기본값으로 설정한다.
+
+의사코드:
+
+```abap
+" 현재 시각
+DATA(lv_to_stamp) = 현재 타임스탬프( SY-DATUM, SY-UZEIT ).
+" 24시간(또는 P_HOURS) 이전
+DATA(lv_from_stamp) = lv_to_stamp - ( P_HOURS * 3600 ).
+
+" 타임스탬프 → 일자/시간 분리
+P_TODAT = SY-DATUM. P_TOTIM = SY-UZEIT.
+분리( lv_from_stamp ) → P_FRDAT, P_FRTIM.
+```
+
+- 표준 변환은 `CL_ABAP_TSTMP` 또는 시간 연산(`CL_ABAP_TSTMP=>add/subtractsecs`)을 사용한다.
+- `P_HOURS` 변경 시(`AT SELECTION-SCREEN`) FROM/TO를 재계산하여 화면에 반영(편의 기능).
+- 사용자가 `P_FRDAT/P_FRTIM/P_TODAT/P_TOTIM`을 직접 수정하면 그 값을 우선한다. (월요일/명절 대응)
+
+> **일자+시간 경계 처리 주의**: 조회 기간이 일자 경계(자정)를 넘는 경우(예: 어제 14:00 ~ 오늘 14:00), 단순 `DATUM BETWEEN`만으로는 시간 경계가 누락/초과될 수 있다. → 각 프로바이더는 **(일자, 시간) 복합 조건** 또는 타임스탬프 비교로 정확히 필터링한다. (7.3 참조)
+
+### 7.3 기간 필터 적용 규칙(영역별)
+| 영역 | 기준 필드 | 필터 방식 |
+|------|-----------|-----------|
+| SM37 | `TBTCO` 종료(또는 시작) 일자/시간 | 복합조건: 시작일=종료일이면 시간 BETWEEN, 다중일이면 경계일만 시간 비교 |
+| ST22 | `SNAP-DATUM` + `SNAP-UZEIT` | 동일 복합조건 방식 |
+| SXI | 메시지 처리 타임스탬프 | 타임스탬프 직접 비교(가장 정확) |
+
+> 구현 단순화를 위해 공통 유틸 메서드 `build_datetime_range( )`를 두어 (FROM일/시, TO일/시) → WHERE 조건/RANGE를 생성하는 로직을 **단일화** 한다.
+
+### 7.4 모듈화/확장 포인트
+- 신규 영역(예: SM21 시스템 로그, AL08, RZ20) 추가 시: `ZIF_MON_DATA_PROVIDER`를 구현한 **신규 프로바이더 클래스만 작성**하고 컨트롤러 레지스트리에 등록 → 화면/요약은 공통 로직이 자동 처리.
+- 화면 분할 수/레이아웃은 등록된 프로바이더 수에 따라 동적으로 구성하는 것을 목표로 한다(초기엔 3분할 고정, 확장 시 동적화 — 13장).
