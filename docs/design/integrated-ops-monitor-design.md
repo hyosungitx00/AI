@@ -5,7 +5,7 @@
 | 문서명 | 통합 운영 모니터링 프로그램 (SM37 / ST22 / SXI_MONITOR) 상세 설계서 |
 | 대상 시스템 | SAP S/4HANA (ABAP Integration Engine 사용) |
 | 화면 환경 | SAP GUI (Classic Dynpro + OO ALV) |
-| 문서 버전 | v0.2 (Draft) |
+| 문서 버전 | v0.3 (Draft) |
 | 작성 목적 | ABAP 개발 착수 전 기능/데이터/화면/로직 확정을 위한 기술 설계 |
 | 상태 | 검토 대기 (Review) |
 
@@ -132,7 +132,7 @@ flowchart TB
 
     subgraph DP["데이터 계층 (Data Providers)"]
         D1["ZCL_MON_DP_BATCH\n(SM37 / TBTCO·TBTCP)"]
-        D2["ZCL_MON_DP_DUMP\n(ST22 / SNAP)"]
+        D2["ZCL_MON_DP_DUMP\n(ST22 / RS_ST22_GET_DUMPS)"]
         D3["ZCL_MON_DP_INTERFACE\n(SXI / SXMSPMAST 등)"]
         IF["«interface»\nZIF_MON_DATA_PROVIDER"]
     end
@@ -151,7 +151,7 @@ flowchart TB
     IF -.implements.- D2
     IF -.implements.- D3
     D1 --> DB1[("TBTCO / TBTCP")]
-    D2 --> DB2[("SNAP")]
+    D2 --> DB2["FM RS_ST22_GET_DUMPS"]
     D3 --> DB3[("SXMSPERROR / SXMSPMAST / SXMSPEMAS")]
     C1 --> A1
     A1 --> C1
@@ -167,7 +167,7 @@ flowchart TB
 |----------|------|------|
 | `ZIF_MON_DATA_PROVIDER` | Interface | 데이터 조회 표준 계약 정의 (`get_data`, `get_area_info`) |
 | `ZCL_MON_DP_BATCH` | Class | SM37 배치 에러 조회 (`TBTCO`/`TBTCP`) |
-| `ZCL_MON_DP_DUMP` | Class | ST22 덤프 조회 (`SNAP` / 표준 FM) |
+| `ZCL_MON_DP_DUMP` | Class | ST22 덤프 조회 (FM `RS_ST22_GET_DUMPS`) |
 | `ZCL_MON_DP_INTERFACE` | Class | SXI 인터페이스 에러 조회 (`SXMSPMAST` 외) |
 | `ZCL_MON_CONTROLLER` | Class | 프로바이더 등록·실행, 결과 취합, 화면 연계 |
 | `ZCL_MON_AGGREGATOR` | Class | 가져온 에러 행에서 차트용 집계(Top-N / 시간 버킷) 산출 |
@@ -246,34 +246,33 @@ flowchart TB
 
 ### 5.2 ST22 — ABAP 런타임 에러(Short Dump)
 
-#### 5.2.1 사용 표준 테이블 / FM  ✅ 확정(O-3)
+#### 5.2.1 사용 표준 FM  ✅ 확정(O-3 갱신 / O-11)
 | 오브젝트 | 유형 | 설명 |
 |----------|------|------|
-| `SNAP` | Table | 런타임 에러 스냅샷. 1개 덤프 = 다수 레코드, **헤더 레코드 `SEQNO = '000'`** |
+| `RS_ST22_GET_DUMPS` | FM | 덤프 목록을 정형 구조로 반환 (EXPORT `P_INFOTAB` TYPE `RSDUMPTAB`) |
 
-> 조회는 **`SNAP` 직접 SELECT(헤더 `SEQNO='000'`)** 로 확정한다. (표준 FM은 사용하지 않음)
-> `SNAP`은 **클라이언트 종속(MANDT 포함)** 이다.
+> ⚠️ **결정 변경**: `SNAP` 테이블에는 런타임 에러 유형/프로그램이 **정식 필드로 존재하지 않고 압축 영역(`FLIST`~`FLIST05`)에 인코딩**되어 있음을 확인하여, **`SNAP` 직접 SELECT 대신 표준 FM `RS_ST22_GET_DUMPS`** 로 조회한다. (검증 완료: FM 존재, EXPORT = `RSDUMPTAB`)
 
 #### 5.2.2 에러 판별 기준
-- `SNAP`에 적재된 항목 자체가 런타임 에러 → 기간 내 헤더 레코드(`SEQNO = '000'`) 전체가 조회 대상.
+- `RS_ST22_GET_DUMPS`가 반환하는 덤프 = 런타임 에러 → 기간 내 반환 항목 전체가 조회 대상.
 
-#### 5.2.3 조회 조건
-- 기간: `SNAP-DATUM` + `SNAP-UZEIT` (발생 일자/시간) 범위.
-- 필터(옵션): 사용자(`SNAP-UNAME`), 클라이언트(`SNAP-MANDT`, 기본 `SY-MANDT`), 애플리케이션 서버(`SNAP-AHOST`).
+#### 5.2.3 조회 조건  ✅ 확정(O-11)
+- import 파라미터가 **덤프 날짜(단일)** 이므로 → **조회기간 내 날짜별로 FM 반복 호출** 후, 반환 항목의 `SYTIME`을 선택화면 **시간 범위로 ABAP 필터링**한다. (자정 경계·72H 케이스 대응)
+- 필터(옵션): 사용자(`SYUSER`), 서버(`SYHOST`)는 반환 후 ABAP 필터.
+- `RSDUMPTAB`에 `MANDT`가 없어 ST22는 **클라이언트 컬럼 제외**(FM이 시스템 컨텍스트로 처리).
 
-#### 5.2.4 출력 구조 (`ZMON_S_DUMP` 개념)
-| 필드 | 출처 | 설명 |
-|------|------|------|
+#### 5.2.4 출력 구조 (`ZMON_S_DUMP` ← `RSDUMPTAB`)  ✅ 확정(O-11)
+| ALV 필드 | RSDUMPTAB 필드 | 설명 |
+|----------|----------------|------|
 | `ICON` | (산출) | 신호등 아이콘(적색) |
-| `DATUM`/`UZEIT` | SNAP | 발생 일자/시간 |
-| `UNAME` | SNAP | 사용자 |
-| `MANDT` | SNAP | 클라이언트 |
-| `AHOST` | SNAP | 애플리케이션 서버 |
-| `RT_ERROR` | SNAP | 런타임 에러 ID(예: `MESSAGE_TYPE_X`) |
-| `PROGNAME` | SNAP | 발생 프로그램 |
-| `INCLUDE` / `LINE` | SNAP | 인클루드/라인 |
-
-> 런타임 에러 ID·프로그램·라인 등 일부 항목은 `SNAP`의 압축/인코딩 영역에 저장되어 있어 직접 추출이 제한될 수 있다. **추출 가능한 항목은 SNAP 기반으로 채우고, 추출이 어려운 항목은 코드에 `"TODO` 주석으로 표시**한다. (차트 Top-N 기준은 런타임 에러 유형, 추출 제한 시 `PROGNAME`으로 폴백 — 6장 참조)
+| `DATUM` | `SYDATE` | 발생 일자 |
+| `UZEIT` | `SYTIME` | 발생 시간 |
+| `UNAME` | `SYUSER` | 사용자 |
+| `AHOST` | `SYHOST` | 애플리케이션 서버 |
+| **`RT_ERROR`** | **`DUMPID`** | **런타임 에러 유형**(예: `MESSAGE_TYPE_X`) ← 차트 Top-N 키 |
+| `PROGNAME` | `PROGRAMNAME` | 발생 프로그램 |
+| `INCLUDE` | `INCLUDENAME` | 인클루드 |
+| `LINE` | `LINENUMBER` | 소스 라인 |
 
 #### 5.2.5 드릴다운(읽기전용)  ✅ 확정(O-3)
 - **`CALL TRANSACTION 'ST22'`** (표시 모드)로 표준 덤프 상세 화면을 호출한다. (읽기전용 진입, `ZCL_MON_NAVIGATOR`에 캡슐화)
@@ -287,7 +286,7 @@ flowchart TB
 |--------|------|------------------|
 | `SXMSPERROR` | **에러 정보(에러 판별·기간 필터의 기점)** | `MSGGUID`, `PID`, `ERRSTAT`(에러 상태), `EXETIMEST`(실행 시각) |
 | `SXMSPMAST` | XML 메시지 마스터(헤더) | `MSGGUID`, `PID`, `MSGSTATE`, `ITFACTION`, `EXETIMEST`, `INITTIMEST`, `SENDTIMEST` |
-| `SXMSPEMAS` | 확장 마스터(상세/송수신 정보) | `MSGGUID`, `PID` 등 (송/수신·인터페이스명 필드명은 SE11 검증 — O-9) |
+| `SXMSPEMAS` | 확장 마스터(상세/송수신 정보) | `OB_SYSTEM`(송신), `IB_SYSTEM`(수신), `OB_NAME`/`OB_NS`(송신 IF/NS), `IB_NAME`/`IB_NS`(수신 IF/NS), `OB_OPERATION`, `OB_PARTY`/`IB_PARTY` |
 
 > ⚠️ **`EXEPIPELINE` 필드는 미존재** 확인됨 → 설계에서 제거. 파이프라인 식별은 `PID`/`ITFACTION` 사용.
 > 위 테이블은 **클라이언트 종속(MANDT)** 이며 ABAP Integration Engine 환경에서 유효하다.
@@ -298,21 +297,23 @@ flowchart TB
 
 #### 5.3.3 조회 조건  ✅ 확정(O-4)
 - 기간: **`EXETIMEST`(실행 시각) 기준**. 선택화면의 로컬 일자/시간을 **긴 형식(Long) UTC 타임스탬프로 변환**하여 비교한다. (7.2 / 7.3 참조)
-- 필터(옵션): 인터페이스명(`SO_IFACE`), 클라이언트(`P_MAND`). (송/수신 서비스·방향은 필드 검증 후 확장 — O-9)
+- 필터(옵션): 인터페이스명(`SO_IFACE` → `OB_NAME`), 클라이언트(`P_MAND`).
 
-#### 5.3.4 출력 구조 (`ZMON_S_IFACE` 개념)
-| 필드 | 출처 | 설명 |
-|------|------|------|
+#### 5.3.4 출력 구조 (`ZMON_S_IFACE`)  ✅ 확정(O-10)
+| ALV 필드 | 출처 필드 | 설명 |
+|----------|-----------|------|
 | `ICON` | (산출) | 신호등 아이콘(적색) |
-| `EXE_DATE`/`EXE_TIME` | EXETIMEST 변환 | 실행(에러) 일시(로컬 환산 표시) |
-| `IF_NAME` | SXMSPMAST/EMAS | 인터페이스(`ITFACTION` 또는 IF명 — O-9) |
-| `SENDER` / `RECEIVER` | SXMSPEMAS | 송신/수신 서비스 *(필드 검증 — O-9)* |
-| `MSGSTATE` / `STATE_TX` | SXMSPMAST | 메시지 상태/텍스트 |
-| `ERRSTAT` | SXMSPERROR | 에러 상태/카테고리 |
-| `PID` | SXMSPERROR/MAST | 파이프라인/처리 단계 |
-| `MSGGUID` | SXMSPMAST | 메시지 GUID(드릴다운 키) |
+| `EXE_DATE`/`EXE_TIME` | `SXMSPERROR-EXETIMEST` 변환 | 실행(에러) 일시(UTC→로컬 환산 표시) |
+| **`IF_NAME`** | **`SXMSPEMAS-OB_NAME`** | 인터페이스명(송신) ← 차트 Top-N 키 |
+| `IF_NS` | `SXMSPEMAS-OB_NS` | 네임스페이스(기본 숨김/툴팁) |
+| `OPERATION` | `SXMSPEMAS-OB_OPERATION` | 서비스 인터페이스 오퍼레이션 |
+| `SENDER` | `SXMSPEMAS-OB_SYSTEM` | 송신 시스템 (B2B 시 `OB_PARTY` 보조) |
+| `RECEIVER` | `SXMSPEMAS-IB_SYSTEM` | 수신 시스템 (B2B 시 `IB_PARTY` 보조) |
+| `MSGSTATE` / `STATE_TX` | `SXMSPMAST-MSGSTATE` | 메시지 상태/텍스트 |
+| `ERRSTAT` | `SXMSPERROR-ERRSTAT` | 에러 상태/카테고리 |
+| `MSGGUID` | `SXMSPMAST-MSGGUID` | 메시지 GUID(드릴다운 키, 숨김 가능) |
 
-> `SXMSPEMAS`의 송/수신·인터페이스명 정확한 필드는 **`"TODO: SE11 검증`(O-9)** 으로 표기하고, 미확정 항목은 잠정 후보 필드로 작성한다.
+> 방향(Inbound/Outbound) 전용 필드는 `SXMSPEMAS`에 없으므로 **별도 방향 컬럼은 두지 않고 "송신(OB)→수신(IB)" 흐름**으로 표현한다.
 
 #### 5.3.5 드릴다운(읽기전용)  ✅ 확정(O-4)
 - **`CALL TRANSACTION 'SXI_MONITOR'`** 로 표준 메시지 모니터를 표시 모드로 호출한다. (`ZCL_MON_NAVIGATOR`에 캡슐화)
@@ -333,6 +334,9 @@ flowchart TB
 ├─ 추가 필터(옵션) ─────────────────────────────────────────┤
 │  잡명 [SO_JOB]   사용자 [SO_USER]   클라이언트 [P_MAND]       │
 │  인터페이스명 [SO_IFACE]                                     │
+├─ 표시 옵션 ───────────────────────────────────────────────┤
+│  영역별 최대 표시 행수 [P_MAXROW] 기본 250                    │
+│  차트 Top-N [P_TOPN] 기본 5                                  │
 └────────────────────────────────────────────────────────────┘
 ```
 
@@ -347,8 +351,10 @@ flowchart TB
 | `P_MAND` | MANDT | `SY-MANDT` | 클라이언트 필터(ST22/SXI) |
 | `SO_IFACE` | Select-Option | - | 인터페이스명 필터(SXI) |
 | `P_TOPN` | I | 5 | 차트 Top-N 개수(영역별 집중도 차트) |
+| `P_MAXROW` | I | 250 | 영역별 ALV 최대 표시 행수(O-8). 최신순 제한, 초과 시 안내 |
 
 > **월요일/명절 대응**: 기본 24H로 두되, `P_HOURS`를 72 등으로 늘리거나 `P_FRDAT/P_FRTIM`을 직접 수정하여 조회 범위를 확장할 수 있다.
+> **결과 건수 상한(O-8)**: 조회는 기간 내 **전건** 수행하되 ALV 표시는 영역별 `P_MAXROW`(기본 250)건으로 **최신순 제한**하고 "상위 N건만 표시(전체 X건)" 안내를 표시한다. **차트 집계(Top-N/추이)는 표시 제한과 무관하게 전체 건수 기준**으로 산출한다.
 
 **화면 목업 (선택 화면)**
 
@@ -371,7 +377,7 @@ flowchart TB
 ├───────────────────┬───────────────────┬──────────────────────────────┤
 │  ▣ SM37 배치 에러   │  ▣ ST22 덤프        │  ▣ SXI 인터페이스 에러         │  ← ③ 3분할 ALV
 │  ALV Grid #1       │  ALV Grid #2        │  ALV Grid #3                  │
-│  (TBTCO/TBTCP)     │  (SNAP)             │  (SXMSPERROR 외)              │
+│  (TBTCO/TBTCP)     │  (RS_ST22_GET_DUMPS)│  (SXMSPERROR 외)              │
 │  ⇧더블클릭→잡로그    │  ⇧더블클릭→덤프상세  │  ⇧더블클릭→메시지상세           │
 └───────────────────┴───────────────────┴──────────────────────────────┘
 ```
@@ -397,16 +403,19 @@ flowchart TB
 | **영역별 Top-N 집중도** | 가로 막대(Pareto) | 영역별 상위 N개 반복 원인을 영역 색상으로 구분 표시 | ✅ 기본값 |
 | 시간대별 추이 | 누적 막대(Stacked Column) | 조회기간을 **적응형 버킷**으로 나눠 시간대별 영역별 건수 | 토글 |
 
-- **Top-N 기준 키(영역별)**:
+- **Top-N 기준 키(영역별)**  ✅ 확정:
 
-| 영역 | Top-N 기준 키 | 폴백 |
-|------|---------------|------|
-| SM37 | `JOBNAME`(잡명) | - |
-| ST22 | 런타임 에러 유형(`RT_ERROR`) | 추출 제한 시 `PROGNAME` |
-| SXI | 인터페이스(`ITFACTION`/IF명) | `ERRSTAT` |
+| 영역 | Top-N 기준 키 |
+|------|---------------|
+| SM37 | `JOBNAME`(잡명) |
+| ST22 | `DUMPID`(런타임 에러 유형) |
+| SXI | `OB_NAME`(송신 인터페이스명) |
 
+- **집계 단위 = 영역별 독립 Top-N**(O-8): 각 영역이 **자기 Top-N**을 가지므로, 영역 간 **에러 건수 스케일 차이가 커도**(예: SXI 수백 vs SM37 수 건) 작은 영역이 묻히지 않는다.
+- **집계 기준 = 전체 건수**(O-8): ALV 표시 상한(`P_MAXROW`)과 **무관하게 기간 내 전건**으로 집계한다.
 - **N 값**: 기본 **5**, 선택화면 파라미터 `P_TOPN`으로 변경 가능.
 - **적응형 버킷(시간대별 추이)**: 조회 범위에 따라 버킷 크기 자동 결정 — 예) ≤ 24H → 1시간, ≤ 7일 → 1일, 그 이상 → 적절 단위. (가변 조회기간 대응)
+- **스케일 유의(시간대별 추이)**: 한 영역이 절대 건수로 압도할 수 있으므로 **영역 고정 색상 + 범례**로 명확히 구분하고, 절대 막대 높이만으로 오인하지 않도록 한다. (필요 시 "특정 영역만 보기" 토글은 확장 옵션)
 - **색상 규약**: SM37 / ST22 / SXI 각각 고정 색상을 부여하여 차트·범례 일관성 유지.
 
 ### 6.3 요약 영역 설계  ✅ 확정(O-6)
@@ -427,12 +436,13 @@ flowchart TB
 #### 6.4.1 SM37 ALV
 `ICON` / `JOBNAME` / `JOBCOUNT` / `STATUS_TX` / `PROGNAME` / `SDLUNAME` / `STRTDATE` / `STRTTIME` / `ENDDATE` / `ENDTIME`
 
-#### 6.4.2 ST22 ALV
-`ICON` / `DATUM` / `UZEIT` / `UNAME` / `MANDT` / `AHOST` / `RT_ERROR` / `PROGNAME` / `INCLUDE` / `LINE`
+#### 6.4.2 ST22 ALV  (← `RSDUMPTAB`)
+`ICON` / `DATUM`(SYDATE) / `UZEIT`(SYTIME) / `UNAME`(SYUSER) / `AHOST`(SYHOST) / `RT_ERROR`(DUMPID) / `PROGNAME`(PROGRAMNAME) / `INCLUDE`(INCLUDENAME) / `LINE`(LINENUMBER)
+> `RSDUMPTAB`에 `MANDT` 없음 → 클라이언트 컬럼 제외.
 
 #### 6.4.3 SXI ALV
-`ICON` / `EXE_DATE` / `EXE_TIME` / `IF_NAME` / `SENDER` / `RECEIVER` / `MSGSTATE`(STATE_TX) / `ERRSTAT` / `PID` / `MSGGUID`(숨김 가능)
-> 시각 컬럼은 `EXETIMEST`(UTC)를 로컬로 환산해 표시. 송/수신·IF명 필드는 SE11 검증 후 확정(O-9).
+`ICON` / `EXE_DATE` / `EXE_TIME` / `IF_NAME`(OB_NAME) / `OPERATION`(OB_OPERATION) / `SENDER`(OB_SYSTEM) / `RECEIVER`(IB_SYSTEM) / `MSGSTATE`(STATE_TX) / `ERRSTAT` / `MSGGUID`(숨김 가능)
+> 시각 컬럼은 `EXETIMEST`(UTC)를 로컬로 환산해 표시. 방향 컬럼 없음(송신→수신 흐름으로 표현).
 
 > 공통: 정렬/필터/합계/레이아웃 저장/엑셀 다운로드 등 ALV 표준 기능 활성화. 컬럼 폭/순서는 빌드 시 필드카탈로그에서 조정.
 
@@ -508,7 +518,7 @@ P_TODAT = SY-DATUM. P_TOTIM = SY-UZEIT.
 | 영역 | 기준 필드 | 필터 방식 |
 |------|-----------|-----------|
 | SM37 | `TBTCO-ENDDATE` + `ENDTIME`(종료시각, O-1) | 복합조건: 시작일=종료일이면 시간 BETWEEN, 다중일이면 경계일만 시간 비교 |
-| ST22 | `SNAP-DATUM` + `SNAP-UZEIT` | 동일 복합조건 방식 |
+| ST22 | `RS_ST22_GET_DUMPS` 반환 `SYDATE`+`SYTIME` | 날짜별 FM 호출 후 `SYTIME`을 시간범위로 ABAP 필터 |
 | SXI | `SXMSPERROR-EXETIMEST`(UTC 타임스탬프, O-4) | **로컬 FROM/TO → 긴 형식 UTC 타임스탬프 변환 후** 직접 비교 |
 
 - 공통 유틸 메서드 `build_datetime_range( )`로 (FROM일/시, TO일/시) → 일자/시간 기반 WHERE/RANGE 생성 로직을 **단일화**(SM37/ST22).
@@ -548,13 +558,13 @@ P_TODAT = SY-DATUM. P_TOTIM = SY-UZEIT.
 
 ## 9. 성능 설계
 - **기간 제한 필수**: 모든 조회는 조회기간(기본 24H)으로 제한하여 풀스캔을 방지한다.
-- **인덱스 활용**:
-  - `TBTCO`: 상태/일자 기반 조회. 가능한 표준 인덱스를 활용.
-  - `SNAP`: `DATUM`(+`UZEIT`) 기준. 헤더(`SEQNO='000'`)로 한정하여 레코드 수 감소.
-  - `SXMSPMAST`: 타임스탬프/일자 인덱스 활용(O-4).
+- **인덱스/조회 효율**:
+  - `TBTCO`: 상태(`STATUS='A'`)/종료일자 기반 조회. 가능한 표준 인덱스를 활용.
+  - ST22: `RS_ST22_GET_DUMPS`를 **날짜별 호출**(기간 일수만큼). 조회기간이 길면 호출 횟수가 늘어나므로 기간 제한 권장.
+  - `SXMSPERROR`: `EXETIMEST`(UTC) 범위로 먼저 SELECT 후 `MSGGUID`(+`PID`)로 조인 → 에러 메시지만 정밀 조회.
 - **필요 컬럼만 SELECT**(`SELECT` 필드 명시), 불필요한 `SELECT *` 지양.
 - **영역별 독립 조회**: 한 영역이 느려도 다른 영역 표시에 영향 최소화(개별 예외 처리).
-- **건수 상한(옵션)**: 과도한 결과 방지를 위해 최대 행수 제한 파라미터 제공 가능(O-8).
+- **결과 상한(O-8)**: 조회는 전건, **ALV 표시는 `P_MAXROW`(기본 250) 최신순 제한**. 차트 집계는 전체 기준.
 
 ---
 
@@ -637,22 +647,22 @@ P_TODAT = SY-DATUM. P_TOTIM = SY-UZEIT.
 |----|------|-----------|
 | ✅ O-1 | SM37 기간 기준 | **종료시각(`ENDDATE`/`ENDTIME`) 기준** |
 | ✅ O-2 | SM37 드릴다운 | **`BP_JOBLOG_SHOW`**(+`BP_JOBLOG_READ`), 네비게이터 캡슐화 (FM 존재 확인) |
-| ✅ O-3 | ST22 조회/표시 | 조회=**`SNAP` 직접 SELECT(`SEQNO='000'`)**, 표시=**`CALL TRANSACTION 'ST22'`** |
+| ✅ O-3 | ST22 조회/표시 | 조회=**`RS_ST22_GET_DUMPS`**(SNAP에 정식 필드 부재로 변경), 표시=**`CALL TRANSACTION 'ST22'`** |
 | ✅ O-4 | SXI 조회/판별 | 판별=**`SXMSPERROR` 에러레코드 존재(방식 A)**, 기간=**`EXETIMEST`(로컬→UTC 변환)**, `SXMSPERROR`→`SXMSPMAST`/`SXMSPEMAS` `MSGGUID`(+`PID`) 조인, 표시=**`CALL TRANSACTION 'SXI_MONITOR'`**, `EXEPIPELINE` 미존재로 제거 |
 | ✅ O-5 | 화면 레이아웃/차트 | **요약 + 관점 선택형 차트 + 3분할 ALV**. 차트 기본=영역별 Top-N(가로 막대), 토글=시간대별 추이(적응형 버킷), `P_TOPN` 기본 5 |
 | ✅ O-9 | IGS/차트 렌더링 | **IGS 가용 확인** → `CL_GUI_CHART_ENGINE` 사용 |
 | ✅ O-6 | 신호등 임계치 | **3단계, 영역별 건수 기반**(SM37: 0/–/≥1, ST22: 0/1–30/≥31, SXI: 0/1–50/≥51), 클래스 상수 관리 |
 | 🔶 O-7 | 권한 체크 | 방식=**영역별 체크 후 없으면 스킵(A)** 확정. 객체/필드는 **SU24→SU21→STAUTHTRACE 검증 대기**(후보+TODO) |
+| ✅ O-8 | 결과 건수 상한 | **`P_MAXROW` 기본 250, 최신순 표시 제한 + 초과 안내. 차트 집계는 전체 기준. 영역별 스케일 차이 유의** |
+| ✅ O-10 | `SXMSPEMAS` 필드 | 송신=`OB_SYSTEM`, 수신=`IB_SYSTEM`, IF명=`OB_NAME`(+`OB_OPERATION`), 방향 컬럼 생략(송신→수신). SXI Top-N 키=`OB_NAME` |
+| ✅ O-11 | ST22 조회/유형 | 조회=**`RS_ST22_GET_DUMPS`**(`RSDUMPTAB`), 에러유형=**`DUMPID`**(Top-N 키), 날짜별 호출+시간 ABAP 필터, `MANDT` 컬럼 제외 |
 
 ### 14.2 잔여 미결 항목 (Open)
 | ID | 항목 | 내용 / 결정 필요사항 | 잠정안 |
 |----|------|----------------------|--------|
 | O-7(객체) | 권한 객체/필드 | 영역별 정확한 객체·필드·값 (SU24/SU21/STAUTHTRACE 검증) | 후보+TODO |
-| O-8 | 결과 건수 상한 | 최대 행수 제한 파라미터 도입 여부 | 미적용(기간으로 제어) |
-| O-10 | `SXMSPEMAS` 세부 필드 | 송/수신 서비스·인터페이스명·방향의 정확한 필드명(SE11 검증) | 후보 필드 + `"TODO` 표기 |
-| O-11 | ST22 `RT_ERROR` 추출 | `SNAP`에서 런타임 에러 유형 추출 가능 범위 | 추출 가능분 사용, 제한 시 `PROGNAME` 폴백 |
 
-> 14.1은 확정되어 코드에 반영한다. 14.2의 O-10/O-11은 빌드 단계에서 대상 시스템(SE11/실데이터)로 검증하며, 미확정 부분은 코드에 `"TODO: SE11 검증` 주석으로 명시한다.
+> 14.1은 확정되어 코드에 반영한다. 잔여 O-7(객체)은 빌드 단계에서 대상 시스템으로 검증하며, 미확정 부분은 코드에 `"TODO: SU24/STAUTHTRACE 검증` 주석으로 명시한다.
 
 ---
 
@@ -661,3 +671,4 @@ P_TODAT = SY-DATUM. P_TOTIM = SY-UZEIT.
 |------|------|------|
 | v0.1 | 2026-06-16 | 최초 작성(Draft) — 개요/요구사항/아키텍처/데이터소스/화면/로직/권한/성능/테스트/확장/Open Issues |
 | v0.2 | 2026-06-16 | O-1~O-5 확정 반영(SM37 종료시각·드릴다운, ST22 SNAP·ST22호출, SXI 필드/UTC/방식A) + **관점 선택형 차트 패널(`CL_GUI_CHART_ENGINE`)** 및 `ZCL_MON_AGGREGATOR` 추가, IGS(O-9) 해소, Open Issues 재정리(O-10/O-11) |
+| v0.3 | 2026-06-18 | O-6~O-11 일괄 확정 반영 — 신호등 3단계 임계치(O-6), 권한 체크 방식(O-7, 객체 검증 보류), **ST22 조회 `RS_ST22_GET_DUMPS`/`RSDUMPTAB`·`DUMPID`로 변경(O-3 갱신/O-11)**, SXI 필드 확정(`OB_SYSTEM`/`IB_SYSTEM`/`OB_NAME`/`OB_OPERATION`, O-10), 결과 상한 `P_MAXROW`(O-8), 차트 Top-N 키(SM37=JOBNAME/ST22=DUMPID/SXI=OB_NAME)·영역별 독립 Top-N·전체 기준 집계 |
