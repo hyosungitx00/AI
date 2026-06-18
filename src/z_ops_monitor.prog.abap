@@ -225,6 +225,10 @@ START-OF-SELECTION.
   PERFORM apply_maxrow.
   PERFORM show_dashboard.
 
+  " 리스트 화면을 유지시켜 도킹 컨테이너(대시보드)가 표시되도록 함.
+  " (출력이 전혀 없으면 화면이 유지되지 않아 대시보드가 보이지 않음)
+  WRITE space.
+
 *&---------------------------------------------------------------------*
 *& FORM set_default_period
 *&---------------------------------------------------------------------*
@@ -513,8 +517,8 @@ FORM show_dashboard.
   go_handler = NEW lcl_handler( ).
 
   go_dock = NEW cl_gui_docking_container(
-              side      = cl_gui_docking_container=>dock_at_top
-              extension = 99999 ).
+              side  = cl_gui_docking_container=>dock_at_left
+              ratio = 90 ).
 
   " 3행 1열 : 요약 / Top-N / ALV영역
   go_split = NEW cl_gui_splitter_container(
