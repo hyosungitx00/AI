@@ -20,6 +20,12 @@ REPORT z_ops_monitor.
 TYPE-POOLS: icon.
 
 *&---------------------------------------------------------------------*
+*& SELECT-OPTIONS 참조용 투명 테이블 선언
+*&---------------------------------------------------------------------*
+TABLES: tbtco,      " SM37 : jobname / sdluname
+        sxmspemas.  " SXI  : ob_name (인터페이스명)
+
+*&---------------------------------------------------------------------*
 *& 로컬 타입 정의 (DDIC 미사용)
 *&---------------------------------------------------------------------*
 TYPES: BEGIN OF ty_sm37,
@@ -130,9 +136,9 @@ PARAMETERS: cb_sm37 TYPE c AS CHECKBOX DEFAULT 'X',
 SELECTION-SCREEN END OF BLOCK b2.
 
 SELECTION-SCREEN BEGIN OF BLOCK b3 WITH FRAME TITLE TEXT-b03.
-SELECT-OPTIONS: so_job   FOR gt_sm37-jobname,
-                so_user  FOR gt_sm37-sdluname,
-                so_iface FOR gt_sxi-if_name.
+SELECT-OPTIONS: so_job   FOR tbtco-jobname,
+                so_user  FOR tbtco-sdluname,
+                so_iface FOR sxmspemas-ob_name.
 PARAMETERS: p_mand TYPE mandt DEFAULT sy-mandt.
 SELECTION-SCREEN END OF BLOCK b3.
 
