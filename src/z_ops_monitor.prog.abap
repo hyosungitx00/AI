@@ -99,9 +99,13 @@ DATA: gv_cnt_sm37 TYPE i,
       gv_cnt_sxi  TYPE i.
 
 " 컨테이너 / SALV (전역)
-DATA: go_dock   TYPE REF TO cl_gui_docking_container,
+DATA: go_custom TYPE REF TO cl_gui_custom_container,  " 화면 0100 의 Custom Control 'CC_DASH'
       go_split  TYPE REF TO cl_gui_splitter_container,
       go_split2 TYPE REF TO cl_gui_splitter_container.
+
+" 화면 0100 제어
+DATA: ok_code  TYPE sy-ucomm,
+      gv_built TYPE abap_bool.
 
 DATA: go_salv_sum  TYPE REF TO cl_salv_table,
       go_salv_top  TYPE REF TO cl_salv_table,
@@ -229,11 +233,9 @@ START-OF-SELECTION.
   PERFORM build_topn.
   PERFORM build_summary.
   PERFORM apply_maxrow.
-  PERFORM show_dashboard.
 
-  " 리스트 화면을 유지시켜 도킹 컨테이너(대시보드)가 표시되도록 함.
-  " (출력이 전혀 없으면 화면이 유지되지 않아 대시보드가 보이지 않음)
-  WRITE space.
+  " 전용 화면(Dynpro 0100)에서 대시보드 표시
+  CALL SCREEN 0100.
 
 *&---------------------------------------------------------------------*
 *& FORM set_default_period
@@ -510,7 +512,7 @@ ENDFORM.
 
 *&---------------------------------------------------------------------*
 *& FORM show_dashboard
-*&   도킹 컨테이너 + 스플리터(요약 / Top-N / 3분할 ALV)
+*&   Custom Container + 스플리터(요약 / Top-N / 3분할 ALV)
 *&---------------------------------------------------------------------*
 FORM show_dashboard.
   DATA: lo_c1 TYPE REF TO cl_gui_container,
@@ -522,13 +524,12 @@ FORM show_dashboard.
 
   go_handler = NEW lcl_handler( ).
 
-  go_dock = NEW cl_gui_docking_container(
-              side  = cl_gui_docking_container=>dock_at_left
-              ratio = 90 ).
+  " 화면 0100 의 Custom Control 'CC_DASH' 에 연결
+  go_custom = NEW cl_gui_custom_container( container_name = 'CC_DASH' ).
 
   " 3행 1열 : 요약 / Top-N / ALV영역
   go_split = NEW cl_gui_splitter_container(
-               parent  = go_dock
+               parent  = go_custom
                rows    = 3
                columns = 1 ).
   go_split->set_row_height( id = 1 height = 14 ).
@@ -626,3 +627,34 @@ FORM build_salv USING io_cont TYPE REF TO cl_gui_container
       MESSAGE lx_msg->get_text( ) TYPE 'S' DISPLAY LIKE 'W'.
   ENDTRY.
 ENDFORM.
+
+*&---------------------------------------------------------------------*
+*& MODULE status_0100 OUTPUT  (PBO)
+*&   - GUI 상태 설정 + 대시보드 최초 1회 생성
+*&---------------------------------------------------------------------*
+MODULE status_0100 OUTPUT.
+  SET PF-STATUS 'STATUS_0100'.
+
+  IF gv_built = abap_false.
+    PERFORM show_dashboard.
+    gv_built = abap_true.
+  ENDIF.
+ENDMODULE.
+
+*&---------------------------------------------------------------------*
+*& MODULE user_command_0100 INPUT  (PAI)
+*&---------------------------------------------------------------------*
+MODULE user_command_0100 INPUT.
+  DATA lv_ok TYPE sy-ucomm.
+  lv_ok = ok_code.
+  CLEAR ok_code.
+
+  CASE lv_ok.
+    WHEN 'BACK' OR 'EXIT' OR 'CANC'.
+      IF go_custom IS NOT INITIAL.
+        go_custom->free( ).
+        CLEAR go_custom.
+      ENDIF.
+      LEAVE TO SCREEN 0.
+  ENDCASE.
+ENDMODULE.
