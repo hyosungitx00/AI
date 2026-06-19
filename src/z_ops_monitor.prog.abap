@@ -10,8 +10,7 @@
 *&        INSERT/UPDATE/MODIFY/DELETE/COMMIT/ENQUEUE 등 일절 없음.
 *&
 *& [주의/TODO]
-*&   - RS_ST22_GET_DUMPS 의 import 파라미터명이 미검증이라 동적 호출 사용.
-*&     => 정확한 이름 확인 후 상수 C_ST22_DATE_PARAM 수정(또는 정적 호출 전환).
+*&   - RS_ST22_GET_DUMPS : EXPORTING p_day / IMPORTING p_infotab(RSDUMPTAB) 정적 호출.
 *&   - 권한 객체(S_BTCH_JOB / S_ADMI_FCD / S_XMB_MONI)는 SU24/STAUTHTRACE 검증 후 확정.
 *&   - IGS 차트(CL_GUI_CHART_ENGINE)는 본 프로토타입 제외(Top-N 그리드로 대체).
 *&---------------------------------------------------------------------*
@@ -112,8 +111,6 @@ DATA: go_salv_sum  TYPE REF TO cl_salv_table,
       go_salv_sm37 TYPE REF TO cl_salv_table,
       go_salv_st22 TYPE REF TO cl_salv_table,
       go_salv_sxi  TYPE REF TO cl_salv_table.
-
-CONSTANTS: c_st22_date_param TYPE string VALUE 'DATE'. "#EC NOTEXT  TODO: SE37 검증
 
 *&---------------------------------------------------------------------*
 *& 신호등 임계치 (O-6 확정) - 클래스/상수 관리
@@ -303,42 +300,30 @@ ENDFORM.
 
 *&---------------------------------------------------------------------*
 *& FORM get_st22_for_date
-*&   RS_ST22_GET_DUMPS 동적 호출(파라미터명 미검증 대응) + 시간 필터
+*&   RS_ST22_GET_DUMPS( p_day ) 정적 호출 + 경계일 시간 필터
 *&---------------------------------------------------------------------*
 FORM get_st22_for_date USING iv_date TYPE d.
   DATA: lt_info TYPE rsdumptab,
-        lt_ptab TYPE abap_func_parmbind_tab,
-        ls_ptab TYPE abap_func_parmbind,
-        lt_etab TYPE abap_func_excpbind_tab,
-        ls_etab TYPE abap_func_excpbind,
         lv_date TYPE d.
 
   lv_date = iv_date.
 
-  " 미등록 예외로 인한 덤프 방지
-  ls_etab-name  = 'OTHERS'.
-  ls_etab-value = 99.
-  INSERT ls_etab INTO TABLE lt_etab.
-
-  " EXPORTING : dump 날짜 (파라미터명은 C_ST22_DATE_PARAM 으로 검증/수정)
-  ls_ptab-kind = abap_func_exporting.
-  ls_ptab-name = c_st22_date_param.
-  GET REFERENCE OF lv_date INTO ls_ptab-value.
-  INSERT ls_ptab INTO TABLE lt_ptab.
-  CLEAR ls_ptab.
-
-  " IMPORTING : P_INFOTAB (TYPE RSDUMPTAB)
-  ls_ptab-kind = abap_func_importing.
-  ls_ptab-name = 'P_INFOTAB'.
-  GET REFERENCE OF lt_info INTO ls_ptab-value.
-  INSERT ls_ptab INTO TABLE lt_ptab.
-
   TRY.
       CALL FUNCTION 'RS_ST22_GET_DUMPS'
-        PARAMETER-TABLE lt_ptab
-        EXCEPTION-TABLE lt_etab.
+        EXPORTING
+          p_day        = lv_date
+        IMPORTING
+          p_infotab    = lt_info
+        EXCEPTIONS
+          no_authority = 1
+          others       = 2.
+      IF sy-subrc <> 0.
+        MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+          WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+      ENDIF.
+
     CATCH cx_root.
-      " 파라미터명/시그니처 불일치 시 해당 날짜 스킵 (프로그램은 계속 동작)
+      " 시그니처 불일치 등 예외 시 해당 날짜 스킵 (프로그램은 계속 동작)
       RETURN.
   ENDTRY.
 
