@@ -576,12 +576,7 @@ ENDFORM.
 FORM build_chart USING io_cont TYPE REF TO cl_gui_container.
   DATA: lv_xml    TYPE string,
         lv_cats   TYPE string,
-        lv_points TYPE string,
-        lo_ixml   TYPE REF TO if_ixml,
-        lo_sf     TYPE REF TO if_ixml_stream_factory,
-        lo_is     TYPE REF TO if_ixml_istream,
-        lo_doc    TYPE REF TO if_ixml_document,
-        lo_parser TYPE REF TO if_ixml_parser.
+        lv_points TYPE string.
 
   IF gt_top IS INITIAL.
     RETURN.
@@ -599,17 +594,9 @@ FORM build_chart USING io_cont TYPE REF TO cl_gui_container.
         && |</ChartData>|.
 
   TRY.
-      lo_ixml   = cl_ixml=>create( ).
-      lo_doc    = lo_ixml->create_document( ).
-      lo_sf     = lo_ixml->create_stream_factory( ).
-      lo_is     = lo_sf->create_istream_string( lv_xml ).
-      lo_parser = lo_ixml->create_parser( document       = lo_doc
-                                          istream        = lo_is
-                                          stream_factory = lo_sf ).
-      lo_parser->parse( ).
-
       go_chart = NEW cl_gui_chart_engine( parent = io_cont ).
-      go_chart->set_data( data = lo_doc ).
+      " SET_DATA 의 DATA 파라미터는 STRING(문자열 XML) → 그대로 전달
+      go_chart->set_data( data = lv_xml ).
       go_chart->render( ).
 
     CATCH cx_root INTO DATA(lx).
