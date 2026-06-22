@@ -12,11 +12,7 @@
 *& [주의/TODO]
 *&   - RS_ST22_GET_DUMPS : EXPORTING p_day / IMPORTING p_infotab(RSDUMPTAB) 정적 호출.
 *&   - 권한 객체(S_BTCH_JOB / S_ADMI_FCD / S_XMB_MONI)는 SU24/STAUTHTRACE 검증 후 확정.
-*&
-*& [화면 구성] 설계서대로:
-*&   - 상단 요약 바 : CL_DD_DOCUMENT (신호등 아이콘 + 건수, ALV 아님)
-*&   - 중단 Top-N   : CL_GUI_CHART_ENGINE (IGS 차트)
-*&   - 하단 3분할   : CL_SALV_TABLE (SM37 / ST22 / SXI)
+*&   - IGS 차트(CL_GUI_CHART_ENGINE)는 본 프로토타입 제외(Top-N 그리드로 대체).
 *&---------------------------------------------------------------------*
 REPORT z_ops_monitor.
 
@@ -73,6 +69,13 @@ TYPES: BEGIN OF ty_sxi,
        END OF ty_sxi,
        tt_sxi TYPE STANDARD TABLE OF ty_sxi WITH DEFAULT KEY.
 
+TYPES: BEGIN OF ty_sum,
+         light TYPE c LENGTH 4,
+         area  TYPE c LENGTH 30,
+         count TYPE i,
+       END OF ty_sum,
+       tt_sum TYPE STANDARD TABLE OF ty_sum WITH DEFAULT KEY.
+
 TYPES: BEGIN OF ty_top,
          area  TYPE c LENGTH 8,
          key   TYPE c LENGTH 120,
@@ -86,6 +89,7 @@ TYPES: BEGIN OF ty_top,
 DATA: gt_sm37 TYPE tt_sm37,
       gt_st22 TYPE tt_st22,
       gt_sxi  TYPE tt_sxi,
+      gt_sum  TYPE tt_sum,
       gt_top  TYPE tt_top.
 
 " 전체 건수(표시 상한 적용 전 = 차트/요약 집계 기준)
@@ -102,11 +106,14 @@ DATA: go_custom TYPE REF TO cl_gui_custom_container,  " 화면 0100 의 Custom C
 DATA: ok_code  TYPE sy-ucomm,
       gv_built TYPE abap_bool.
 
-DATA: go_dd        TYPE REF TO cl_dd_document,      " 요약 바 (ALV 아님)
-      go_chart     TYPE REF TO cl_gui_chart_engine, " Top-N 차트 (IGS)
+DATA: go_salv_sum  TYPE REF TO cl_salv_table,
+      go_salv_top  TYPE REF TO cl_salv_table,
       go_salv_sm37 TYPE REF TO cl_salv_table,
       go_salv_st22 TYPE REF TO cl_salv_table,
       go_salv_sxi  TYPE REF TO cl_salv_table.
+
+DATA: go_dd    TYPE REF TO cl_dd_document,      " 요약 텍스트 보드
+      go_chart TYPE REF TO cl_gui_chart_engine. " Top-N 차트(IGS)
 
 *&---------------------------------------------------------------------*
 *& 신호등 임계치 (O-6 확정) - 클래스/상수 관리
@@ -210,7 +217,7 @@ AT SELECTION-SCREEN.
 *& START-OF-SELECTION
 *&---------------------------------------------------------------------*
 START-OF-SELECTION.
-  CLEAR: gt_sm37, gt_st22, gt_sxi, gt_top,
+  CLEAR: gt_sm37, gt_st22, gt_sxi, gt_sum, gt_top,
          gv_cnt_sm37, gv_cnt_st22, gv_cnt_sxi.
 
   IF cb_sm37 = 'X'.
@@ -224,6 +231,7 @@ START-OF-SELECTION.
   ENDIF.
 
   PERFORM build_topn.
+  PERFORM build_summary.
   PERFORM apply_maxrow.
 
   " 전용 화면(Dynpro 0100)에서 대시보드 표시
@@ -442,6 +450,32 @@ FORM build_topn.
 ENDFORM.
 
 *&---------------------------------------------------------------------*
+*& FORM build_summary  (신호등 3단계 - O-6)
+*&---------------------------------------------------------------------*
+FORM build_summary.
+  " SM37 : 0 녹 / >=1 적
+  APPEND VALUE ty_sum(
+      area  = 'SM37 배치 에러'
+      count = gv_cnt_sm37
+      light = COND #( WHEN gv_cnt_sm37 = 0 THEN icon_green_light
+                      ELSE icon_red_light ) ) TO gt_sum.
+  " ST22 : 0 녹 / 1~30 황 / >=31 적
+  APPEND VALUE ty_sum(
+      area  = 'ST22 덤프'
+      count = gv_cnt_st22
+      light = COND #( WHEN gv_cnt_st22 = 0 THEN icon_green_light
+                      WHEN gv_cnt_st22 >= c_st22_red THEN icon_red_light
+                      ELSE icon_yellow_light ) ) TO gt_sum.
+  " SXI : 0 녹 / 1~50 황 / >=51 적
+  APPEND VALUE ty_sum(
+      area  = 'SXI 인터페이스 에러'
+      count = gv_cnt_sxi
+      light = COND #( WHEN gv_cnt_sxi = 0 THEN icon_green_light
+                      WHEN gv_cnt_sxi >= c_sxi_red THEN icon_red_light
+                      ELSE icon_yellow_light ) ) TO gt_sum.
+ENDFORM.
+
+*&---------------------------------------------------------------------*
 *& FORM apply_maxrow  (표시 상한 - 최신순, 집계는 이미 전체기준 완료)
 *&---------------------------------------------------------------------*
 FORM apply_maxrow.
@@ -502,107 +536,13 @@ FORM show_dashboard.
   lo_s2 = go_split2->get_container( row = 1 column = 2 ).
   lo_s3 = go_split2->get_container( row = 1 column = 3 ).
 
-  PERFORM build_summary_dd USING lo_c1.   " 요약 바 (CL_DD_DOCUMENT)
-  PERFORM build_chart      USING lo_c2.   " Top-N 차트 (CL_GUI_CHART_ENGINE)
+*  PERFORM build_salv USING lo_c1 'SUMMARY'.
+*  PERFORM build_salv USING lo_c2 'TOPN'.
+  PERFORM build_summary_dd USING lo_c1.   " 요약 텍스트 보드
+  PERFORM build_chart      USING lo_c2.   " Top-N 차트
   PERFORM build_salv USING lo_s1 'SM37'.
   PERFORM build_salv USING lo_s2 'ST22'.
   PERFORM build_salv USING lo_s3 'SXI'.
-ENDFORM.
-
-*&---------------------------------------------------------------------*
-*& FORM build_summary_dd  (요약 바 : 신호등 아이콘 + 건수 - ALV 아님)
-*&---------------------------------------------------------------------*
-FORM build_summary_dd USING io_cont TYPE REF TO cl_gui_container.
-  go_dd = NEW cl_dd_document( ).
-
-  go_dd->add_text( text = CONV sdydo_text_element( |[ 통합 운영 모니터링 요약 ]  조회: { p_frdat DATE = USER } { p_frtim TIME = USER } ~ { p_todat DATE = USER } { p_totim TIME = USER }| ) ).
-  go_dd->new_line( ).
-  go_dd->add_gap( width = 5 ).
-
-  PERFORM add_sum_item USING '배치에러(SM37)'   gv_cnt_sm37 'SM37'.
-  PERFORM add_sum_item USING '덤프(ST22)'        gv_cnt_st22 'ST22'.
-  PERFORM add_sum_item USING '인터페이스(SXI)'   gv_cnt_sxi  'SXI'.
-
-  go_dd->merge_document( ).
-  go_dd->display_document( parent = io_cont ).
-ENDFORM.
-
-*&---------------------------------------------------------------------*
-*& FORM add_sum_item  (요약 항목 1개 : 신호등 + 라벨 + 건수)
-*&---------------------------------------------------------------------*
-FORM add_sum_item USING iv_label TYPE string
-                        iv_cnt   TYPE i
-                        iv_kind  TYPE string.
-  DATA: lv_icon TYPE string,
-        lv_stat TYPE string.
-
-  CASE iv_kind.
-    WHEN 'SM37'.
-      IF iv_cnt = 0.
-        lv_icon = 'ICON_GREEN_LIGHT'.  lv_stat = '정상'.
-      ELSE.
-        lv_icon = 'ICON_RED_LIGHT'.    lv_stat = '심각'.
-      ENDIF.
-    WHEN 'ST22'.
-      IF iv_cnt = 0.
-        lv_icon = 'ICON_GREEN_LIGHT'.  lv_stat = '정상'.
-      ELSEIF iv_cnt >= c_st22_red.
-        lv_icon = 'ICON_RED_LIGHT'.    lv_stat = '심각'.
-      ELSE.
-        lv_icon = 'ICON_YELLOW_LIGHT'. lv_stat = '주의'.
-      ENDIF.
-    WHEN 'SXI'.
-      IF iv_cnt = 0.
-        lv_icon = 'ICON_GREEN_LIGHT'.  lv_stat = '정상'.
-      ELSEIF iv_cnt >= c_sxi_red.
-        lv_icon = 'ICON_RED_LIGHT'.    lv_stat = '심각'.
-      ELSE.
-        lv_icon = 'ICON_YELLOW_LIGHT'. lv_stat = '주의'.
-      ENDIF.
-  ENDCASE.
-
-  " 영역별로 한 줄씩(텍스트 보드 형태)
-  go_dd->add_gap( width = 8 ).
-  go_dd->add_icon( sap_icon = CONV #( lv_icon ) ).
-  go_dd->add_text( text = CONV sdydo_text_element(
-      |  { iv_label } : { iv_cnt } 건   [ { lv_stat } ]| ) ).
-  go_dd->new_line( ).
-ENDFORM.
-
-*&---------------------------------------------------------------------*
-*& FORM build_chart  (Top-N 차트 : CL_GUI_CHART_ENGINE / IGS)
-*&   gt_top 에서 데이터 XML 구성 후 렌더링 (영역별 독립 Top-N, 전체 기준)
-*&---------------------------------------------------------------------*
-FORM build_chart USING io_cont TYPE REF TO cl_gui_container.
-  DATA: lv_xml    TYPE string,
-        lv_cats   TYPE string,
-        lv_points TYPE string.
-
-  IF gt_top IS INITIAL.
-    RETURN.
-  ENDIF.
-
-  LOOP AT gt_top INTO DATA(ls_top).
-    lv_cats   = lv_cats   && |<Category>{ ls_top-key } ({ ls_top-area })</Category>|.
-    lv_points = lv_points && |<Point><Value type="y">{ ls_top-count }</Value></Point>|.
-  ENDLOOP.
-
-  lv_xml = |<?xml version="1.0" encoding="utf-8"?>|
-        && |<ChartData>|
-        && |<Categories>| && lv_cats && |</Categories>|
-        && |<Series label="에러 건수">| && lv_points && |</Series>|
-        && |</ChartData>|.
-
-  TRY.
-      go_chart = NEW cl_gui_chart_engine( parent = io_cont ).
-      " SET_DATA 의 DATA 파라미터는 STRING(문자열 XML) → 그대로 전달
-      go_chart->set_data( data = lv_xml ).
-      go_chart->render( ).
-
-    CATCH cx_root INTO DATA(lx).
-      MESSAGE |Top-N 차트 표시 실패: { lx->get_text( ) }| TYPE 'S'
-              DISPLAY LIKE 'W'.
-  ENDTRY.
 ENDFORM.
 
 *&---------------------------------------------------------------------*
@@ -617,6 +557,18 @@ FORM build_salv USING io_cont TYPE REF TO cl_gui_container
 
   TRY.
       CASE iv_kind.
+*        WHEN 'SUMMARY'.
+*          cl_salv_table=>factory( EXPORTING r_container = io_cont
+*                                  IMPORTING r_salv_table = lo_salv
+*                                  CHANGING  t_table = gt_sum ).
+*          go_salv_sum = lo_salv.
+*          lv_title = '운영 모니터링 요약 (신호등)'.
+*        WHEN 'TOPN'.
+*          cl_salv_table=>factory( EXPORTING r_container = io_cont
+*                                  IMPORTING r_salv_table = lo_salv
+*                                  CHANGING  t_table = gt_top ).
+*          go_salv_top = lo_salv.
+*          lv_title = '에러 집중도 Top-N (영역별, 전체 기준)'.
         WHEN 'SM37'.
           cl_salv_table=>factory( EXPORTING r_container = io_cont
                                   IMPORTING r_salv_table = lo_salv
@@ -663,6 +615,106 @@ FORM build_salv USING io_cont TYPE REF TO cl_gui_container
 
     CATCH cx_salv_msg INTO DATA(lx_msg).
       MESSAGE lx_msg->get_text( ) TYPE 'S' DISPLAY LIKE 'W'.
+  ENDTRY.
+ENDFORM.
+
+*&---------------------------------------------------------------------*
+*& FORM build_summary_dd  (요약 : 텍스트 보드 - CL_DD_DOCUMENT, ALV 아님)
+*&---------------------------------------------------------------------*
+FORM build_summary_dd USING io_cont TYPE REF TO cl_gui_container.
+  go_dd = NEW cl_dd_document( ).
+
+  go_dd->add_text( text = CONV sdydo_text_element(
+      |[ 통합 운영 모니터링 요약 ]  조회: { p_frdat DATE = USER } { p_frtim TIME = USER }|
+   && | ~ { p_todat DATE = USER } { p_totim TIME = USER }| ) ).
+  go_dd->new_line( ).
+  go_dd->new_line( ).
+*  go_dd->add_gap( width = 5 ).
+
+  PERFORM add_sum_item USING '배치에러(SM37)'  gv_cnt_sm37 'SM37'.
+  PERFORM add_sum_item USING '덤프(ST22)'       gv_cnt_st22 'ST22'.
+  PERFORM add_sum_item USING '인터페이스(SXI)'  gv_cnt_sxi  'SXI'.
+
+  go_dd->merge_document( ).
+  go_dd->display_document( parent = io_cont ).
+ENDFORM.
+
+*&---------------------------------------------------------------------*
+*& FORM add_sum_item  (요약 1줄 : 신호등 아이콘 + 라벨 + 건수 + 상태)
+*&---------------------------------------------------------------------*
+FORM add_sum_item USING iv_label TYPE string
+                        iv_cnt   TYPE i
+                        iv_kind  TYPE string.
+  DATA: lv_icon TYPE string,
+        lv_stat TYPE string.
+
+  CASE iv_kind.
+    WHEN 'SM37'.
+      IF iv_cnt = 0. lv_icon = 'ICON_GREEN_LIGHT'. lv_stat = '정상'.
+      ELSE.          lv_icon = 'ICON_RED_LIGHT'.   lv_stat = '심각'. ENDIF.
+    WHEN 'ST22'.
+      go_dd->add_gap( width = 5 ).
+      IF iv_cnt = 0.               lv_icon = 'ICON_GREEN_LIGHT'.  lv_stat = '정상'.
+      ELSEIF iv_cnt >= c_st22_red. lv_icon = 'ICON_RED_LIGHT'.    lv_stat = '심각'.
+      ELSE.                        lv_icon = 'ICON_YELLOW_LIGHT'. lv_stat = '주의'. ENDIF.
+    WHEN 'SXI'.
+      go_dd->add_gap( width = 5 ).
+      IF iv_cnt = 0.              lv_icon = 'ICON_GREEN_LIGHT'.  lv_stat = '정상'.
+      ELSEIF iv_cnt >= c_sxi_red. lv_icon = 'ICON_RED_LIGHT'.    lv_stat = '심각'.
+      ELSE.                       lv_icon = 'ICON_YELLOW_LIGHT'. lv_stat = '주의'. ENDIF.
+  ENDCASE.
+
+*  go_dd->add_gap( width = 8 ).
+  go_dd->add_icon( sap_icon = CONV #( lv_icon ) ).
+  go_dd->add_text( text = CONV sdydo_text_element(
+      |  { iv_label } : { iv_cnt } 건   [ { lv_stat } ]| ) ).
+
+ENDFORM.
+
+*&---------------------------------------------------------------------*
+*& FORM build_chart  (Top-N : CL_GUI_CHART_ENGINE / IGS 차트, ALV 아님)
+*&---------------------------------------------------------------------*
+FORM build_chart USING io_cont TYPE REF TO cl_gui_container.
+  DATA: lv_xml    TYPE string,
+        lv_cats   TYPE string,
+        lv_points TYPE string,
+        lo_ixml   TYPE REF TO if_ixml,
+        lo_sf     TYPE REF TO if_ixml_stream_factory,
+        lo_is     TYPE REF TO if_ixml_istream,
+        lo_doc    TYPE REF TO if_ixml_document,
+        lo_parser TYPE REF TO if_ixml_parser.
+
+  IF gt_top IS INITIAL.
+    RETURN.
+  ENDIF.
+
+  LOOP AT gt_top INTO DATA(ls_top).
+    lv_cats   = lv_cats   && |<Category>{ ls_top-key } ({ ls_top-area })</Category>|.
+    lv_points = lv_points && |<Point><Value type="y">{ ls_top-count }</Value></Point>|.
+  ENDLOOP.
+
+  lv_xml = |<?xml version="1.0" encoding="utf-8"?>|
+        && |<ChartData>|
+        && |<Categories>| && lv_cats && |</Categories>|
+        && |<Series label="에러 건수">| && lv_points && |</Series>|
+        && |</ChartData>|.
+
+  TRY.
+      lo_ixml   = cl_ixml=>create( ).
+      lo_doc    = lo_ixml->create_document( ).
+      lo_sf     = lo_ixml->create_stream_factory( ).
+      lo_is     = lo_sf->create_istream_string( lv_xml ).
+      lo_parser = lo_ixml->create_parser( document       = lo_doc
+                                          istream        = lo_is
+                                          stream_factory = lo_sf ).
+      lo_parser->parse( ).
+
+      go_chart = NEW cl_gui_chart_engine( parent = io_cont ).
+      go_chart->set_data( data = lv_xml ).   " DATA = STRING (문자열 XML)
+      go_chart->render( ).
+    CATCH cx_root INTO DATA(lx).
+      MESSAGE |Top-N 차트 표시 실패: { lx->get_text( ) }| TYPE 'S'
+              DISPLAY LIKE 'W'.
   ENDTRY.
 ENDFORM.
 
