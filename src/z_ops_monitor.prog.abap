@@ -381,9 +381,12 @@ FORM get_sxi.
          emas~ob_system AS sender,
          emas~ib_system AS receiver
     FROM sxmsperror AS err
-    INNER JOIN sxmspmast AS mast ON mast~msgguid = err~msgguid
-    LEFT OUTER JOIN sxmspemas AS emas ON emas~msgguid = err~msgguid
+    INNER JOIN sxmspmast AS mast ON  mast~msgguid = err~msgguid
+                                 AND mast~pid     = err~pid
+    INNER JOIN sxmspemas AS emas ON  emas~msgguid = err~msgguid
+                                 AND emas~pid     = err~pid
    WHERE err~exetimest BETWEEN @lv_from AND @lv_to
+     AND emas~ob_name <> @space          " 인터페이스명이 존재하는 건만
      AND emas~ob_name IN @so_iface
     INTO TABLE @DATA(lt_sxi).
 
