@@ -594,7 +594,7 @@ FORM build_chart USING io_cont TYPE REF TO cl_gui_container.
       lo_parser->parse( ).
 
       go_chart = NEW cl_gui_chart_engine( parent = io_cont ).
-      go_chart->set_data( lo_doc ).
+      go_chart->set_data( data = lo_doc ).
       go_chart->render( ).
 
     CATCH cx_root INTO DATA(lx).
