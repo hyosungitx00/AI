@@ -533,25 +533,40 @@ ENDFORM.
 FORM add_sum_item USING iv_label TYPE string
                         iv_cnt   TYPE i
                         iv_kind  TYPE string.
-  DATA lv_icon TYPE string.
+  DATA: lv_icon TYPE string,
+        lv_stat TYPE string.
 
   CASE iv_kind.
     WHEN 'SM37'.
-      lv_icon = COND #( WHEN iv_cnt = 0 THEN 'ICON_GREEN_LIGHT'
-                        ELSE 'ICON_RED_LIGHT' ).
+      IF iv_cnt = 0.
+        lv_icon = 'ICON_GREEN_LIGHT'.  lv_stat = '정상'.
+      ELSE.
+        lv_icon = 'ICON_RED_LIGHT'.    lv_stat = '심각'.
+      ENDIF.
     WHEN 'ST22'.
-      lv_icon = COND #( WHEN iv_cnt = 0 THEN 'ICON_GREEN_LIGHT'
-                        WHEN iv_cnt >= c_st22_red THEN 'ICON_RED_LIGHT'
-                        ELSE 'ICON_YELLOW_LIGHT' ).
+      IF iv_cnt = 0.
+        lv_icon = 'ICON_GREEN_LIGHT'.  lv_stat = '정상'.
+      ELSEIF iv_cnt >= c_st22_red.
+        lv_icon = 'ICON_RED_LIGHT'.    lv_stat = '심각'.
+      ELSE.
+        lv_icon = 'ICON_YELLOW_LIGHT'. lv_stat = '주의'.
+      ENDIF.
     WHEN 'SXI'.
-      lv_icon = COND #( WHEN iv_cnt = 0 THEN 'ICON_GREEN_LIGHT'
-                        WHEN iv_cnt >= c_sxi_red THEN 'ICON_RED_LIGHT'
-                        ELSE 'ICON_YELLOW_LIGHT' ).
+      IF iv_cnt = 0.
+        lv_icon = 'ICON_GREEN_LIGHT'.  lv_stat = '정상'.
+      ELSEIF iv_cnt >= c_sxi_red.
+        lv_icon = 'ICON_RED_LIGHT'.    lv_stat = '심각'.
+      ELSE.
+        lv_icon = 'ICON_YELLOW_LIGHT'. lv_stat = '주의'.
+      ENDIF.
   ENDCASE.
 
+  " 영역별로 한 줄씩(텍스트 보드 형태)
+  go_dd->add_gap( width = 8 ).
   go_dd->add_icon( sap_icon = CONV #( lv_icon ) ).
-  go_dd->add_text( text = CONV sdydo_text_element( |{ iv_label } { iv_cnt }건| ) ).
-  go_dd->add_gap( width = 40 ).
+  go_dd->add_text( text = CONV sdydo_text_element(
+      |  { iv_label } : { iv_cnt } 건   [ { lv_stat } ]| ) ).
+  go_dd->new_line( ).
 ENDFORM.
 
 *&---------------------------------------------------------------------*
