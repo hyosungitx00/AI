@@ -434,19 +434,11 @@ FORM build_topn.
     COLLECT ls_tmp INTO lt_tmp.
   ENDLOOP.
 
-  SORT lt_tmp BY area ASCENDING count DESCENDING.
+  SORT lt_tmp BY count DESCENDING.
 
-  DATA: lv_area TYPE c LENGTH 8,
-        lv_rank TYPE i.
-  LOOP AT lt_tmp INTO ls_tmp.
-    IF ls_tmp-area <> lv_area.
-      lv_area = ls_tmp-area.
-      lv_rank = 0.
-    ENDIF.
-    lv_rank = lv_rank + 1.
-    CHECK lv_rank <= p_topn.
-    APPEND ls_tmp TO gt_top.
-  ENDLOOP.
+  DELETE lt_tmp FROM ( p_topn + 1 ).
+
+  MOVE-CORRESPONDING lt_tmp TO gt_top.
 ENDFORM.
 
 *&---------------------------------------------------------------------*
