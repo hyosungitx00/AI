@@ -118,8 +118,9 @@ DATA: go_dd    TYPE REF TO cl_dd_document,      " 요약 텍스트 보드
 *&---------------------------------------------------------------------*
 *& 신호등 임계치 (O-6 확정) - 클래스/상수 관리
 *&---------------------------------------------------------------------*
-CONSTANTS: c_st22_red TYPE i VALUE 31,   " ST22 : 1~30 황 / >=31 적
-           c_sxi_red  TYPE i VALUE 51.   " SXI  : 1~50 황 / >=51 적
+CONSTANTS: c_st22_red  TYPE i VALUE 31,   " ST22 : 1~30 황 / >=31 적
+           c_sxi_red   TYPE i VALUE 51,   " SXI  : 1~50 황 / >=51 적
+           c_def_hours TYPE i VALUE 24.   " 기본 조회 범위(시간) : 현재-24H
 "          SM37 : 0 녹 / >=1 적 (황 없음)
 
 *&---------------------------------------------------------------------*
@@ -129,8 +130,7 @@ SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE TEXT-b01.
 PARAMETERS: p_frdat TYPE d,
             p_frtim TYPE t,
             p_todat TYPE d,
-            p_totim TYPE t,
-            p_hours TYPE i DEFAULT 24.
+            p_totim TYPE t.
 SELECTION-SCREEN END OF BLOCK b1.
 
 SELECTION-SCREEN BEGIN OF BLOCK b2 WITH FRAME TITLE TEXT-b02.
@@ -249,7 +249,7 @@ FORM set_default_period.
   CONVERT DATE sy-datum TIME sy-uzeit
           INTO TIME STAMP lv_ts TIME ZONE sy-zonlo.
   lv_ts = cl_abap_tstmp=>subtractsecs( tstmp = lv_ts
-                                       secs  = p_hours * 3600 ).
+                                       secs  = c_def_hours * 3600 ).
   CONVERT TIME STAMP lv_ts TIME ZONE sy-zonlo
           INTO DATE p_frdat TIME p_frtim.
 ENDFORM.
@@ -439,9 +439,15 @@ FORM build_topn.
 
   SORT lt_tmp BY count DESCENDING.
 
-  DELETE lt_tmp FROM ( p_topn + 1 ).
-
-  MOVE-CORRESPONDING lt_tmp TO gt_top.
+  " 상위 p_topn 개만 추출 (전역 기준). 산술식 인덱스 DELETE 대신 안전한 루프 사용.
+  DATA lv_rank TYPE i.
+  LOOP AT lt_tmp INTO ls_tmp.
+    lv_rank = lv_rank + 1.
+    IF lv_rank > p_topn.
+      EXIT.
+    ENDIF.
+    APPEND ls_tmp TO gt_top.
+  ENDLOOP.
 ENDFORM.
 
 *&---------------------------------------------------------------------*
