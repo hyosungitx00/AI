@@ -1214,17 +1214,17 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
                                       format = cl_abap_format=>e_xml_text ) }">{ lv_pts }</Series>|
         && |</ChartData>|.
 
-      " 커스터마이징 XML (가로 막대 + 제목)
+      " 커스터마이징 XML (가로 막대 + 제목) - SAPChartCustomizing 2.0
       DATA(lv_cust) = |<?xml version="1.0" encoding="utf-8"?>|
-        && |<SAPChartCustomizing version="1.1">|
-        && |<GlobalSettings><ChartType>Bars</ChartType></GlobalSettings>|
-        && |<ChartElements><Title><Extension><Text>|
+        && |<SAPChartCustomizing version="2.0">|
+        && |<GlobalSettings><Defaults><ChartType>Bars</ChartType></Defaults></GlobalSettings>|
+        && |<Elements><ChartElements><Title><Caption>|
         && escape( val = lv_title format = cl_abap_format=>e_xml_text )
-        && |</Text></Extension></Title></ChartElements>|
+        && |</Caption></Title></ChartElements></Elements>|
         && |</SAPChartCustomizing>|.
 
-      <cc>-chart->set_customizing( lv_cust ).
-      <cc>-chart->set_data( lv_data ).
+      <cc>-chart->set_customizing( data = lv_cust ).
+      <cc>-chart->set_data( data = lv_data ).
       <cc>-chart->render( ).
     ENDLOOP.
   ENDMETHOD.
