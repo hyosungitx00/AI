@@ -956,18 +956,46 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
     ENDIF.
     " Dynpro 0100 의 Custom Control 이름 = 'CC_DASH' (SE51 에서 생성)
     CREATE OBJECT mo_cont
-      EXPORTING container_name = 'CC_DASH'.
+      EXPORTING  container_name              = 'CC_DASH'
+      EXCEPTIONS cntl_error                  = 1
+                 cntl_system_error           = 2
+                 create_error                = 3
+                 lifetime_error              = 4
+                 lifetime_dynpro_dynpro_link = 5
+                 OTHERS                      = 6.
+    IF sy-subrc <> 0.
+      MESSAGE |CC_DASH 컨테이너 생성 실패 (subrc={ sy-subrc }). 화면 0100 의 Custom Control 이름을 확인하세요.| TYPE 'I'. "#EC NOTEXT
+      RETURN.
+    ENDIF.
 
     " 세로 3단: (1)요약 (2)차트 (3)3분할 ALV
     CREATE OBJECT mo_split
-      EXPORTING parent = mo_cont rows = 3 columns = 1.
+      EXPORTING  parent            = mo_cont
+                 rows              = 3
+                 columns           = 1
+      EXCEPTIONS cntl_error        = 1
+                 cntl_system_error = 2
+                 OTHERS            = 3.
+    IF sy-subrc <> 0.
+      MESSAGE |스플리터 생성 실패 (subrc={ sy-subrc }).| TYPE 'I'. "#EC NOTEXT
+      RETURN.
+    ENDIF.
     mo_split->set_row_height( id = 1 height = 12 ).
     mo_split->set_row_height( id = 2 height = 30 ).
 
     " 3단 셀을 다시 좌/중/우 3분할
     DATA(lo_alv_cell) = mo_split->get_container( row = 3 column = 1 ).
     CREATE OBJECT mo_split_alv
-      EXPORTING parent = lo_alv_cell rows = 1 columns = 3.
+      EXPORTING  parent            = lo_alv_cell
+                 rows              = 1
+                 columns           = 3
+      EXCEPTIONS cntl_error        = 1
+                 cntl_system_error = 2
+                 OTHERS            = 3.
+    IF sy-subrc <> 0.
+      MESSAGE |ALV 스플리터 생성 실패 (subrc={ sy-subrc }).| TYPE 'I'. "#EC NOTEXT
+      RETURN.
+    ENDIF.
   ENDMETHOD.
 
   METHOD build_summary.
