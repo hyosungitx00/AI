@@ -349,9 +349,8 @@ CLASS lcl_navigator IMPLEMENTATION.
 
   METHOD show_message.
     " 표시 전용 - SXI_MONITOR 표준 화면 (읽기 전용 진입).
-    " 선택 행의 MSGGUID 를 파라미터로 넘겨 초기값 지정.
-    "TODO: 대상 시스템에서 SXI_MONITOR MSGGUID 파라미터 ID 확인 후 정밀 진입 보완.
-    SET PARAMETER ID 'MSGGUID' FIELD iv_msgguid.
+    " MSGGUID 는 RAW(비문자형)이라 SET PARAMETER 로 넘길 수 없어 트랜잭션만 호출.
+    "TODO: 필요 시 MSGGUID 를 CHAR(32)로 변환하여 특정 메시지로 정밀 진입하도록 보완.
     CALL TRANSACTION 'SXI_MONITOR'.                       "#EC CI_CALLTA
   ENDMETHOD.
 ENDCLASS.
@@ -1123,7 +1122,8 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
 
       " 제목 = 영역명 + 상태(권한없음/이상없음/상한초과 안내)
       DATA(lv_total) = lo_prov->count( ).
-      DATA(lv_disp)  = lines( <tab> ).
+      DATA(lv_disp)  = COND i( WHEN ms_sel-maxrow > 0 AND lv_total > ms_sel-maxrow
+                               THEN ms_sel-maxrow ELSE lv_total ).
       DATA lv_title TYPE lvc_title.
       IF lo_prov->is_skipped( ) = abap_true.
         lv_title = |{ lo_prov->area_text( ) } (권한 없음)|.
