@@ -925,6 +925,7 @@ CLASS lcl_ui_dashboard DEFINITION.
                                   is_sel  TYPE ty_sel.
     METHODS display.
     METHODS toggle_perspective.
+    METHODS refresh.
   PRIVATE SECTION.
     TYPES: BEGIN OF ty_grid_map,
              grid TYPE REF TO cl_gui_alv_grid,
@@ -962,7 +963,6 @@ CLASS lcl_ui_dashboard DEFINITION.
     METHODS build_chart_data.
     METHODS build_chart_cells.
     METHODS render_chart.
-    METHODS refresh.
     METHODS start_timer.
     METHODS on_double_click FOR EVENT double_click OF cl_gui_alv_grid
       IMPORTING e_row sender.
