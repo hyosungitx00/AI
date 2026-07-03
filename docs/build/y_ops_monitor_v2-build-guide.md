@@ -34,8 +34,9 @@ PROCESS AFTER INPUT.
 
 ## 3. GUI Status `S0100` & Titlebar `T0100` (SE41)
 - `SE41` → 프로그램 `Y_OPS_MONITOR_V2`.
-- **Status `S0100`** (Type: Screen/Dialog Status) 생성:
-  - 기능 코드 **`TOGGLE`** — 관점(Top-N ↔ 시간대별 추이) 전환. 앱툴바 버튼 또는 메뉴에 배치, 아이콘/텍스트 예: "관점 전환".
+- **Status `S0100`** (Type: Screen/Dialog Status) 생성. 앱툴바 버튼:
+  - **`REFRESH`** — 화면에서 재조회(새로고침). 아이콘 예: `ICON_REFRESH`.
+  - **`TOGGLE`** — 차트 관점(Top-N ↔ 시간대별 추이) 전환. 아이콘 예: `ICON_CHART`.
   - 기능 키에 **`BACK` / `EXIT` / `CANCEL`** 표준 배치(F3/Shift+F3/F12).
 - **Titlebar `T0100`** 생성: 예) "통합 운영 모니터링 (SM37/ST22/SXI)".
 
@@ -57,6 +58,7 @@ PROCESS AFTER INPUT.
 | P_MAND  | 클라이언트 |
 | P_MAXROW| 최대 표시 행수 |
 | P_TOPN  | 차트 Top-N |
+| P_AUTORF| 자동 새로고침(초) |
 
 ### 4.2 Text Symbols (블록 제목)
 | 심볼 | 텍스트 |

@@ -55,7 +55,8 @@ SELECTION-SCREEN END OF BLOCK b3.
 
 SELECTION-SCREEN BEGIN OF BLOCK b4 WITH FRAME TITLE TEXT-b04.  " 표시 옵션
 PARAMETERS: p_maxrow TYPE i DEFAULT 250,
-            p_topn   TYPE i DEFAULT 5.
+            p_topn   TYPE i DEFAULT 5,
+            p_autorf TYPE i DEFAULT 0.    " 자동 새로고침 주기(초), 0=사용 안 함
 SELECTION-SCREEN END OF BLOCK b4.
 
 *&---------------------------------------------------------------------*
@@ -76,10 +77,12 @@ TYPES: BEGIN OF ty_sel,
          mandt     TYPE mandt,
          topn      TYPE i,
          maxrow    TYPE i,
+         autorf    TYPE i,
        END OF ty_sel.
 
 " 영역별 출력 구조 (DDIC ZMON_S_* 대체) ---------------------------------
 TYPES: BEGIN OF ty_batch,           " SM37 (ZMON_S_BATCH 대체)
+         line_color TYPE c LENGTH 4,     " ALV 행 색상(영역 고정색)
          icon      TYPE icon_d,
          jobname   TYPE tbtco-jobname,
          jobcount  TYPE tbtco-jobcount,
@@ -95,6 +98,7 @@ TYPES: BEGIN OF ty_batch,           " SM37 (ZMON_S_BATCH 대체)
        ty_batch_tab TYPE STANDARD TABLE OF ty_batch WITH DEFAULT KEY.
 
 TYPES: BEGIN OF ty_dump,            " ST22 (ZMON_S_DUMP 대체, <- RSDUMPTAB)
+         line_color TYPE c LENGTH 4,     " ALV 행 색상(영역 고정색)
          icon     TYPE icon_d,
          datum    TYPE d,
          uzeit    TYPE t,
@@ -108,6 +112,7 @@ TYPES: BEGIN OF ty_dump,            " ST22 (ZMON_S_DUMP 대체, <- RSDUMPTAB)
        ty_dump_tab TYPE STANDARD TABLE OF ty_dump WITH DEFAULT KEY.
 
 TYPES: BEGIN OF ty_iface,           " SXI (ZMON_S_IFACE 대체)
+         line_color TYPE c LENGTH 4,     " ALV 행 색상(영역 고정색)
          icon      TYPE icon_d,
          exe_date  TYPE d,
          exe_time  TYPE t,
@@ -306,14 +311,17 @@ CLASS lcl_navigator DEFINITION.
     METHODS show_joblog
       IMPORTING iv_jobname   TYPE tbtco-jobname
                 iv_jobcount  TYPE tbtco-jobcount.
-    METHODS show_dump.
+    METHODS show_dump
+      IMPORTING iv_datum TYPE d
+                iv_uzeit TYPE t
+                iv_uname TYPE syuname.
     METHODS show_message
       IMPORTING iv_msgguid TYPE sxmspmast-msgguid.
 ENDCLASS.
 
 CLASS lcl_navigator IMPLEMENTATION.
   METHOD show_joblog.
-    " 표시 전용 - 잡 로그 조회 (읽기 전용)
+    " 표시 전용 - 잡 로그 조회 (읽기 전용, 잡키로 정밀 이동)
     CALL FUNCTION 'BP_JOBLOG_SHOW'
       EXPORTING
         jobcount             = iv_jobcount
@@ -330,14 +338,20 @@ CLASS lcl_navigator IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD show_dump.
-    " 표시 전용 - ST22 표준 화면 (읽기 전용 진입)
-    "TODO: 선택 행의 덤프 키(일자/시간/ID)를 전달하여 특정 덤프로 진입하도록 확장
+    " 표시 전용 - ST22 표준 화면 (읽기 전용 진입).
+    " 선택 행의 덤프 키(일자/시간/사용자)를 SPA/GPA 파라미터로 넘겨 초기값 지정.
+    "TODO: 대상 시스템에서 ST22 선택필드 파라미터 ID 확인 후 정밀 진입 보완.
+    SET PARAMETER ID 'RID' FIELD iv_datum.      " 덤프 일자(관례적 파라미터)
+    SET PARAMETER ID 'RIT' FIELD iv_uzeit.      " 덤프 시간
+    SET PARAMETER ID 'XUB' FIELD iv_uname.      " 사용자
     CALL TRANSACTION 'ST22'.                              "#EC CI_CALLTA
   ENDMETHOD.
 
   METHOD show_message.
-    " 표시 전용 - SXI_MONITOR 표준 화면 (읽기 전용 진입)
-    "TODO: 선택 행의 MSGGUID 를 전달하여 특정 메시지로 진입하도록 확장
+    " 표시 전용 - SXI_MONITOR 표준 화면 (읽기 전용 진입).
+    " 선택 행의 MSGGUID 를 파라미터로 넘겨 초기값 지정.
+    "TODO: 대상 시스템에서 SXI_MONITOR MSGGUID 파라미터 ID 확인 후 정밀 진입 보완.
+    SET PARAMETER ID 'MSGGUID' FIELD iv_msgguid.
     CALL TRANSACTION 'SXI_MONITOR'.                       "#EC CI_CALLTA
   ENDMETHOD.
 ENDCLASS.
@@ -415,6 +429,7 @@ CLASS lcl_dp_batch IMPLEMENTATION.
 
     LOOP AT lt_job INTO DATA(ls_job).
       DATA(ls_out) = VALUE ty_batch(
+        line_color = 'C400'                                 " SM37 영역색
         icon      = icon_red_light
         jobname   = ls_job-jobname
         jobcount  = ls_job-jobcount
@@ -587,6 +602,7 @@ CLASS lcl_dp_dump IMPLEMENTATION.
           ENDIF.
           IF lv_ok = abap_true.
             APPEND VALUE ty_dump(
+              line_color = 'C600'                            " ST22 영역색
               icon     = icon_red_light
               datum    = ls_d-sydate
               uzeit    = ls_d-sytime
@@ -664,7 +680,9 @@ CLASS lcl_dp_dump IMPLEMENTATION.
   METHOD lif_data_provider~navigate.
     READ TABLE mt_view INTO DATA(ls) INDEX iv_row.
     IF sy-subrc = 0.
-      mo_nav->show_dump( ).
+      mo_nav->show_dump( iv_datum = ls-datum
+                         iv_uzeit = ls-uzeit
+                         iv_uname = ls-uname ).
     ENDIF.
   ENDMETHOD.
 ENDCLASS.
@@ -758,6 +776,7 @@ CLASS lcl_dp_interface IMPLEMENTATION.
 
     LOOP AT lt_err INTO DATA(ls_err).
       DATA(ls_out) = VALUE ty_iface(
+        line_color = 'C700'                                 " SXI 영역색
         icon    = icon_red_light
         errstat = ls_err-errstat
         msgguid = ls_err-msgguid ).
@@ -915,6 +934,7 @@ CLASS lcl_ui_dashboard DEFINITION.
     TYPES: BEGIN OF ty_chart_cell,
              area     TYPE string,
              area_txt TYPE string,
+             skipped  TYPE abap_bool,
              cell     TYPE REF TO cl_gui_container,
              chart    TYPE REF TO cl_gui_chart_engine,   " IGS 차트 엔진
            END OF ty_chart_cell.
@@ -923,14 +943,17 @@ CLASS lcl_ui_dashboard DEFINITION.
     DATA: mo_ctrl        TYPE REF TO lcl_controller,
           ms_sel         TYPE ty_sel,
           mv_persp       TYPE i VALUE 1,
+          mv_refresh_dt  TYPE d,                              " 마지막 조회 일자
+          mv_refresh_tm  TYPE t,                              " 마지막 조회 시각
           mo_cont        TYPE REF TO cl_gui_custom_container,
           mo_split       TYPE REF TO cl_gui_splitter_container,
           mo_split_chart TYPE REF TO cl_gui_splitter_container,  " 중간 차트 3분할
           mo_split_alv   TYPE REF TO cl_gui_splitter_container,  " 하단 ALV 3분할
           mo_cell_sum    TYPE REF TO cl_gui_container,           " 상단 요약(텍스트) 셀
           mo_dd_sum      TYPE REF TO cl_dd_document,             " 상단 한줄 요약
+          mo_timer       TYPE REF TO cl_gui_timer,              " 자동 새로고침 타이머
           mt_grid        TYPE STANDARD TABLE OF ty_grid_map,
-          mt_chart_cell  TYPE STANDARD TABLE OF ty_chart_cell,   " 영역별 차트 셀/문서
+          mt_chart_cell  TYPE STANDARD TABLE OF ty_chart_cell,   " 영역별 차트 셀/엔진
           mt_summary     TYPE ty_summary_tab,
           mt_chart_topn  TYPE ty_chart_topn_tab,
           mt_chart_time  TYPE ty_chart_time_tab.
@@ -940,8 +963,11 @@ CLASS lcl_ui_dashboard DEFINITION.
     METHODS build_chart_data.
     METHODS build_chart_cells.
     METHODS render_chart.
+    METHODS refresh.
+    METHODS start_timer.
     METHODS on_double_click FOR EVENT double_click OF cl_gui_alv_grid
       IMPORTING e_row sender.
+    METHODS on_timer FOR EVENT finished OF cl_gui_timer.
 ENDCLASS.
 
 CLASS lcl_ui_dashboard IMPLEMENTATION.
@@ -952,12 +978,15 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD display.
+    mv_refresh_dt = sy-datum.
+    mv_refresh_tm = sy-uzeit.
     build_containers( ).
     build_summary( ).
     build_area_grids( ).
     build_chart_data( ).
     build_chart_cells( ).
     render_chart( ).
+    start_timer( ).
   ENDMETHOD.
 
   METHOD build_containers.
@@ -1065,6 +1094,10 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
 
     mo_dd_sum->add_text( text = |조회: { ms_sel-from_date DATE = USER } { ms_sel-from_time TIME = USER }|
                               && | ~ { ms_sel-to_date DATE = USER } { ms_sel-to_time TIME = USER }| ).
+    mo_dd_sum->add_gap( width = 20 ).
+    mo_dd_sum->add_text( text = CONV #( |조회시각: { mv_refresh_dt DATE = USER } { mv_refresh_tm TIME = USER }| ) ).
+    mo_dd_sum->new_line( ).
+    mo_dd_sum->add_text( text = |※ 라인 더블클릭 시 표준 상세화면으로 이동 · [REFRESH] 새로고침 · [TOGGLE] 차트 관점 전환| ).
 
     mo_dd_sum->merge_document( ).
     mo_dd_sum->display_document( EXPORTING reuse_control = abap_true
@@ -1088,10 +1121,25 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
       DATA(lr_data) = lo_prov->alv_data( ).
       ASSIGN lr_data->* TO FIELD-SYMBOL(<tab>).
 
+      " 제목 = 영역명 + 상태(권한없음/이상없음/상한초과 안내)
+      DATA(lv_total) = lo_prov->count( ).
+      DATA(lv_disp)  = lines( <tab> ).
+      DATA lv_title TYPE lvc_title.
+      IF lo_prov->is_skipped( ) = abap_true.
+        lv_title = |{ lo_prov->area_text( ) } (권한 없음)|.
+      ELSEIF lv_total = 0.
+        lv_title = |{ lo_prov->area_text( ) } (이상 없음)|.
+      ELSEIF lv_total > lv_disp.
+        lv_title = |{ lo_prov->area_text( ) } (상위 { lv_disp } / 전체 { lv_total }건)|.
+      ELSE.
+        lv_title = |{ lo_prov->area_text( ) } ({ lv_total }건)|.
+      ENDIF.
+
       DATA ls_layo TYPE lvc_s_layo.
       ls_layo-cwidth_opt = abap_true.
-      ls_layo-no_toolbar = abap_true.       " ALV 툴바 제거
-      ls_layo-grid_title = |{ lo_prov->area_text( ) } ({ lo_prov->count( ) }건)|.
+      ls_layo-info_fname = 'LINE_COLOR'.    " 영역 고정색 행 강조 (FR-08 툴바 유지)
+      ls_layo-grid_title = lv_title.
+      ls_layo-smalltitle = abap_true.
 
       lo_grid->set_table_for_first_display(
         EXPORTING is_layout = ls_layo
@@ -1169,6 +1217,7 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
       APPEND VALUE ty_chart_cell(
         area     = lo_prov->area_id( )
         area_txt = lo_prov->area_text( )
+        skipped  = lo_prov->is_skipped( )
         cell     = lo_cell
         chart    = lo_chart ) TO mt_chart_cell.
       lv_col = lv_col + 1.
@@ -1206,6 +1255,13 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
         ENDLOOP.
       ENDIF.
 
+      " 데이터가 없으면(권한없음/이상없음) 안내용 단일 카테고리로 대체
+      IF lv_cat IS INITIAL.
+        DATA(lv_note) = COND string( WHEN <cc>-skipped = abap_true THEN `권한 없음` ELSE `이상 없음` ).
+        lv_cat = |<Category>{ escape( val = lv_note format = cl_abap_format=>e_xml_text ) }</Category>|.
+        lv_pts = |<Point><Value type="y">0</Value></Point>|.
+      ENDIF.
+
       " 데이터 XML (SAP Chart Engine ChartData)
       DATA(lv_data) = |<?xml version="1.0" encoding="utf-8"?>|
         && |<ChartData>|
@@ -1236,6 +1292,44 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
       mv_persp = c_persp_topn.
     ENDIF.
     render_chart( ).
+  ENDMETHOD.
+
+  METHOD refresh.
+    " 화면에서 재조회 (읽기 전용). 데이터/요약/차트/그리드 갱신.
+    mo_ctrl->run( ms_sel ).
+    mv_refresh_dt = sy-datum.
+    mv_refresh_tm = sy-uzeit.
+
+    build_summary( ).            " 상단 요약(조회시각 포함) 재구성
+    build_chart_data( ).
+    render_chart( ).             " 영역별 차트 재렌더
+
+    " 하단 ALV 데이터 갱신
+    LOOP AT mt_grid INTO DATA(ls).
+      ls-grid->refresh_table_display( ).
+    ENDLOOP.
+  ENDMETHOD.
+
+  METHOD start_timer.
+    " 자동 새로고침(선택): P_AUTORF 초 주기
+    IF ms_sel-autorf <= 0.
+      RETURN.
+    ENDIF.
+    IF mo_timer IS NOT BOUND.
+      CREATE OBJECT mo_timer.
+      SET HANDLER on_timer FOR mo_timer.
+    ENDIF.
+    mo_timer->interval = ms_sel-autorf.
+    mo_timer->run( ).
+  ENDMETHOD.
+
+  METHOD on_timer.
+    refresh( ).
+    " 다음 주기 재가동
+    IF mo_timer IS BOUND AND ms_sel-autorf > 0.
+      mo_timer->interval = ms_sel-autorf.
+      mo_timer->run( ).
+    ENDIF.
   ENDMETHOD.
 
   METHOD on_double_click.
@@ -1327,6 +1421,7 @@ FORM build_selection.
   gs_sel-mandt     = p_mand.
   gs_sel-topn      = p_topn.
   gs_sel-maxrow    = p_maxrow.
+  gs_sel-autorf    = p_autorf.
 ENDFORM.
 
 *&---------------------------------------------------------------------*
@@ -1356,6 +1451,10 @@ MODULE user_command_0100 INPUT.
     WHEN 'TOGGLE'.
       IF go_dashboard IS BOUND.
         go_dashboard->toggle_perspective( ).
+      ENDIF.
+    WHEN 'REFRESH'.
+      IF go_dashboard IS BOUND.
+        go_dashboard->refresh( ).
       ENDIF.
     WHEN 'BACK' OR 'EXIT' OR 'CANCEL'.
       LEAVE TO SCREEN 0.
