@@ -1032,12 +1032,12 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
         WHEN 1.       lv_iconname = 'ICON_GREEN_LIGHT'.
         WHEN OTHERS.  lv_iconname = 'ICON_LED_INACTIVE'.
       ENDCASE.
-      mo_dd_sum->add_icon( sap_icon = lv_iconname ).
+      mo_dd_sum->add_icon( sap_icon = CONV #( lv_iconname ) ).
 
       DATA(lv_txt) = COND string(
         WHEN ls_sum-level = 0 THEN |{ ls_sum-area_txt } 권한없음|
         ELSE |{ ls_sum-area_txt } { ls_sum-count }건| ).
-      mo_dd_sum->add_text( text = lv_txt ).
+      mo_dd_sum->add_text( text = CONV #( lv_txt ) ).
       mo_dd_sum->add_gap( width = 30 ).
     ENDLOOP.
 
