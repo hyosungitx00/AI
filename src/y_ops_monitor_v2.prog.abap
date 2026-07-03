@@ -912,6 +912,12 @@ CLASS lcl_ui_dashboard DEFINITION.
              grid TYPE REF TO cl_gui_alv_grid,
              prov TYPE REF TO lif_data_provider,
            END OF ty_grid_map.
+    TYPES: BEGIN OF ty_chart_cell,
+             area     TYPE string,
+             area_txt TYPE string,
+             cell     TYPE REF TO cl_gui_container,
+             dd       TYPE REF TO cl_dd_document,
+           END OF ty_chart_cell.
     CONSTANTS: c_persp_topn TYPE i VALUE 1,
                c_persp_time TYPE i VALUE 2.
     DATA: mo_ctrl        TYPE REF TO lcl_controller,
@@ -919,12 +925,12 @@ CLASS lcl_ui_dashboard DEFINITION.
           mv_persp       TYPE i VALUE 1,
           mo_cont        TYPE REF TO cl_gui_custom_container,
           mo_split       TYPE REF TO cl_gui_splitter_container,
-          mo_split_alv   TYPE REF TO cl_gui_splitter_container,
-          mo_cell_sum    TYPE REF TO cl_gui_container,   " 상단 요약(텍스트) 셀
-          mo_cell_chart  TYPE REF TO cl_gui_container,   " 중간 차트 셀
-          mo_dd_sum      TYPE REF TO cl_dd_document,     " 상단 한줄 요약
-          mo_dd_chart    TYPE REF TO cl_dd_document,     " 중간 막대 그래프
+          mo_split_chart TYPE REF TO cl_gui_splitter_container,  " 중간 차트 3분할
+          mo_split_alv   TYPE REF TO cl_gui_splitter_container,  " 하단 ALV 3분할
+          mo_cell_sum    TYPE REF TO cl_gui_container,           " 상단 요약(텍스트) 셀
+          mo_dd_sum      TYPE REF TO cl_dd_document,             " 상단 한줄 요약
           mt_grid        TYPE STANDARD TABLE OF ty_grid_map,
+          mt_chart_cell  TYPE STANDARD TABLE OF ty_chart_cell,   " 영역별 차트 셀/문서
           mt_summary     TYPE ty_summary_tab,
           mt_chart_topn  TYPE ty_chart_topn_tab,
           mt_chart_time  TYPE ty_chart_time_tab.
@@ -932,6 +938,7 @@ CLASS lcl_ui_dashboard DEFINITION.
     METHODS build_summary.
     METHODS build_area_grids.
     METHODS build_chart_data.
+    METHODS build_chart_cells.
     METHODS render_chart.
     METHODS on_double_click FOR EVENT double_click OF cl_gui_alv_grid
       IMPORTING e_row sender.
@@ -949,6 +956,7 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
     build_summary( ).
     build_area_grids( ).
     build_chart_data( ).
+    build_chart_cells( ).
     render_chart( ).
   ENDMETHOD.
 
@@ -982,13 +990,27 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
       MESSAGE |스플리터 생성 실패 (subrc={ sy-subrc }).| TYPE 'I'. "#EC NOTEXT
       RETURN.
     ENDIF.
-    mo_split->set_row_height( id = 1 height = 8 ).    " 상단 요약: 얇게(한 줄)
-    mo_split->set_row_height( id = 2 height = 32 ).   " 중간 차트
+    mo_split->set_row_height( id = 1 height = 20 ).   " 상단 요약 20%
+    mo_split->set_row_height( id = 2 height = 40 ).   " 중간 차트 40%
+    mo_split->set_row_height( id = 3 height = 40 ).   " 하단 ALV  40%
 
-    mo_cell_sum   = mo_split->get_container( row = 1 column = 1 ).
-    mo_cell_chart = mo_split->get_container( row = 2 column = 1 ).
+    mo_cell_sum = mo_split->get_container( row = 1 column = 1 ).
 
-    " 3단 셀을 다시 좌/중/우 3분할 (하단 3개 ALV)
+    " 중간(차트) 셀을 좌/중/우 3분할 (영역별 개별 차트)
+    DATA(lo_chart_cell) = mo_split->get_container( row = 2 column = 1 ).
+    CREATE OBJECT mo_split_chart
+      EXPORTING  parent            = lo_chart_cell
+                 rows              = 1
+                 columns           = 3
+      EXCEPTIONS cntl_error        = 1
+                 cntl_system_error = 2
+                 OTHERS            = 3.
+    IF sy-subrc <> 0.
+      MESSAGE |차트 스플리터 생성 실패 (subrc={ sy-subrc }).| TYPE 'I'. "#EC NOTEXT
+      RETURN.
+    ENDIF.
+
+    " 하단(ALV) 셀을 좌/중/우 3분할
     DATA(lo_alv_cell) = mo_split->get_container( row = 3 column = 1 ).
     CREATE OBJECT mo_split_alv
       EXPORTING  parent            = lo_alv_cell
@@ -1068,6 +1090,7 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
 
       DATA ls_layo TYPE lvc_s_layo.
       ls_layo-cwidth_opt = abap_true.
+      ls_layo-no_toolbar = abap_true.       " ALV 툴바 제거
       ls_layo-grid_title = |{ lo_prov->area_text( ) } ({ lo_prov->count( ) }건)|.
 
       lo_grid->set_table_for_first_display(
@@ -1131,84 +1154,105 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
     SORT mt_chart_time BY bucket.
   ENDMETHOD.
 
+  METHOD build_chart_cells.
+    " 중간 차트를 영역별(선택된 프로바이더)로 좌->우 배치
+    CLEAR mt_chart_cell.
+    DATA lv_col TYPE i VALUE 1.
+    DATA(lt_prov) = mo_ctrl->providers( ).
+    LOOP AT lt_prov INTO DATA(lo_prov).
+      IF lo_prov->is_selected( ) = abap_false.
+        CONTINUE.
+      ENDIF.
+      APPEND VALUE ty_chart_cell(
+        area     = lo_prov->area_id( )
+        area_txt = lo_prov->area_text( )
+        cell     = mo_split_chart->get_container( row = 1 column = lv_col ) ) TO mt_chart_cell.
+      lv_col = lv_col + 1.
+    ENDLOOP.
+  ENDMETHOD.
+
   METHOD render_chart.
-    " 중간 = 가로 막대 그래프 (CL_DD_DOCUMENT). 관점 토글로 Top-N <-> 시간추이.
+    " 중간 = 영역별 개별 막대 그래프 (CL_DD_DOCUMENT). 관점 토글로 Top-N <-> 시간추이.
     "TODO(옵션): 설계 6.2a 의 IGS 그래픽 차트(CL_GUI_CHART_ENGINE) 로 교체 가능.
-    CONSTANTS c_bar_max TYPE i VALUE 40.       " 막대 최대 길이(문자)
-    DATA lv_max TYPE i.
-    DATA lv_len TYPE i.
+    CONSTANTS c_bar_max TYPE i VALUE 20.       " 막대 최대 길이(문자)
+    DATA: lv_max TYPE i,
+          lv_len TYPE i,
+          lv_cnt TYPE i,
+          lv_any TYPE abap_bool.
 
-    CREATE OBJECT mo_dd_chart.
+    LOOP AT mt_chart_cell ASSIGNING FIELD-SYMBOL(<cc>).
+      CREATE OBJECT <cc>-dd.
 
-    IF mv_persp = c_persp_topn.
-      mo_dd_chart->add_text(
-        text = |■ 에러 집중도 Top-{ ms_sel-topn } (영역별)  [관점전환=TOGGLE]| ).
-      mo_dd_chart->new_line( ).
+      IF mv_persp = c_persp_topn.
+        "--- 영역별 Top-N ---
+        <cc>-dd->add_text( text = |■ { <cc>-area_txt } Top-{ ms_sel-topn }| ).
+        <cc>-dd->new_line( ).
 
-      lv_max = 0.
-      LOOP AT mt_chart_topn INTO DATA(ls_t).
-        IF ls_t-count > lv_max.
-          lv_max = ls_t-count.
+        lv_max = 0.
+        LOOP AT mt_chart_topn INTO DATA(ls_t) WHERE area = <cc>-area.
+          IF ls_t-count > lv_max.
+            lv_max = ls_t-count.
+          ENDIF.
+        ENDLOOP.
+        IF lv_max = 0.
+          lv_max = 1.
         ENDIF.
-      ENDLOOP.
-      IF lv_max = 0.
-        lv_max = 1.
+
+        lv_any = abap_false.
+        LOOP AT mt_chart_topn INTO ls_t WHERE area = <cc>-area.
+          lv_any = abap_true.
+          lv_len = ls_t-count * c_bar_max / lv_max.
+          IF lv_len = 0 AND ls_t-count > 0.
+            lv_len = 1.
+          ENDIF.
+          <cc>-dd->add_text( text = |{ ls_t-key }| ).
+          <cc>-dd->new_line( ).
+          <cc>-dd->add_text( text = |{ repeat( val = `█` occ = lv_len ) } { ls_t-count }| ).
+          <cc>-dd->new_line( ).
+        ENDLOOP.
+
+        IF lv_any = abap_false.
+          <cc>-dd->add_text( text = |에러 없음| ).
+          <cc>-dd->new_line( ).
+        ENDIF.
+
+      ELSE.
+        "--- 영역별 시간대별 추이 ---
+        <cc>-dd->add_text( text = |■ { <cc>-area_txt } 시간추이| ).
+        <cc>-dd->new_line( ).
+
+        lv_max = 0.
+        LOOP AT mt_chart_time INTO DATA(ls_b).
+          lv_cnt = COND #( WHEN <cc>-area = 'SM37' THEN ls_b-sm37
+                           WHEN <cc>-area = 'ST22' THEN ls_b-st22
+                           ELSE ls_b-sxi ).
+          IF lv_cnt > lv_max.
+            lv_max = lv_cnt.
+          ENDIF.
+        ENDLOOP.
+        IF lv_max = 0.
+          lv_max = 1.
+        ENDIF.
+
+        LOOP AT mt_chart_time INTO ls_b.
+          lv_cnt = COND #( WHEN <cc>-area = 'SM37' THEN ls_b-sm37
+                           WHEN <cc>-area = 'ST22' THEN ls_b-st22
+                           ELSE ls_b-sxi ).
+          lv_len = lv_cnt * c_bar_max / lv_max.
+          IF lv_len = 0 AND lv_cnt > 0.
+            lv_len = 1.
+          ENDIF.
+          <cc>-dd->add_text( text = |{ ls_b-bucket }| ).
+          <cc>-dd->new_line( ).
+          <cc>-dd->add_text( text = |{ repeat( val = `█` occ = lv_len ) } { lv_cnt }| ).
+          <cc>-dd->new_line( ).
+        ENDLOOP.
       ENDIF.
 
-      LOOP AT mt_chart_topn INTO ls_t.
-        lv_len = ls_t-count * c_bar_max / lv_max.
-        IF lv_len = 0 AND ls_t-count > 0.
-          lv_len = 1.
-        ENDIF.
-        DATA(lv_bar) = repeat( val = `█` occ = lv_len ).
-        mo_dd_chart->add_text( text = |{ ls_t-area } { ls_t-key }| ).
-        mo_dd_chart->add_gap( width = 4 ).
-        mo_dd_chart->add_text( text = |{ lv_bar } { ls_t-count }| ).
-        mo_dd_chart->new_line( ).
-      ENDLOOP.
-
-      IF mt_chart_topn IS INITIAL.
-        mo_dd_chart->add_text( text = '표시할 에러가 없습니다.' ).
-        mo_dd_chart->new_line( ).
-      ENDIF.
-
-    ELSE.
-      mo_dd_chart->add_text(
-        text = |■ 시간대별 추이 (적응형 버킷)  [관점전환=TOGGLE]| ).
-      mo_dd_chart->new_line( ).
-
-      lv_max = 0.
-      LOOP AT mt_chart_time INTO DATA(ls_b).
-        IF ls_b-total > lv_max.
-          lv_max = ls_b-total.
-        ENDIF.
-      ENDLOOP.
-      IF lv_max = 0.
-        lv_max = 1.
-      ENDIF.
-
-      LOOP AT mt_chart_time INTO ls_b.
-        lv_len = ls_b-total * c_bar_max / lv_max.
-        IF lv_len = 0 AND ls_b-total > 0.
-          lv_len = 1.
-        ENDIF.
-        DATA(lv_bar2) = repeat( val = `█` occ = lv_len ).
-        mo_dd_chart->add_text( text = |{ ls_b-bucket }| ).
-        mo_dd_chart->add_gap( width = 4 ).
-        mo_dd_chart->add_text(
-          text = |{ lv_bar2 } { ls_b-total } (SM37 { ls_b-sm37 }/ST22 { ls_b-st22 }/SXI { ls_b-sxi })| ).
-        mo_dd_chart->new_line( ).
-      ENDLOOP.
-
-      IF mt_chart_time IS INITIAL.
-        mo_dd_chart->add_text( text = '표시할 에러가 없습니다.' ).
-        mo_dd_chart->new_line( ).
-      ENDIF.
-    ENDIF.
-
-    mo_dd_chart->merge_document( ).
-    mo_dd_chart->display_document( EXPORTING reuse_control = abap_true
-                                             parent        = mo_cell_chart ).
+      <cc>-dd->merge_document( ).
+      <cc>-dd->display_document( EXPORTING reuse_control = abap_true
+                                           parent        = <cc>-cell ).
+    ENDLOOP.
   ENDMETHOD.
 
   METHOD toggle_perspective.
