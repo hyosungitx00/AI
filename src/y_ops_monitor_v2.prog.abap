@@ -1136,7 +1136,9 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
   METHOD on_double_click.
     READ TABLE mt_grid INTO DATA(ls) WITH KEY grid = sender.
     IF sy-subrc = 0.
-      ls-prov->navigate( iv_row = e_row-index ).
+      DATA lv_row TYPE i.
+      lv_row = e_row-index.
+      ls-prov->navigate( iv_row = lv_row ).
     ENDIF.
   ENDMETHOD.
 ENDCLASS.
