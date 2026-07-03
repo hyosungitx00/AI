@@ -84,7 +84,7 @@ TYPES: BEGIN OF ty_batch,           " SM37 (ZMON_S_BATCH 대체)
          jobname   TYPE tbtco-jobname,
          jobcount  TYPE tbtco-jobcount,
          status    TYPE tbtco-status,
-         status_tx TYPE string,
+         status_tx TYPE c LENGTH 40,    " ALV 는 STRING 미지원 -> CHAR
          progname  TYPE tbtcp-progname,
          sdluname  TYPE tbtco-sdluname,
          strtdate  TYPE tbtco-strtdate,
@@ -99,10 +99,10 @@ TYPES: BEGIN OF ty_dump,            " ST22 (ZMON_S_DUMP 대체, <- RSDUMPTAB)
          datum    TYPE d,
          uzeit    TYPE t,
          uname    TYPE syuname,
-         ahost    TYPE string,
-         rt_error TYPE string,      " DUMPID (런타임 에러 유형)
-         progname TYPE string,
-         include  TYPE string,
+         ahost    TYPE c LENGTH 32,
+         rt_error TYPE c LENGTH 36,  " DUMPID (런타임 에러 유형)
+         progname TYPE c LENGTH 40,
+         include  TYPE c LENGTH 40,
          line     TYPE i,
        END OF ty_dump,
        ty_dump_tab TYPE STANDARD TABLE OF ty_dump WITH DEFAULT KEY.
@@ -123,8 +123,8 @@ TYPES: BEGIN OF ty_iface,           " SXI (ZMON_S_IFACE 대체)
 
 " 요약 / 차트 집계용 -----------------------------------------------------
 TYPES: BEGIN OF ty_summary,
-         area     TYPE string,
-         area_txt TYPE string,
+         area     TYPE c LENGTH 10,
+         area_txt TYPE c LENGTH 40,
          count    TYPE i,
          icon     TYPE icon_d,
          level    TYPE i,           " 1=녹색 2=황색 3=적색
@@ -147,14 +147,14 @@ TYPES: BEGIN OF ty_time_pt,
 
 " 차트(placeholder ALV)용 행 ------------------------------------------
 TYPES: BEGIN OF ty_chart_topn,
-         area  TYPE string,
-         key   TYPE string,
+         area  TYPE c LENGTH 10,
+         key   TYPE c LENGTH 120,
          count TYPE i,
        END OF ty_chart_topn,
        ty_chart_topn_tab TYPE STANDARD TABLE OF ty_chart_topn WITH DEFAULT KEY.
 
 TYPES: BEGIN OF ty_chart_time,
-         bucket TYPE string,
+         bucket TYPE c LENGTH 40,
          sm37   TYPE i,
          st22   TYPE i,
          sxi    TYPE i,
@@ -833,7 +833,7 @@ CLASS lcl_dp_interface IMPLEMENTATION.
     lcl_util=>add_col( EXPORTING iv_field = 'RECEIVER'  iv_text = '수신'        CHANGING ct_fcat = rt ).
     lcl_util=>add_col( EXPORTING iv_field = 'MSGSTATE'  iv_text = '상태'        CHANGING ct_fcat = rt ).
     lcl_util=>add_col( EXPORTING iv_field = 'ERRSTAT'   iv_text = '에러상태'    CHANGING ct_fcat = rt ).
-    lcl_util=>add_col( EXPORTING iv_field = 'MSGGUID'   iv_text = 'MSGGUID' iv_hide = abap_true CHANGING ct_fcat = rt ).
+    " MSGGUID 는 드릴다운 키로만 사용(내부 보관), ALV 표시/필드카탈로그에서는 제외
   ENDMETHOD.
 
   METHOD lif_data_provider~topn_source.
