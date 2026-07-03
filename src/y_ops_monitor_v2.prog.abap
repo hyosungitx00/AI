@@ -916,7 +916,7 @@ CLASS lcl_ui_dashboard DEFINITION.
              area     TYPE string,
              area_txt TYPE string,
              cell     TYPE REF TO cl_gui_container,
-             dd       TYPE REF TO cl_dd_document,
+             chart    TYPE REF TO cl_gui_chart_engine,   " IGS 차트 엔진
            END OF ty_chart_cell.
     CONSTANTS: c_persp_topn TYPE i VALUE 1,
                c_persp_time TYPE i VALUE 2.
@@ -990,9 +990,9 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
       MESSAGE |스플리터 생성 실패 (subrc={ sy-subrc }).| TYPE 'I'. "#EC NOTEXT
       RETURN.
     ENDIF.
-    mo_split->set_row_height( id = 1 height = 20 ).   " 상단 요약 20%
-    mo_split->set_row_height( id = 2 height = 40 ).   " 중간 차트 40%
-    mo_split->set_row_height( id = 3 height = 40 ).   " 하단 ALV  40%
+    mo_split->set_row_height( id = 1 height = 10 ).   " 상단 요약 10%
+    mo_split->set_row_height( id = 2 height = 45 ).   " 중간 차트 45%
+    mo_split->set_row_height( id = 3 height = 45 ).   " 하단 ALV  45%
 
     mo_cell_sum = mo_split->get_container( row = 1 column = 1 ).
 
@@ -1155,7 +1155,7 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD build_chart_cells.
-    " 중간 차트를 영역별(선택된 프로바이더)로 좌->우 배치
+    " 중간 차트를 영역별(선택된 프로바이더)로 좌->우 배치하고 IGS 차트 엔진 생성
     CLEAR mt_chart_cell.
     DATA lv_col TYPE i VALUE 1.
     DATA(lt_prov) = mo_ctrl->providers( ).
@@ -1163,95 +1163,69 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
       IF lo_prov->is_selected( ) = abap_false.
         CONTINUE.
       ENDIF.
+      DATA(lo_cell) = mo_split_chart->get_container( row = 1 column = lv_col ).
+      DATA lo_chart TYPE REF TO cl_gui_chart_engine.
+      CREATE OBJECT lo_chart EXPORTING parent = lo_cell.
       APPEND VALUE ty_chart_cell(
         area     = lo_prov->area_id( )
         area_txt = lo_prov->area_text( )
-        cell     = mo_split_chart->get_container( row = 1 column = lv_col ) ) TO mt_chart_cell.
+        cell     = lo_cell
+        chart    = lo_chart ) TO mt_chart_cell.
       lv_col = lv_col + 1.
     ENDLOOP.
   ENDMETHOD.
 
   METHOD render_chart.
-    " 중간 = 영역별 개별 막대 그래프 (CL_DD_DOCUMENT). 관점 토글로 Top-N <-> 시간추이.
-    "TODO(옵션): 설계 6.2a 의 IGS 그래픽 차트(CL_GUI_CHART_ENGINE) 로 교체 가능.
-    CONSTANTS c_bar_max TYPE i VALUE 20.       " 막대 최대 길이(문자)
-    DATA: lv_max TYPE i,
-          lv_len TYPE i,
-          lv_cnt TYPE i,
-          lv_any TYPE abap_bool.
-
+    " 중간 = 영역별 개별 그래픽 차트 (CL_GUI_CHART_ENGINE, IGS). XML(데이터+커스터마이징) 전달.
+    " 관점 토글로 Top-N <-> 시간추이. 설계 6.2a / O-9(IGS 가용).
+    "TODO: 대상 시스템 IGS 설정 확인(SM59 IGS_RFC_DEST / GRAPHICS_IGS_ADMIN). XML 스키마는 필요 시 미세조정.
     LOOP AT mt_chart_cell ASSIGNING FIELD-SYMBOL(<cc>).
-      CREATE OBJECT <cc>-dd.
+
+      DATA: lv_title TYPE string,
+            lv_cat   TYPE string,   " <Categories> 내부
+            lv_pts   TYPE string,   " <Point> 반복
+            lv_cnt   TYPE i.
+      CLEAR: lv_cat, lv_pts.
 
       IF mv_persp = c_persp_topn.
-        "--- 영역별 Top-N ---
-        <cc>-dd->add_text( text = |■ { <cc>-area_txt } Top-{ ms_sel-topn }| ).
-        <cc>-dd->new_line( ).
-
-        lv_max = 0.
+        lv_title = |{ <cc>-area_txt } Top-{ ms_sel-topn }|.
         LOOP AT mt_chart_topn INTO DATA(ls_t) WHERE area = <cc>-area.
-          IF ls_t-count > lv_max.
-            lv_max = ls_t-count.
-          ENDIF.
+          lv_cat = lv_cat && |<Category>{ escape( val = CONV string( ls_t-key )
+                                                   format = cl_abap_format=>e_xml_text ) }</Category>|.
+          lv_pts = lv_pts && |<Point><Value type="y">{ ls_t-count }</Value></Point>|.
         ENDLOOP.
-        IF lv_max = 0.
-          lv_max = 1.
-        ENDIF.
-
-        lv_any = abap_false.
-        LOOP AT mt_chart_topn INTO ls_t WHERE area = <cc>-area.
-          lv_any = abap_true.
-          lv_len = ls_t-count * c_bar_max / lv_max.
-          IF lv_len = 0 AND ls_t-count > 0.
-            lv_len = 1.
-          ENDIF.
-          <cc>-dd->add_text( text = |{ ls_t-key }| ).
-          <cc>-dd->new_line( ).
-          <cc>-dd->add_text( text = |{ repeat( val = `█` occ = lv_len ) } { ls_t-count }| ).
-          <cc>-dd->new_line( ).
-        ENDLOOP.
-
-        IF lv_any = abap_false.
-          <cc>-dd->add_text( text = |에러 없음| ).
-          <cc>-dd->new_line( ).
-        ENDIF.
-
       ELSE.
-        "--- 영역별 시간대별 추이 ---
-        <cc>-dd->add_text( text = |■ { <cc>-area_txt } 시간추이| ).
-        <cc>-dd->new_line( ).
-
-        lv_max = 0.
+        lv_title = |{ <cc>-area_txt } 시간추이|.
         LOOP AT mt_chart_time INTO DATA(ls_b).
           lv_cnt = COND #( WHEN <cc>-area = 'SM37' THEN ls_b-sm37
                            WHEN <cc>-area = 'ST22' THEN ls_b-st22
                            ELSE ls_b-sxi ).
-          IF lv_cnt > lv_max.
-            lv_max = lv_cnt.
-          ENDIF.
-        ENDLOOP.
-        IF lv_max = 0.
-          lv_max = 1.
-        ENDIF.
-
-        LOOP AT mt_chart_time INTO ls_b.
-          lv_cnt = COND #( WHEN <cc>-area = 'SM37' THEN ls_b-sm37
-                           WHEN <cc>-area = 'ST22' THEN ls_b-st22
-                           ELSE ls_b-sxi ).
-          lv_len = lv_cnt * c_bar_max / lv_max.
-          IF lv_len = 0 AND lv_cnt > 0.
-            lv_len = 1.
-          ENDIF.
-          <cc>-dd->add_text( text = |{ ls_b-bucket }| ).
-          <cc>-dd->new_line( ).
-          <cc>-dd->add_text( text = |{ repeat( val = `█` occ = lv_len ) } { lv_cnt }| ).
-          <cc>-dd->new_line( ).
+          lv_cat = lv_cat && |<Category>{ escape( val = CONV string( ls_b-bucket )
+                                                   format = cl_abap_format=>e_xml_text ) }</Category>|.
+          lv_pts = lv_pts && |<Point><Value type="y">{ lv_cnt }</Value></Point>|.
         ENDLOOP.
       ENDIF.
 
-      <cc>-dd->merge_document( ).
-      <cc>-dd->display_document( EXPORTING reuse_control = abap_true
-                                           parent        = <cc>-cell ).
+      " 데이터 XML (SAP Chart Engine ChartData)
+      DATA(lv_data) = |<?xml version="1.0" encoding="utf-8"?>|
+        && |<ChartData>|
+        && |<Categories>{ lv_cat }</Categories>|
+        && |<Series label="{ escape( val = CONV string( <cc>-area_txt )
+                                      format = cl_abap_format=>e_xml_text ) }">{ lv_pts }</Series>|
+        && |</ChartData>|.
+
+      " 커스터마이징 XML (가로 막대 + 제목)
+      DATA(lv_cust) = |<?xml version="1.0" encoding="utf-8"?>|
+        && |<SAPChartCustomizing version="1.1">|
+        && |<GlobalSettings><ChartType>Bars</ChartType></GlobalSettings>|
+        && |<ChartElements><Title><Extension><Text>|
+        && escape( val = lv_title format = cl_abap_format=>e_xml_text )
+        && |</Text></Extension></Title></ChartElements>|
+        && |</SAPChartCustomizing>|.
+
+      <cc>-chart->set_customizing_data( customizing_data = lv_cust ).
+      <cc>-chart->set_data( data = lv_data ).
+      <cc>-chart->render( ).
     ENDLOOP.
   ENDMETHOD.
 
