@@ -920,8 +920,10 @@ CLASS lcl_ui_dashboard DEFINITION.
           mo_cont        TYPE REF TO cl_gui_custom_container,
           mo_split       TYPE REF TO cl_gui_splitter_container,
           mo_split_alv   TYPE REF TO cl_gui_splitter_container,
-          mo_grid_sum    TYPE REF TO cl_gui_alv_grid,
-          mo_grid_chart  TYPE REF TO cl_gui_alv_grid,
+          mo_cell_sum    TYPE REF TO cl_gui_container,   " 상단 요약(텍스트) 셀
+          mo_cell_chart  TYPE REF TO cl_gui_container,   " 중간 차트 셀
+          mo_dd_sum      TYPE REF TO cl_dd_document,     " 상단 한줄 요약
+          mo_dd_chart    TYPE REF TO cl_dd_document,     " 중간 막대 그래프
           mt_grid        TYPE STANDARD TABLE OF ty_grid_map,
           mt_summary     TYPE ty_summary_tab,
           mt_chart_topn  TYPE ty_chart_topn_tab,
@@ -980,10 +982,13 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
       MESSAGE |스플리터 생성 실패 (subrc={ sy-subrc }).| TYPE 'I'. "#EC NOTEXT
       RETURN.
     ENDIF.
-    mo_split->set_row_height( id = 1 height = 12 ).
-    mo_split->set_row_height( id = 2 height = 30 ).
+    mo_split->set_row_height( id = 1 height = 8 ).    " 상단 요약: 얇게(한 줄)
+    mo_split->set_row_height( id = 2 height = 32 ).   " 중간 차트
 
-    " 3단 셀을 다시 좌/중/우 3분할
+    mo_cell_sum   = mo_split->get_container( row = 1 column = 1 ).
+    mo_cell_chart = mo_split->get_container( row = 2 column = 1 ).
+
+    " 3단 셀을 다시 좌/중/우 3분할 (하단 3개 ALV)
     DATA(lo_alv_cell) = mo_split->get_container( row = 3 column = 1 ).
     CREATE OBJECT mo_split_alv
       EXPORTING  parent            = lo_alv_cell
@@ -999,6 +1004,7 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD build_summary.
+    " 상단 = 한 줄 텍스트 요약 (신호등 아이콘 + 영역별 건수 + 조회기간)
     CLEAR mt_summary.
     DATA(lt_prov) = mo_ctrl->providers( ).
     LOOP AT lt_prov INTO DATA(lo_prov).
@@ -1010,28 +1016,37 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
           area     = lo_prov->area_id( )
           area_txt = lo_prov->area_text( )
           count    = 0
-          icon     = icon_led_inactive
           level    = 0 ) TO mt_summary.
       ELSE.
         APPEND lo_prov->summary( ) TO mt_summary.
       ENDIF.
     ENDLOOP.
 
-    DATA(lo_cell) = mo_split->get_container( row = 1 column = 1 ).
-    CREATE OBJECT mo_grid_sum EXPORTING i_parent = lo_cell.
+    CREATE OBJECT mo_dd_sum.
 
-    DATA lt_fcat TYPE lvc_t_fcat.
-    lcl_util=>add_col( EXPORTING iv_field = 'ICON'     iv_text = '' iv_icon = abap_true CHANGING ct_fcat = lt_fcat ).
-    lcl_util=>add_col( EXPORTING iv_field = 'AREA_TXT' iv_text = '영역'  CHANGING ct_fcat = lt_fcat ).
-    lcl_util=>add_col( EXPORTING iv_field = 'COUNT'    iv_text = '건수'  CHANGING ct_fcat = lt_fcat ).
+    LOOP AT mt_summary INTO DATA(ls_sum).
+      DATA lv_iconname TYPE string.
+      CASE ls_sum-level.
+        WHEN 3.       lv_iconname = 'ICON_RED_LIGHT'.
+        WHEN 2.       lv_iconname = 'ICON_YELLOW_LIGHT'.
+        WHEN 1.       lv_iconname = 'ICON_GREEN_LIGHT'.
+        WHEN OTHERS.  lv_iconname = 'ICON_LED_INACTIVE'.
+      ENDCASE.
+      mo_dd_sum->add_icon( sap_icon = lv_iconname ).
 
-    DATA ls_layo TYPE lvc_s_layo.
-    ls_layo-cwidth_opt = abap_true.
-    ls_layo-no_toolbar = abap_true.
+      DATA(lv_txt) = COND string(
+        WHEN ls_sum-level = 0 THEN |{ ls_sum-area_txt } 권한없음|
+        ELSE |{ ls_sum-area_txt } { ls_sum-count }건| ).
+      mo_dd_sum->add_text( text = lv_txt ).
+      mo_dd_sum->add_gap( width = 30 ).
+    ENDLOOP.
 
-    mo_grid_sum->set_table_for_first_display(
-      EXPORTING is_layout = ls_layo
-      CHANGING  it_fieldcatalog = lt_fcat it_outtab = mt_summary ).
+    mo_dd_sum->add_text( text = |조회: { ms_sel-from_date DATE = USER } { ms_sel-from_time TIME = USER }|
+                              && | ~ { ms_sel-to_date DATE = USER } { ms_sel-to_time TIME = USER }| ).
+
+    mo_dd_sum->merge_document( ).
+    mo_dd_sum->display_document( EXPORTING reuse_control = abap_true
+                                           parent        = mo_cell_sum ).
   ENDMETHOD.
 
   METHOD build_area_grids.
@@ -1117,39 +1132,83 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD render_chart.
-    "TODO: IGS 그래픽 차트(CL_GUI_CHART_ENGINE) 로 대체.
-    "      현재는 활성화/실행 보증을 위해 집계 결과를 ALV(표) 로 표시한다.
-    "      집계 로직(영역별 Top-N / 적응형 시간버킷)은 실제 동작한다.
-    DATA(lo_cell) = mo_split->get_container( row = 2 column = 1 ).
-    IF mo_grid_chart IS BOUND.
-      mo_grid_chart->free( ).
-      CLEAR mo_grid_chart.
-    ENDIF.
-    CREATE OBJECT mo_grid_chart EXPORTING i_parent = lo_cell.
+    " 중간 = 가로 막대 그래프 (CL_DD_DOCUMENT). 관점 토글로 Top-N <-> 시간추이.
+    "TODO(옵션): 설계 6.2a 의 IGS 그래픽 차트(CL_GUI_CHART_ENGINE) 로 교체 가능.
+    CONSTANTS c_bar_max TYPE i VALUE 40.       " 막대 최대 길이(문자)
+    DATA lv_max TYPE i.
+    DATA lv_len TYPE i.
 
-    DATA: lt_fcat TYPE lvc_t_fcat,
-          ls_layo TYPE lvc_s_layo.
-    ls_layo-cwidth_opt = abap_true.
+    CREATE OBJECT mo_dd_chart.
 
     IF mv_persp = c_persp_topn.
-      ls_layo-grid_title = '차트: 영역별 Top-N 집중도'.       "#EC NOTEXT
-      lcl_util=>add_col( EXPORTING iv_field = 'AREA'  iv_text = '영역'  CHANGING ct_fcat = lt_fcat ).
-      lcl_util=>add_col( EXPORTING iv_field = 'KEY'   iv_text = '원인키' CHANGING ct_fcat = lt_fcat ).
-      lcl_util=>add_col( EXPORTING iv_field = 'COUNT' iv_text = '건수'  CHANGING ct_fcat = lt_fcat ).
-      mo_grid_chart->set_table_for_first_display(
-        EXPORTING is_layout = ls_layo
-        CHANGING  it_fieldcatalog = lt_fcat it_outtab = mt_chart_topn ).
+      mo_dd_chart->add_text(
+        text = |■ 에러 집중도 Top-{ ms_sel-topn } (영역별)  [관점전환=TOGGLE]| ).
+      mo_dd_chart->new_line( ).
+
+      lv_max = 0.
+      LOOP AT mt_chart_topn INTO DATA(ls_t).
+        IF ls_t-count > lv_max.
+          lv_max = ls_t-count.
+        ENDIF.
+      ENDLOOP.
+      IF lv_max = 0.
+        lv_max = 1.
+      ENDIF.
+
+      LOOP AT mt_chart_topn INTO ls_t.
+        lv_len = ls_t-count * c_bar_max / lv_max.
+        IF lv_len = 0 AND ls_t-count > 0.
+          lv_len = 1.
+        ENDIF.
+        DATA(lv_bar) = repeat( val = `█` occ = lv_len ).
+        mo_dd_chart->add_text( text = |{ ls_t-area } { ls_t-key }| ).
+        mo_dd_chart->add_gap( width = 4 ).
+        mo_dd_chart->add_text( text = |{ lv_bar } { ls_t-count }| ).
+        mo_dd_chart->new_line( ).
+      ENDLOOP.
+
+      IF mt_chart_topn IS INITIAL.
+        mo_dd_chart->add_text( text = '표시할 에러가 없습니다.' ).
+        mo_dd_chart->new_line( ).
+      ENDIF.
+
     ELSE.
-      ls_layo-grid_title = '차트: 시간대별 추이(적응형 버킷)'. "#EC NOTEXT
-      lcl_util=>add_col( EXPORTING iv_field = 'BUCKET' iv_text = '시간버킷' CHANGING ct_fcat = lt_fcat ).
-      lcl_util=>add_col( EXPORTING iv_field = 'SM37'   iv_text = 'SM37' CHANGING ct_fcat = lt_fcat ).
-      lcl_util=>add_col( EXPORTING iv_field = 'ST22'   iv_text = 'ST22' CHANGING ct_fcat = lt_fcat ).
-      lcl_util=>add_col( EXPORTING iv_field = 'SXI'    iv_text = 'SXI'  CHANGING ct_fcat = lt_fcat ).
-      lcl_util=>add_col( EXPORTING iv_field = 'TOTAL'  iv_text = '합계' CHANGING ct_fcat = lt_fcat ).
-      mo_grid_chart->set_table_for_first_display(
-        EXPORTING is_layout = ls_layo
-        CHANGING  it_fieldcatalog = lt_fcat it_outtab = mt_chart_time ).
+      mo_dd_chart->add_text(
+        text = |■ 시간대별 추이 (적응형 버킷)  [관점전환=TOGGLE]| ).
+      mo_dd_chart->new_line( ).
+
+      lv_max = 0.
+      LOOP AT mt_chart_time INTO DATA(ls_b).
+        IF ls_b-total > lv_max.
+          lv_max = ls_b-total.
+        ENDIF.
+      ENDLOOP.
+      IF lv_max = 0.
+        lv_max = 1.
+      ENDIF.
+
+      LOOP AT mt_chart_time INTO ls_b.
+        lv_len = ls_b-total * c_bar_max / lv_max.
+        IF lv_len = 0 AND ls_b-total > 0.
+          lv_len = 1.
+        ENDIF.
+        DATA(lv_bar2) = repeat( val = `█` occ = lv_len ).
+        mo_dd_chart->add_text( text = |{ ls_b-bucket }| ).
+        mo_dd_chart->add_gap( width = 4 ).
+        mo_dd_chart->add_text(
+          text = |{ lv_bar2 } { ls_b-total } (SM37 { ls_b-sm37 }/ST22 { ls_b-st22 }/SXI { ls_b-sxi })| ).
+        mo_dd_chart->new_line( ).
+      ENDLOOP.
+
+      IF mt_chart_time IS INITIAL.
+        mo_dd_chart->add_text( text = '표시할 에러가 없습니다.' ).
+        mo_dd_chart->new_line( ).
+      ENDIF.
     ENDIF.
+
+    mo_dd_chart->merge_document( ).
+    mo_dd_chart->display_document( EXPORTING reuse_control = abap_true
+                                             parent        = mo_cell_chart ).
   ENDMETHOD.
 
   METHOD toggle_perspective.

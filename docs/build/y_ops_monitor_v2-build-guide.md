@@ -92,9 +92,11 @@ PROCESS AFTER INPUT.
 | ST22 | `S_ABAPDUMP` | `ACTVT='03'`, `DUMP_INFO='FULL'`, `DUMP_CCLNT='ALL'`, `DUMP_CUSER='ALL'` |
 | SXI  | `S_XMB_MONI` | `ACTVT='03'` (기타 필드 DUMMY) |
 
-## 9. 차트 관련 안내 (1차 구현 범위)
-- 1차는 **차트 패널을 집계 결과 ALV(표)** 로 표시합니다(영역별 Top-N / 시간대별 추이). 집계 로직은 실제 동작하며 관점 토글(`TOGGLE`)로 전환됩니다.
-- 그래픽 IGS 차트(`CL_GUI_CHART_ENGINE`)는 `render_chart`의 `"TODO` 지점에서 후속 확장합니다(설계 6.2a).
+## 9. 상단 요약 / 중간 차트 구현 (1차 범위)
+- **상단(요약)**: `CL_DD_DOCUMENT` 로 **한 줄 텍스트 요약**(신호등 아이콘 + 영역별 건수 + 조회기간). 설계 6.3.
+- **중간(차트)**: `CL_DD_DOCUMENT` 기반 **가로 막대 그래프**(영역별 Top-N). `TOGGLE` 로 **시간대별 추이**로 전환. 집계 로직(전체 건수 기준 Top-N / 적응형 시간버킷)은 실제 동작.
+- **하단**: 3분할 ALV(SM37/ST22/SXI), 더블클릭 드릴다운.
+- 그래픽 IGS 차트(`CL_GUI_CHART_ENGINE`, 설계 6.2a/O-9)는 `render_chart` 의 `"TODO(옵션)` 지점에서 교체 가능(선택).
 
 ## 10. 이후 단계 (로컬 검증 통과 후)
 - 로컬 타입/클래스를 **DDIC 구조·글로벌 클래스·인터페이스·메시지 클래스**로 분리.
