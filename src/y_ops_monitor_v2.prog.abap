@@ -15,7 +15,7 @@
 *&    IN UPDATE TASK, 상태 변경 BAPI/FM 전면 금지.
 *&  - 드릴다운은 표시(Display) 모드 표준 화면/FM만 호출한다.
 *&
-*& [화면] Dynpro 0100 + GUI Status 'S0100' 은 SE51/SE41 로 별도 생성한다.
+*& [화면] Dynpro 0100 + GUI Status 'S0100'(REFRESH/TOGGLE/BACK) 은 SE51/SE41 로 생성.
 *&        생성 방법: docs/build/y_ops_monitor_v2-build-guide.md 참조.
 *&---------------------------------------------------------------------*
 REPORT y_ops_monitor_v2.
@@ -123,7 +123,6 @@ TYPES: BEGIN OF ty_iface,           " SXI (ZMON_S_IFACE 대체)
          msgstate  TYPE sxmspmast-msgstate,
          errstat   TYPE sxmsperror-errstat,
          msgguid   TYPE sxmspmast-msgguid,
-         pid       TYPE sxmsperror-pid,        " 드릴다운(파이프라인 ID)
        END OF ty_iface,
        ty_iface_tab TYPE STANDARD TABLE OF ty_iface WITH DEFAULT KEY.
 
@@ -151,7 +150,6 @@ TYPES: BEGIN OF ty_time_pt,
        END OF ty_time_pt,
        ty_time_tab TYPE STANDARD TABLE OF ty_time_pt WITH DEFAULT KEY.
 
-" 차트(placeholder ALV)용 행 ------------------------------------------
 TYPES: BEGIN OF ty_chart_topn,
          area  TYPE c LENGTH 10,
          key   TYPE c LENGTH 120,
@@ -241,19 +239,16 @@ ENDCLASS.
 *&---------------------------------------------------------------------*
 CLASS lcl_aggregator DEFINITION.
   PUBLIC SECTION.
-    " Top-N: 키 목록 -> (키,건수) 상위 N (전체 건수 기준)
     CLASS-METHODS build_topn
       IMPORTING it_keys      TYPE ty_str_tab
                 iv_topn      TYPE i
       RETURNING VALUE(rt)    TYPE ty_key_count_tab.
-    " 적응형 버킷 크기(시간) 결정
     CLASS-METHODS bucket_size_hours
       IMPORTING iv_from_date TYPE d
                 iv_from_time TYPE t
                 iv_to_date   TYPE d
                 iv_to_time   TYPE t
       RETURNING VALUE(rv)    TYPE i.
-    " 시간점 -> 버킷 라벨
     CLASS-METHODS bucket_label
       IMPORTING iv_d          TYPE d
                 iv_t          TYPE t
@@ -315,11 +310,9 @@ CLASS lcl_navigator DEFINITION.
     METHODS show_dump
       IMPORTING iv_datum TYPE d
                 iv_uzeit TYPE t
-                iv_uname TYPE syuname
-                iv_ahost TYPE snap-ahost.
+                iv_uname TYPE syuname.
     METHODS show_message
-      IMPORTING iv_msgguid TYPE sxmspmast-msgguid
-                iv_pid     TYPE sxmsperror-pid.
+      IMPORTING iv_msgguid TYPE sxmspmast-msgguid.
 ENDCLASS.
 
 CLASS lcl_navigator IMPLEMENTATION.
@@ -341,55 +334,19 @@ CLASS lcl_navigator IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD show_dump.
-    " 표시 전용 - 선택한 덤프의 상세를 직접 표시 (RS_SNAP_DUMP_DISPLAY).
-    " SNAP 키(MANDT/MODNO/SEQNO)는 (일자/시간/서버/사용자)로 조회하여 확보.
-    DATA ls_snap TYPE snap.
-    SELECT SINGLE ahost, datum, mandt, modno, seqno, uname, uzeit
-      FROM snap
-      INTO CORRESPONDING FIELDS OF @ls_snap
-      WHERE datum = @iv_datum
-        AND uzeit = @iv_uzeit
-        AND ahost = @iv_ahost
-        AND uname = @iv_uname.
-
-    IF sy-subrc = 0.
-      CALL FUNCTION 'RS_SNAP_DUMP_DISPLAY'
-        EXPORTING
-          ahost          = ls_snap-ahost
-          datum          = ls_snap-datum
-          mandt          = ls_snap-mandt
-          modno          = ls_snap-modno
-          seqno          = ls_snap-seqno
-          uname          = ls_snap-uname
-          uzeit          = ls_snap-uzeit
-        EXCEPTIONS
-          no_entry_found = 1
-          OTHERS         = 2.
-      IF sy-subrc = 0.
-        RETURN.
-      ENDIF.
-    ENDIF.
-
-    " 폴백: 상세 조회 불가 시 표준 ST22 진입
-    MESSAGE '해당 덤프 상세를 열 수 없어 ST22로 이동합니다.' TYPE 'S' DISPLAY LIKE 'W'. "#EC NOTEXT
+    " 표시 전용 - ST22 표준 화면 (읽기 전용 진입).
+    " 선택 행의 덤프 키(일자/시간/사용자)를 SPA/GPA 파라미터로 넘겨 초기값 지정.
+    "TODO: 대상 시스템에서 ST22 선택필드 파라미터 ID 확인 후 정밀 진입 보완.
+    SET PARAMETER ID 'RID' FIELD iv_datum.      " 덤프 일자(관례적 파라미터)
+    SET PARAMETER ID 'RIT' FIELD iv_uzeit.      " 덤프 시간
+    SET PARAMETER ID 'XUB' FIELD iv_uname.      " 사용자
     CALL TRANSACTION 'ST22'.                              "#EC CI_CALLTA
   ENDMETHOD.
 
   METHOD show_message.
-    " 표시 전용 - 선택한 XML 메시지의 상세 모니터를 직접 표시.
-    CALL FUNCTION 'SXMB_DISPLAY_MESSAGE_MONITOR'
-      EXPORTING
-        im_message_id     = iv_msgguid
-        im_pipeline_id    = iv_pid
-      EXCEPTIONS
-        message_not_found = 1
-        not_authorized    = 2
-        OTHERS            = 3.
-    IF sy-subrc <> 0.
-      " 폴백: 상세 조회 불가 시 표준 SXI_MONITOR 진입
-      MESSAGE '해당 메시지 상세를 열 수 없어 SXI_MONITOR로 이동합니다.' TYPE 'S' DISPLAY LIKE 'W'. "#EC NOTEXT
-      CALL TRANSACTION 'SXI_MONITOR'.                     "#EC CI_CALLTA
-    ENDIF.
+    " MSGGUID 는 RAW(비문자형)이라 SET PARAMETER 로 넘길 수 없어 트랜잭션만 호출.
+    "TODO: 필요 시 MSGGUID 를 CHAR(32)로 변환하여 특정 메시지로 정밀 진입하도록 보완.
+    CALL TRANSACTION 'SXI_MONITOR'.                       "#EC CI_CALLTA
   ENDMETHOD.
 ENDCLASS.
 
@@ -717,8 +674,7 @@ CLASS lcl_dp_dump IMPLEMENTATION.
     IF sy-subrc = 0.
       mo_nav->show_dump( iv_datum = ls-datum
                          iv_uzeit = ls-uzeit
-                         iv_uname = ls-uname
-                         iv_ahost = CONV #( ls-ahost ) ).
+                         iv_uname = ls-uname ).
     ENDIF.
   ENDMETHOD.
 ENDCLASS.
@@ -815,8 +771,7 @@ CLASS lcl_dp_interface IMPLEMENTATION.
         line_color = 'C700'                                 " SXI 영역색
         icon    = icon_red_light
         errstat = ls_err-errstat
-        msgguid = ls_err-msgguid
-        pid     = ls_err-pid ).
+        msgguid = ls_err-msgguid ).
 
       lcl_util=>utc_to_local(
         EXPORTING iv_ts   = CONV timestampl( ls_err-exetimest )
@@ -907,8 +862,7 @@ CLASS lcl_dp_interface IMPLEMENTATION.
   METHOD lif_data_provider~navigate.
     READ TABLE mt_view INTO DATA(ls) INDEX iv_row.
     IF sy-subrc = 0.
-      mo_nav->show_message( iv_msgguid = ls-msgguid
-                            iv_pid     = ls-pid ).
+      mo_nav->show_message( iv_msgguid = ls-msgguid ).
     ENDIF.
   ENDMETHOD.
 ENDCLASS.
@@ -1092,7 +1046,7 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD build_summary.
-    " 상단 = 한 줄 텍스트 요약 (신호등 아이콘 + 영역별 건수 + 조회기간)
+    " 상단 = 한 줄 텍스트 요약 (신호등 아이콘 + 영역별 건수 + 조회기간 + 조회시각 + 안내)
     CLEAR mt_summary.
     DATA(lt_prov) = mo_ctrl->providers( ).
     LOOP AT lt_prov INTO DATA(lo_prov).
@@ -1175,10 +1129,10 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
 
       DATA ls_layo TYPE lvc_s_layo.
       ls_layo-cwidth_opt = abap_true.
-      ls_layo-no_toolbar = abap_true.       " ALV 툴바 제거(공간 절약)
-      ls_layo-info_fname = 'LINE_COLOR'.    " 영역 고정색 행 강조
+      ls_layo-info_fname = 'LINE_COLOR'.    " 영역 고정색 행 강조 (FR-08 툴바 유지)
       ls_layo-grid_title = lv_title.
       ls_layo-smalltitle = abap_true.
+      ls_layo-no_toolbar = abap_true.       " ALV 툴바 제거(공간 절약)
 
       lo_grid->set_table_for_first_display(
         EXPORTING is_layout = ls_layo
@@ -1467,7 +1421,7 @@ ENDFORM.
 *&  MODULE STATUS_0100 OUTPUT  (PBO)
 *&---------------------------------------------------------------------*
 MODULE status_0100 OUTPUT.
-  " GUI Status 'S0100' (SE41): 기능 TOGGLE(관점전환), BACK/EXIT/CANCEL
+  " GUI Status 'S0100' (SE41): 기능 REFRESH / TOGGLE / BACK / EXIT / CANCEL
   SET PF-STATUS 'S0100'.
   SET TITLEBAR  'T0100'.
 
