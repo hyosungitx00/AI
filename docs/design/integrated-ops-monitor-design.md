@@ -5,7 +5,7 @@
 | 문서명 | 통합 운영 모니터링 프로그램 (SM37 / ST22 / SXI_MONITOR) 상세 설계서 |
 | 대상 시스템 | SAP S/4HANA (ABAP Integration Engine 사용) |
 | 화면 환경 | SAP GUI (Classic Dynpro + OO ALV) |
-| 문서 버전 | v0.3 (Draft) |
+| 문서 버전 | v0.4 (Draft) |
 | 작성 목적 | ABAP 개발 착수 전 기능/데이터/화면/로직 확정을 위한 기술 설계 |
 | 상태 | 검토 대기 (Review) |
 
@@ -539,17 +539,19 @@ P_TODAT = SY-DATUM. P_TOTIM = SY-UZEIT.
 - 다음을 **코드 레벨에서 금지**한다: `INSERT/UPDATE/MODIFY/DELETE`, `COMMIT WORK`, `ROLLBACK`(업무 목적), `ENQUEUE_*`/`DEQUEUE_*`, 업데이트 태스크(`CALL FUNCTION ... IN UPDATE TASK`), 상태 변경성 BAPI/FM(잡 재실행·메시지 재전송 등).
 - 드릴다운 호출 대상은 **표시(Display) 화면/FM** 으로 제한한다.
 
-### 8.2 권한 체크 설계  ✅ 일부 확정(O-7)
+### 8.2 권한 체크 설계  ✅ 확정(O-7, STAUTHTRACE 검증 완료)
 - **방식 = (A) 영역별 권한 체크**. 각 영역 조회 직전 `AUTHORITY-CHECK` 수행.
 - **권한 없는 영역은 해당 영역만 스킵**(ALV 비움 + "권한 없음" 안내), **나머지 영역은 정상 조회**.
+- 객체/필드/값은 대상 시스템 **STAUTHTRACE 런타임 추적으로 확정**하였다. (아래 표)
 
-| 영역 | 후보 권한 객체 | 점검 필드(후보) | 상태 |
-|------|----------------|------------------|------|
-| SM37(배치) | `S_BTCH_JOB` (필요 시 `S_BTCH_ADM`) | `JOBACTION`(LIST/SHOW), `JOBGROUP` | `"TODO: SU24/STAUTHTRACE 검증` |
-| ST22(덤프) | `S_ADMI_FCD` | 시스템관리 기능코드값 | `"TODO: SU24/STAUTHTRACE 검증` |
-| SXI(인터페이스) | `S_XMB_MONI` | `ACTVT`(표시) 등 | `"TODO: SU24/STAUTHTRACE 검증` |
+| 영역 | 권한 객체(확정) | 점검 필드 / 값 | 비고 |
+|------|-----------------|----------------|------|
+| SM37(배치) | `S_BTCH_JOB` | `JOBGROUP='*'`, `JOBACTION='SHOW'` | 최소권한(표시). 관리자는 `S_BTCH_ADM='Y'`로도 통과하나 게이트는 `S_BTCH_JOB`로 통일 |
+| ST22(덤프) | `S_ABAPDUMP` | `ACTVT='03'`, `DUMP_INFO='FULL'`, `DUMP_CCLNT='ALL'`, `DUMP_CUSER='ALL'` | 전 클라이언트·전 사용자 덤프 조회(표시). 후보였던 `S_ADMI_FCD`는 오판정으로 **제거** |
+| SXI(인터페이스) | `S_XMB_MONI` | `ACTVT='03'` (기타 필드 `SXMBPARTY/…/SXMBIFNAME` = `*`) | 모니터 표시. `S_XMB_ADM`(관리자)은 **미요구** |
 
-> 정확한 객체/필드/값은 대상 시스템에서 **SU24**(트랜잭션이 체크하는 객체) → **SU21**(객체 필드/허용값) → **STAUTHTRACE**(런타임 실제 체크값) 순으로 검증 후 확정한다. 검증 전에는 위 후보 + `"TODO` 주석으로 작성한다.
+> **정정(O-7)**: STAUTHTRACE 결과 ST22의 실제 체크 객체는 `S_ABAPDUMP`(`CL_DUMP_AUTHORIZATION`)이며, 설계 후보였던 `S_ADMI_FCD`는 ST22와 무관(추적 상 `S_ADMI_FCD=ST0M`은 STAUTHTRACE 자신의 체크)함을 확인하여 교체하였다.
+> `S_TCODE`, `S_GUI`(ACTVT 61), `S_ALV_LAYO`(ACTVT 23)는 프레임워크/드릴다운(`CALL TRANSACTION`)이 자동 체크하므로 본 프로그램에서 명시적 `AUTHORITY-CHECK` 대상으로 두지 않는다.
 
 ### 8.3 트랜잭션 코드
 - 단일 트랜잭션 코드(예: `ZOPSMON`)를 생성하고, 적절한 권한 그룹/메뉴에 배치한다.
@@ -652,7 +654,7 @@ P_TODAT = SY-DATUM. P_TOTIM = SY-UZEIT.
 | ✅ O-5 | 화면 레이아웃/차트 | **요약 + 관점 선택형 차트 + 3분할 ALV**. 차트 기본=영역별 Top-N(가로 막대), 토글=시간대별 추이(적응형 버킷), `P_TOPN` 기본 5 |
 | ✅ O-9 | IGS/차트 렌더링 | **IGS 가용 확인** → `CL_GUI_CHART_ENGINE` 사용 |
 | ✅ O-6 | 신호등 임계치 | **3단계, 영역별 건수 기반**(SM37: 0/–/≥1, ST22: 0/1–30/≥31, SXI: 0/1–50/≥51), 클래스 상수 관리 |
-| 🔶 O-7 | 권한 체크 | 방식=**영역별 체크 후 없으면 스킵(A)** 확정. 객체/필드는 **SU24→SU21→STAUTHTRACE 검증 대기**(후보+TODO) |
+| ✅ O-7 | 권한 체크 | 방식=**영역별 체크 후 없으면 스킵(A)**. 객체/필드=**STAUTHTRACE 검증 확정** — SM37 `S_BTCH_JOB`(`JOBGROUP='*'`/`JOBACTION='SHOW'`), ST22 `S_ABAPDUMP`(`ACTVT=03`/`DUMP_INFO=FULL`/`DUMP_CCLNT=ALL`/`DUMP_CUSER=ALL`, `S_ADMI_FCD`→`S_ABAPDUMP` 정정), SXI `S_XMB_MONI`(`ACTVT=03`, `S_XMB_ADM` 미요구) |
 | ✅ O-8 | 결과 건수 상한 | **`P_MAXROW` 기본 250, 최신순 표시 제한 + 초과 안내. 차트 집계는 전체 기준. 영역별 스케일 차이 유의** |
 | ✅ O-10 | `SXMSPEMAS` 필드 | 송신=`OB_SYSTEM`, 수신=`IB_SYSTEM`, IF명=`OB_NAME`(+`OB_OPERATION`), 방향 컬럼 생략(송신→수신). SXI Top-N 키=`OB_NAME` |
 | ✅ O-11 | ST22 조회/유형 | 조회=**`RS_ST22_GET_DUMPS`**(`RSDUMPTAB`), 에러유형=**`DUMPID`**(Top-N 키), 날짜별 호출+시간 ABAP 필터, `MANDT` 컬럼 제외 |
@@ -660,9 +662,9 @@ P_TODAT = SY-DATUM. P_TOTIM = SY-UZEIT.
 ### 14.2 잔여 미결 항목 (Open)
 | ID | 항목 | 내용 / 결정 필요사항 | 잠정안 |
 |----|------|----------------------|--------|
-| O-7(객체) | 권한 객체/필드 | 영역별 정확한 객체·필드·값 (SU24/SU21/STAUTHTRACE 검증) | 후보+TODO |
+| — | (없음) | 모든 Open Issue가 확정되었다. | — |
 
-> 14.1은 확정되어 코드에 반영한다. 잔여 O-7(객체)은 빌드 단계에서 대상 시스템으로 검증하며, 미확정 부분은 코드에 `"TODO: SU24/STAUTHTRACE 검증` 주석으로 명시한다.
+> 14.1의 모든 항목이 확정되어 코드에 반영한다. O-7(권한 객체) 또한 STAUTHTRACE 런타임 추적으로 확정되어 더 이상 `"TODO: SU24/STAUTHTRACE 검증` 주석 없이 8.2의 확정 값으로 구현한다.
 
 ---
 
@@ -672,3 +674,4 @@ P_TODAT = SY-DATUM. P_TOTIM = SY-UZEIT.
 | v0.1 | 2026-06-16 | 최초 작성(Draft) — 개요/요구사항/아키텍처/데이터소스/화면/로직/권한/성능/테스트/확장/Open Issues |
 | v0.2 | 2026-06-16 | O-1~O-5 확정 반영(SM37 종료시각·드릴다운, ST22 SNAP·ST22호출, SXI 필드/UTC/방식A) + **관점 선택형 차트 패널(`CL_GUI_CHART_ENGINE`)** 및 `ZCL_MON_AGGREGATOR` 추가, IGS(O-9) 해소, Open Issues 재정리(O-10/O-11) |
 | v0.3 | 2026-06-18 | O-6~O-11 일괄 확정 반영 — 신호등 3단계 임계치(O-6), 권한 체크 방식(O-7, 객체 검증 보류), **ST22 조회 `RS_ST22_GET_DUMPS`/`RSDUMPTAB`·`DUMPID`로 변경(O-3 갱신/O-11)**, SXI 필드 확정(`OB_SYSTEM`/`IB_SYSTEM`/`OB_NAME`/`OB_OPERATION`, O-10), 결과 상한 `P_MAXROW`(O-8), 차트 Top-N 키(SM37=JOBNAME/ST22=DUMPID/SXI=OB_NAME)·영역별 독립 Top-N·전체 기준 집계 |
+| v0.4 | 2026-07-03 | **O-7 권한 객체 STAUTHTRACE 검증 완료·확정** — SM37 `S_BTCH_JOB`(`JOBGROUP='*'`/`JOBACTION='SHOW'`), ST22 **`S_ADMI_FCD`→`S_ABAPDUMP` 정정**(`ACTVT=03`/`DUMP_INFO=FULL`/`DUMP_CCLNT=ALL`/`DUMP_CUSER=ALL`), SXI `S_XMB_MONI`(`ACTVT=03`, `S_XMB_ADM` 미요구). 잔여 Open Issue 없음(전건 확정) |
