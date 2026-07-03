@@ -1223,8 +1223,8 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
         && |</Text></Extension></Title></ChartElements>|
         && |</SAPChartCustomizing>|.
 
-      <cc>-chart->set_customizing( customizing = lv_cust ).
-      <cc>-chart->set_data( data = lv_data ).
+      <cc>-chart->set_customizing( lv_cust ).
+      <cc>-chart->set_data( lv_data ).
       <cc>-chart->render( ).
     ENDLOOP.
   ENDMETHOD.
