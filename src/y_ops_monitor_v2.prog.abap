@@ -794,9 +794,15 @@ CLASS lcl_dp_interface IMPLEMENTATION.
         ls_out-msgstate = ls_ma-msgstate.
       ENDIF.
 
-      " 인터페이스명 필터(옵션) - OB_NAME
+      " 인터페이스명 필터(옵션) - OB_NAME (원본값 기준으로 필터)
       IF is_sel-iface_rng IS NOT INITIAL AND NOT ls_out-if_name IN is_sel-iface_rng.
         CONTINUE.
+      ENDIF.
+
+      " 인터페이스명이 비면(초기단계 실패/시스템 메시지 등) 차트·목록 라벨을 (미상) 으로 통일.
+      " (삭제하지 않음: 실제 에러이며 누락 방지 목적) 상세는 더블클릭(SXI_MONITOR)로 확인.
+      IF ls_out-if_name IS INITIAL.
+        ls_out-if_name = '(미상)'.                          "#EC NOTEXT
       ENDIF.
 
       APPEND ls_out TO mt_all.
