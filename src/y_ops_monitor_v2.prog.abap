@@ -123,6 +123,7 @@ TYPES: BEGIN OF ty_iface,           " SXI (ZMON_S_IFACE 대체)
          msgstate  TYPE sxmspmast-msgstate,
          errstat   TYPE sxmsperror-errstat,
          msgguid   TYPE sxmspmast-msgguid,
+         pid       TYPE sxmsperror-pid,        " 드릴다운(파이프라인 ID)
        END OF ty_iface,
        ty_iface_tab TYPE STANDARD TABLE OF ty_iface WITH DEFAULT KEY.
 
@@ -311,9 +312,11 @@ CLASS lcl_navigator DEFINITION.
     METHODS show_dump
       IMPORTING iv_datum TYPE d
                 iv_uzeit TYPE t
-                iv_uname TYPE syuname.
+                iv_uname TYPE syuname
+                iv_ahost TYPE snap-ahost.
     METHODS show_message
-      IMPORTING iv_msgguid TYPE sxmspmast-msgguid.
+      IMPORTING iv_msgguid TYPE sxmspmast-msgguid
+                iv_pid     TYPE sxmsperror-pid.
 ENDCLASS.
 
 CLASS lcl_navigator IMPLEMENTATION.
@@ -335,19 +338,56 @@ CLASS lcl_navigator IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD show_dump.
-    " 표시 전용 - ST22 표준 화면 (읽기 전용 진입).
-    " 선택 행의 덤프 키(일자/시간/사용자)를 SPA/GPA 파라미터로 넘겨 초기값 지정.
-    "TODO: 대상 시스템에서 ST22 선택필드 파라미터 ID 확인 후 정밀 진입 보완.
-    SET PARAMETER ID 'RID' FIELD iv_datum.      " 덤프 일자(관례적 파라미터)
-    SET PARAMETER ID 'RIT' FIELD iv_uzeit.      " 덤프 시간
-    SET PARAMETER ID 'XUB' FIELD iv_uname.      " 사용자
+    " 표시 전용 - 선택한 덤프의 상세를 직접 표시 (RS_SNAP_DUMP_DISPLAY).
+    " SNAP 키(MANDT/MODNO/SEQNO)는 (일자/시간/서버/사용자)로 조회하여 확보한다.
+    "  ※ 읽기 전용 SELECT 이며, ST22 표준 상세 화면과 동일한 덤프 상세를 표시한다.
+    DATA ls_snap TYPE snap.
+    SELECT SINGLE ahost, datum, mandt, modno, seqno, uname, uzeit
+      FROM snap
+      INTO CORRESPONDING FIELDS OF @ls_snap
+      WHERE datum = @iv_datum
+        AND uzeit = @iv_uzeit
+        AND ahost = @iv_ahost
+        AND uname = @iv_uname.
+
+    IF sy-subrc = 0.
+      CALL FUNCTION 'RS_SNAP_DUMP_DISPLAY'
+        EXPORTING
+          ahost          = ls_snap-ahost
+          datum          = ls_snap-datum
+          mandt          = ls_snap-mandt
+          modno          = ls_snap-modno
+          seqno          = ls_snap-seqno
+          uname          = ls_snap-uname
+          uzeit          = ls_snap-uzeit
+        EXCEPTIONS
+          no_entry_found = 1
+          OTHERS         = 2.
+      IF sy-subrc = 0.
+        RETURN.
+      ENDIF.
+    ENDIF.
+
+    " 폴백: 상세 조회 불가 시 표준 ST22 진입
+    MESSAGE '해당 덤프 상세를 열 수 없어 ST22로 이동합니다.' TYPE 'S' DISPLAY LIKE 'W'. "#EC NOTEXT
     CALL TRANSACTION 'ST22'.                              "#EC CI_CALLTA
   ENDMETHOD.
 
   METHOD show_message.
-    " MSGGUID 는 RAW(비문자형)이라 SET PARAMETER 로 넘길 수 없어 트랜잭션만 호출.
-    "TODO: 필요 시 MSGGUID 를 CHAR(32)로 변환하여 특정 메시지로 정밀 진입하도록 보완.
-    CALL TRANSACTION 'SXI_MONITOR'.                       "#EC CI_CALLTA
+    " 표시 전용 - 선택한 XML 메시지의 상세 모니터를 직접 표시 (MSGGUID + PID).
+    CALL FUNCTION 'SXMB_DISPLAY_MESSAGE_MONITOR'
+      EXPORTING
+        im_message_id     = iv_msgguid
+        im_pipeline_id    = iv_pid
+      EXCEPTIONS
+        message_not_found = 1
+        not_authorized    = 2
+        OTHERS            = 3.
+    IF sy-subrc <> 0.
+      " 폴백: 상세 조회 불가 시 표준 SXI_MONITOR 진입
+      MESSAGE '해당 메시지 상세를 열 수 없어 SXI_MONITOR로 이동합니다.' TYPE 'S' DISPLAY LIKE 'W'. "#EC NOTEXT
+      CALL TRANSACTION 'SXI_MONITOR'.                     "#EC CI_CALLTA
+    ENDIF.
   ENDMETHOD.
 ENDCLASS.
 
@@ -675,7 +715,8 @@ CLASS lcl_dp_dump IMPLEMENTATION.
     IF sy-subrc = 0.
       mo_nav->show_dump( iv_datum = ls-datum
                          iv_uzeit = ls-uzeit
-                         iv_uname = ls-uname ).
+                         iv_uname = ls-uname
+                         iv_ahost = CONV #( ls-ahost ) ).
     ENDIF.
   ENDMETHOD.
 ENDCLASS.
@@ -772,7 +813,8 @@ CLASS lcl_dp_interface IMPLEMENTATION.
         line_color = 'C700'                                 " SXI 영역색
         icon    = icon_red_light
         errstat = ls_err-errstat
-        msgguid = ls_err-msgguid ).
+        msgguid = ls_err-msgguid
+        pid     = ls_err-pid ).
 
       lcl_util=>utc_to_local(
         EXPORTING iv_ts   = CONV timestampl( ls_err-exetimest )
@@ -876,7 +918,8 @@ CLASS lcl_dp_interface IMPLEMENTATION.
   METHOD lif_data_provider~navigate.
     READ TABLE mt_view INTO DATA(ls) INDEX iv_row.
     IF sy-subrc = 0.
-      mo_nav->show_message( iv_msgguid = ls-msgguid ).
+      mo_nav->show_message( iv_msgguid = ls-msgguid
+                            iv_pid     = ls-pid ).
     ENDIF.
   ENDMETHOD.
 ENDCLASS.
