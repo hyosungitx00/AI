@@ -1140,11 +1140,16 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
       mo_dd_sum->add_gap( width = 30 ).
     ENDLOOP.
 
-    mo_dd_sum->add_text( text = |조회: { ms_sel-from_date DATE = USER } { ms_sel-from_time TIME = USER }|
-                              && | ~ { ms_sel-to_date DATE = USER } { ms_sel-to_time TIME = USER }| ).
-    mo_dd_sum->add_gap( width = 20 ).
-    mo_dd_sum->add_text( text = CONV #( |조회시각: { mv_refresh_dt DATE = USER } { mv_refresh_tm TIME = USER }| ) ).
     mo_dd_sum->new_line( ).
+    mo_dd_sum->new_line( ).
+    mo_dd_sum->add_text( text = |조회 기간:| ).
+    mo_dd_sum->add_gap( width = 5 ).
+    mo_dd_sum->add_text( text = |{ ms_sel-from_date DATE = USER } { ms_sel-from_time TIME = USER }| ).
+    mo_dd_sum->add_gap( width = 5 ).
+    mo_dd_sum->add_text( text = |~| ).
+    mo_dd_sum->add_gap( width = 5 ).
+    mo_dd_sum->add_text( text = | { ms_sel-to_date DATE = USER } { ms_sel-to_time TIME = USER }| ).
+    mo_dd_sum->add_gap( width = 15 ).
     mo_dd_sum->add_text( text = |※ 라인 더블클릭 시 표준 상세화면으로 이동 · [REFRESH] 새로고침 · [TOGGLE] 차트 관점 전환| ).
 
     mo_dd_sum->merge_document( ).
