@@ -1235,7 +1235,7 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
         LOOP AT mt_chart_topn INTO DATA(ls_t) WHERE area = <cc>-area.
           lv_cat = lv_cat && |<Category>{ escape( val = CONV string( ls_t-key )
                                                    format = cl_abap_format=>e_xml_text ) }</Category>|.
-          lv_pts = lv_pts && |<Point><Value type="y">{ ls_t-count }</Value></Point>|.
+          lv_pts = lv_pts && |<Point><Value>{ ls_t-count }</Value></Point>|.
         ENDLOOP.
       ELSE.
         lv_title = |{ <cc>-area_txt } 시간추이|.
@@ -1245,7 +1245,7 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
                            ELSE ls_b-sxi ).
           lv_cat = lv_cat && |<Category>{ escape( val = CONV string( ls_b-bucket )
                                                    format = cl_abap_format=>e_xml_text ) }</Category>|.
-          lv_pts = lv_pts && |<Point><Value type="y">{ lv_cnt }</Value></Point>|.
+          lv_pts = lv_pts && |<Point><Value>{ lv_cnt }</Value></Point>|.
         ENDLOOP.
       ENDIF.
 
@@ -1253,15 +1253,14 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
       IF lv_cat IS INITIAL.
         DATA(lv_note) = COND string( WHEN <cc>-skipped = abap_true THEN `권한 없음` ELSE `이상 없음` ).
         lv_cat = |<Category>{ escape( val = lv_note format = cl_abap_format=>e_xml_text ) }</Category>|.
-        lv_pts = |<Point><Value type="y">0</Value></Point>|.
+        lv_pts = |<Point><Value>0</Value></Point>|.
       ENDIF.
 
       " 데이터 XML (SAP Chart Engine ChartData)
       DATA(lv_data) = |<?xml version="1.0" encoding="utf-8"?>|
         && |<ChartData>|
         && |<Categories>{ lv_cat }</Categories>|
-        && |<Series label="{ escape( val = CONV string( <cc>-area_txt )
-                                      format = cl_abap_format=>e_xml_text ) }">{ lv_pts }</Series>|
+        && |<Series>{ lv_pts }</Series>|
         && |</ChartData>|.
 
       " 커스터마이징 XML (가로 막대 + 제목) - SAPChartCustomizing 2.0
