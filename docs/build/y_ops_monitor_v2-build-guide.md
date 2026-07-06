@@ -41,14 +41,14 @@ PROCESS AFTER INPUT.
 - **Titlebar `T0100`** 생성: 예) "통합 운영 모니터링 (SM37/ST22/SXI)".
 
 ## 4. 텍스트 요소 (SE38 → Goto > Text Elements)
-### 4.1 Selection Texts (선택 텍스트)
-| 필드 | 텍스트(예) |
-|------|-----------|
+### 4.1 Selection Texts (선택 텍스트) — 확정
+| 필드 | 텍스트 |
+|------|--------|
 | P_FRDAT | 시작 일자 |
 | P_FRTIM | 시작 시간 |
 | P_TODAT | 종료 일자 |
 | P_TOTIM | 종료 시간 |
-| P_HOURS | 조회 시간(H) |
+| P_HOURS | 조회 범위(시간) |
 | CB_SM37 | 배치 잡 에러(SM37) |
 | CB_ST22 | 런타임 에러(ST22) |
 | CB_SXI  | 인터페이스 에러(SXI) |
@@ -56,8 +56,8 @@ PROCESS AFTER INPUT.
 | SO_USER | 사용자 |
 | SO_IFACE| 인터페이스명 |
 | P_MAND  | 클라이언트 |
-| P_MAXROW| 최대 표시 행수 |
-| P_TOPN  | 차트 Top-N |
+| P_MAXROW| 영역별 최대 표시 행수 |
+| P_TOPN  | 차트 Top-N 개수 |
 | P_AUTORF| 자동 새로고침(초) |
 
 ### 4.2 Text Symbols (블록 제목)
