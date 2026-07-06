@@ -799,10 +799,17 @@ CLASS lcl_dp_interface IMPLEMENTATION.
         CONTINUE.
       ENDIF.
 
-      " 인터페이스명이 비면(초기단계 실패/시스템 메시지 등) 차트·목록 라벨을 (미상) 으로 통일.
-      " (삭제하지 않음: 실제 에러이며 누락 방지 목적) 상세는 더블클릭(SXI_MONITOR)로 확인.
+      " 인터페이스명이 비면(초기단계 실패/시스템 메시지 등) 하나의 덩어리로 뭉치지 않도록
+      " 의미 있는 대체 키로 분해한다. (삭제하지 않음: 실제 에러, 누락 방지)
+      "  1순위: 송신→수신 시스템, 2순위: 에러상태(ERRSTAT, 에러 분류), 최후: (미상)
+      " 상세는 더블클릭(SXI_MONITOR)로 확인.
       IF ls_out-if_name IS INITIAL.
-        ls_out-if_name = '(미상)'.                          "#EC NOTEXT
+        ls_out-if_name = COND #(
+          WHEN ls_out-sender IS NOT INITIAL OR ls_out-receiver IS NOT INITIAL
+            THEN |{ ls_out-sender }->{ ls_out-receiver }|
+          WHEN ls_out-errstat IS NOT INITIAL
+            THEN |상태:{ ls_out-errstat }|
+          ELSE '(미상)' ).                                  "#EC NOTEXT
       ENDIF.
 
       APPEND ls_out TO mt_all.
