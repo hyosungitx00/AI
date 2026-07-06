@@ -268,7 +268,8 @@ CLASS lcl_aggregator IMPLEMENTATION.
       ENDIF.
     ENDLOOP.
     SORT lt BY count DESCENDING key ASCENDING.
-    DATA(lv_n) = COND i( WHEN iv_topn > 0 THEN iv_topn ELSE 5 ).
+    " Top-N 은 1~5 로 제한(초과/미입력 시 5)
+    DATA(lv_n) = COND i( WHEN iv_topn BETWEEN 1 AND 5 THEN iv_topn ELSE 5 ).
     LOOP AT lt INTO DATA(ls).
       IF sy-tabix > lv_n.
         EXIT.
@@ -1360,6 +1361,13 @@ AT SELECTION-SCREEN.
   IF p_todat < p_frdat
      OR ( p_todat = p_frdat AND p_totim < p_frtim ).
     MESSAGE '조회 종료가 시작보다 빠릅니다.' TYPE 'E'.     "#EC NOTEXT
+    "TODO: 메시지 클래스(ZOPSMON) 전환
+  ENDIF.
+
+AT SELECTION-SCREEN ON p_topn.
+  " 차트 Top-N 은 1~5 만 허용
+  IF p_topn < 1 OR p_topn > 5.
+    MESSAGE '차트 Top-N 은 1 ~ 5 만 입력 가능합니다.' TYPE 'E'.  "#EC NOTEXT
     "TODO: 메시지 클래스(ZOPSMON) 전환
   ENDIF.
 
