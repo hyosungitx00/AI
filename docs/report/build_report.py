@@ -189,10 +189,50 @@ para(tf, 'AI가 “조사–초안–수정”을', 13.5, True, WHITE, first=Tru
 para(tf, '대신하고, 개발자는 검토·의사결정에 집중', 13.5, True, GOLD, before=4)
 
 # =====================================================================
-# Slide 4 - 효율성 · 성과
+# Slide 4 - AI 규칙·스킬(.md) 표준화
 # =====================================================================
 s = blank()
-header(s, '03  EFFICIENCY & OUTCOME', '효율성 · 성과 (정성 위주 · 추정)')
+header(s, '03  STANDARDS AS CODE (RULES / SKILLS)', 'AI 규칙·스킬(.md)로 개발 표준 내재화')
+# left card - 상시 규칙(Rules)
+lc = rect(s, MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.7), Inches(1.95), Inches(5.85), Inches(3.15),
+          fill=WHITE, line=LINEC)
+rect(s, MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.7), Inches(1.95), Inches(5.85), Inches(0.62), fill=NAVY)
+ttf = textbox(s, Inches(0.7), Inches(1.95), Inches(5.85), Inches(0.62), anchor=MSO_ANCHOR.MIDDLE)
+para(ttf, '상시 규칙  Rules  ·  항상 자동 적용', 14, True, WHITE, first=True, before=0, align=PP_ALIGN.CENTER)
+tf = lc.text_frame; tf.margin_left = Inches(0.3); tf.margin_top = Inches(0.8); tf.word_wrap = True
+para(tf, '.cursor/rules/abap-project-conventions', 12, True, BLUE, first=True, before=6)
+para(tf, '•  읽기 전용(변경·COMMIT·LOCK 금지) 불변식', 12, False, DARK, before=8)
+para(tf, '•  SAP 표준 테이블/FM 만 사용', 12, False, DARK, before=6)
+para(tf, '•  명명규칙 · 인터페이스 기반 OO 구조', 12, False, DARK, before=6)
+para(tf, '→ 매 작업마다 자동 준수(재지시 불필요)', 12, True, TEAL, before=8)
+# right card - 온디맨드 스킬(Skills)
+rcx = Inches(6.75)
+rc = rect(s, MSO_SHAPE.ROUNDED_RECTANGLE, rcx, Inches(1.95), Inches(5.85), Inches(3.15),
+          fill=WHITE, line=LINEC)
+rect(s, MSO_SHAPE.ROUNDED_RECTANGLE, rcx, Inches(1.95), Inches(5.85), Inches(0.62), fill=GOLD)
+ttf = textbox(s, rcx, Inches(1.95), Inches(5.85), Inches(0.62), anchor=MSO_ANCHOR.MIDDLE)
+para(ttf, '온디맨드 스킬  Skills  ·  필요 시 호출', 14, True, WHITE, first=True, before=0, align=PP_ALIGN.CENTER)
+tf = rc.text_frame; tf.margin_left = Inches(0.3); tf.margin_top = Inches(0.8); tf.word_wrap = True
+para(tf, '.cursor/skills  (작업 유형별 검증 플레이북)', 12, True, GOLD, first=True, before=6)
+para(tf, '•  읽기전용 모니터링 · 클린 OO ABAP', 12, False, DARK, before=8)
+para(tf, '•  코드리뷰 · 성능 튜닝 · 체계적 디버깅', 12, False, DARK, before=6)
+para(tf, '•  설계서 작성 · 커밋 메시지 · PR 작성', 12, False, DARK, before=6)
+para(tf, '→ 검증된 절차 재사용(품질 균일화)', 12, True, TEAL, before=8)
+# bottom banner - 효율 효과
+eb = rect(s, MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.7), Inches(5.4), Inches(11.9), Inches(1.35),
+          fill=SKY)
+tf = eb.text_frame; tf.margin_left = Inches(0.35); tf.margin_top = Inches(0.18); tf.word_wrap = True
+para(tf, 'md 파일 활용 효율 효과', 13.5, True, BLUE, first=True, before=0)
+para(tf, '표준을 매번 설명할 필요 없이 일관 적용 → 재작업·휴먼에러 감소 · 리뷰/문서 품질 균일화 · 신규 인력 온보딩 가속.',
+     13, False, DARK, before=6)
+para(tf, '규칙/스킬을 코드처럼 버전관리(.md) → 팀 전체가 동일 기준으로 재사용·개선.',
+     11.5, False, GREY, before=5)
+
+# =====================================================================
+# Slide 5 - 효율성 · 성과
+# =====================================================================
+s = blank()
+header(s, '04  EFFICIENCY & OUTCOME', '효율성 · 성과 (정성 위주 · 추정)')
 bw = Inches(3.78)
 bx1 = Inches(0.7); bx2 = Emu(bx1 + bw + Inches(0.30)); bx3 = Emu(bx2 + bw + Inches(0.30))
 by = Inches(1.95); bh = Inches(2.35)
@@ -222,10 +262,10 @@ para(tf, '※ 정량 수치는 향후 개발 소요시간 전/후 비교로 실�
      11.5, False, GREY, before=6)
 
 # =====================================================================
-# Slide 5 - 기대효과 & 향후계획
+# Slide 6 - 기대효과 & 향후계획
 # =====================================================================
 s = blank()
-header(s, '04  IMPACT & NEXT STEPS', '기대 효과 및 향후 계획')
+header(s, '05  IMPACT & NEXT STEPS', '기대 효과 및 향후 계획')
 lc = rect(s, MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.7), Inches(1.95), Inches(5.85), Inches(3.2),
           fill=WHITE, line=LINEC)
 rect(s, MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.7), Inches(1.95), Inches(5.85), Inches(0.62), fill=NAVY)
@@ -256,4 +296,4 @@ para(tf, '운영 점검의 통합·자동화 + AI 페어프로그래밍으로 �
      15, True, WHITE, before=3)
 
 prs.save('docs/report/Y_OPS_MONITOR_V2_발표자료.pptx')
-print('saved pptx (5 slides, designed)')
+print('saved pptx (6 slides, designed)')
