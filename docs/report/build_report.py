@@ -16,7 +16,7 @@ from pptx.util import Inches, Pt, Emu
 from pptx.dml.color import RGBColor
 from lxml import etree
 
-TEMPLATE = Path('/home/ubuntu/.cursor/projects/workspace/uploads/2025_______16x9__3f59.pptx')
+TEMPLATE = Path('docs/report/templates/2025_공통템플릿_16x9.pptx')
 OUT = Path('docs/report/AI_활용_생산성_발표자료.pptx')
 
 NAVY = RGBColor(0x00, 0x20, 0x60)
