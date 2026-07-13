@@ -1,449 +1,699 @@
 # -*- coding: utf-8 -*-
 """
-AI 활용 효율성 · 향후 방향 — 사내 발표자료 (PPTX)
-대상: 상무님 포함 동료 | 약 10분 | 8슬라이드
-메인: AI를 어떻게 써야 효율적인가 / 우리는 어디로 가야 하는가
-사례: 통합 운영 모니터링(부차)
+HYOSUNG ITX 공통템플릿(16x9) 기반 발표자료 생성
+요청서: 같은 AI를 쓰는데 왜 생산성은 차이 날까?
 """
+from __future__ import annotations
+
+import copy
+import shutil
+from pathlib import Path
+
 from pptx import Presentation
+from pptx.enum.shapes import MSO_SHAPE_TYPE
+from pptx.oxml.ns import qn
 from pptx.util import Inches, Pt, Emu
 from pptx.dml.color import RGBColor
-from pptx.enum.shapes import MSO_SHAPE
-from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
-from pptx.oxml.ns import qn
+from lxml import etree
 
-KOR = 'Malgun Gothic'
-# Deep charcoal / steel — executive, not "startup purple"
-NIGHT = RGBColor(0x0B, 0x12, 0x20)
-INK   = RGBColor(0x1C, 0x24, 0x33)
-STEEL = RGBColor(0x2C, 0x3E, 0x50)
-BLUE  = RGBColor(0x1A, 0x56, 0x8A)
-TEAL  = RGBColor(0x1A, 0x7A, 0x6A)
-GOLD  = RGBColor(0xB8, 0x8A, 0x2E)
-SLATE = RGBColor(0x5A, 0x66, 0x78)
-MUTED = RGBColor(0x8B, 0x95, 0xA5)
-LINE  = RGBColor(0xE2, 0xE6, 0xED)
-PAPER = RGBColor(0xF7, 0xF8, 0xFA)
+TEMPLATE = Path('/home/ubuntu/.cursor/projects/workspace/uploads/2025_______16x9__3f59.pptx')
+OUT = Path('docs/report/AI_활용_생산성_발표자료.pptx')
+
+NAVY = RGBColor(0x00, 0x20, 0x60)
+BLUE = RGBColor(0x00, 0x27, 0x76)
 WHITE = RGBColor(0xFF, 0xFF, 0xFF)
-
-prs = Presentation()
-prs.slide_width = Inches(13.333)
-prs.slide_height = Inches(7.5)
-SW, SH = prs.slide_width, prs.slide_height
+DARK = RGBColor(0x22, 0x22, 0x22)
+GREY = RGBColor(0x66, 0x66, 0x66)
 
 
-def _f(run, size=14, bold=False, color=INK):
-    run.font.name = KOR
-    run.font.size = Pt(size)
-    run.font.bold = bold
-    run.font.color.rgb = color
-    try:
-        rPr = run._r.get_or_add_rPr()
-        rFonts = rPr.get_or_add_rFonts()
-        rFonts.set(qn('w:eastAsia'), KOR)
-    except Exception:
-        pass
+def duplicate_slide(prs: Presentation, index: int):
+    """Duplicate an existing slide (keeps template chrome/layout)."""
+    source = prs.slides[index]
+    blank_layout = source.slide_layout
+    dest = prs.slides.add_slide(blank_layout)
+
+    # Remove default shapes added by layout (except placeholders we need sparingly)
+    for shp in list(dest.shapes):
+        sp = shp._element
+        sp.getparent().remove(sp)
+
+    # Copy all shapes from source
+    for shp in source.shapes:
+        el = copy.deepcopy(shp._element)
+        dest.shapes._spTree.insert_element_before(el, 'p:extLst')
+
+    # Copy slide number placeholder if present on source via layout
+    return dest
 
 
-def _ns(shp):
-    try:
-        shp.shadow.inherit = False
-    except Exception:
-        pass
+def iter_all_shapes(shapes):
+    for sh in shapes:
+        yield sh
+        if sh.shape_type == MSO_SHAPE_TYPE.GROUP:
+            yield from iter_all_shapes(sh.shapes)
 
 
-def blank():
-    return prs.slides.add_slide(prs.slide_layouts[6])
-
-
-def rect(slide, x, y, w, h, fill=None, line=None, lw=1.0, rounded=False):
-    kind = MSO_SHAPE.ROUNDED_RECTANGLE if rounded else MSO_SHAPE.RECTANGLE
-    s = slide.shapes.add_shape(kind, x, y, w, h)
-    if fill is None:
-        s.fill.background()
+def set_runs_text(shape, text: str, keep_first_run_format=True):
+    """Replace shape text while trying to preserve first run formatting."""
+    if not shape.has_text_frame:
+        return
+    tf = shape.text_frame
+    # flatten into first paragraph / first run
+    paragraphs = list(tf.paragraphs)
+    if not paragraphs:
+        return
+    # clear all paragraphs except first
+    first = paragraphs[0]
+    # clear runs in first
+    if first.runs:
+        first.runs[0].text = text
+        for r in first.runs[1:]:
+            r.text = ''
     else:
-        s.fill.solid()
-        s.fill.fore_color.rgb = fill
-    if line is None:
-        s.line.fill.background()
-    else:
-        s.line.color.rgb = line
-        s.line.width = Pt(lw)
-    _ns(s)
-    return s
+        run = first.add_run()
+        run.text = text
+    # remove extra paragraphs content
+    for p in paragraphs[1:]:
+        for r in p.runs:
+            r.text = ''
 
 
-def bg(slide, color=PAPER):
-    return rect(slide, 0, 0, SW, SH, fill=color)
+def replace_text_everywhere(slide, mapping: dict[str, str]):
+    """Exact-match or contains replacement for shape texts."""
+    for sh in iter_all_shapes(slide.shapes):
+        if not sh.has_text_frame:
+            continue
+        cur = sh.text_frame.text
+        for old, new in mapping.items():
+            if cur.strip() == old.strip() or cur == old:
+                set_runs_text(sh, new)
+                break
 
 
-def tb(slide, x, y, w, h, anchor=None):
+def find_shape_by_text(slide, text: str):
+    for sh in iter_all_shapes(slide.shapes):
+        if sh.has_text_frame and sh.text_frame.text.strip() == text.strip():
+            return sh
+    return None
+
+
+def find_shapes_containing(slide, text: str):
+    out = []
+    for sh in iter_all_shapes(slide.shapes):
+        if sh.has_text_frame and text in sh.text_frame.text:
+            out.append(sh)
+    return out
+
+
+def clear_guide_labels(slide):
+    """Hide template guide labels like 표지/목차/간지/내용A that sit off-slide."""
+    guides = ('표지', '목차', '간지', '내용', '도식', 'A_타입', 'B_타입')
+    for sh in list(slide.shapes):
+        if not sh.has_text_frame:
+            continue
+        t = sh.text_frame.text.strip()
+        if any(g in t for g in guides) and getattr(sh, 'left', 0) < 0:
+            set_runs_text(sh, '')
+    # clear leftover 'img' placeholders in diagram templates
+    for sh in iter_all_shapes(slide.shapes):
+        if sh.has_text_frame and sh.text_frame.text.strip() == 'img':
+            set_runs_text(sh, '')
+
+
+def add_textbox(slide, x, y, w, h, text, size=14, bold=False, color=DARK, align=None):
     box = slide.shapes.add_textbox(x, y, w, h)
     tf = box.text_frame
     tf.word_wrap = True
-    if anchor is not None:
-        tf.vertical_anchor = anchor
-    return tf
-
-
-def P(tf, text, size=14, bold=False, color=INK, first=False,
-      before=0, align=None):
-    p = tf.paragraphs[0] if first else tf.add_paragraph()
-    p.space_before = Pt(before)
-    p.space_after = Pt(0)
+    p = tf.paragraphs[0]
     if align is not None:
         p.alignment = align
     r = p.add_run()
     r.text = text
-    _f(r, size, bold, color)
+    r.font.size = Pt(size)
+    r.font.bold = bold
+    r.font.color.rgb = color
+    r.font.name = '맑은 고딕'
+    try:
+        rPr = r._r.get_or_add_rPr()
+        rFonts = rPr.get_or_add_rFonts()
+        rFonts.set(qn('w:eastAsia'), '맑은 고딕')
+    except Exception:
+        pass
+    return box
+
+
+def add_para(tf, text, size=14, bold=False, color=DARK, first=False, before=6):
+    from pptx.enum.text import PP_ALIGN
+    p = tf.paragraphs[0] if first else tf.add_paragraph()
+    p.space_before = Pt(before)
+    r = p.add_run()
+    r.text = text
+    r.font.size = Pt(size)
+    r.font.bold = bold
+    r.font.color.rgb = color
+    r.font.name = '맑은 고딕'
+    try:
+        rPr = r._r.get_or_add_rPr()
+        rFonts = rPr.get_or_add_rFonts()
+        rFonts.set(qn('w:eastAsia'), '맑은 고딕')
+    except Exception:
+        pass
     return p
 
 
-def notes(slide, text):
-    slide.notes_slide.notes_text_frame.text = text
+def delete_all_slides(prs):
+    """Remove every slide from presentation (keep masters/layouts)."""
+    sldIdLst = prs.slides._sldIdLst
+    for sldId in list(sldIdLst):
+        rId = sldId.get(qn('r:id'))
+        prs.part.drop_rel(rId)
+        sldIdLst.remove(sldId)
 
 
-def footer(slide, page, total=8):
-    rect(slide, 0, Inches(7.2), SW, Inches(0.3), fill=NIGHT)
-    tf = tb(slide, Inches(0.65), Inches(7.22), Inches(9), Inches(0.26),
-            anchor=MSO_ANCHOR.MIDDLE)
-    P(tf, 'AI 활용 효율성  ·  향후 방향', 9, False, MUTED, first=True)
-    tf = tb(slide, Inches(11.3), Inches(7.22), Inches(1.4), Inches(0.26),
-            anchor=MSO_ANCHOR.MIDDLE)
-    P(tf, f'{page}  /  {total}', 9, False, MUTED, first=True,
-      align=PP_ALIGN.RIGHT)
+def build():
+    # Work on a copy of template so masters/theme/logo remain intact
+    OUT.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy(TEMPLATE, OUT)
+    prs = Presentation(str(OUT))
+
+    # Template slide indices (0-based) we will clone from:
+    # 1 = 표지, 2 = 목차, 3 = 간지, 4 = 내용A(빈), 15 = AS-IS/TO-BE,
+    # 16 = 3 STEP, 17 = 3컬럼, 23 = End
+    IDX_COVER = 1
+    IDX_TOC = 2
+    IDX_SECTION = 3
+    IDX_CONTENT = 4   # 내용 A_타입 (blank canvas + chrome)
+    IDX_ASIS = 15
+    IDX_STEPS = 16
+    IDX_COLS = 17
+    IDX_END = 23
+
+    # Collect XML of template slides we need BEFORE deleting
+    def slide_xml(i):
+        return copy.deepcopy(prs.slides[i]._element)
+
+    def slide_layout(i):
+        return prs.slides[i].slide_layout
+
+    xmls = {
+        'cover': (slide_xml(IDX_COVER), slide_layout(IDX_COVER)),
+        'toc': (slide_xml(IDX_TOC), slide_layout(IDX_TOC)),
+        'section': (slide_xml(IDX_SECTION), slide_layout(IDX_SECTION)),
+        'content': (slide_xml(IDX_CONTENT), slide_layout(IDX_CONTENT)),
+        'asis': (slide_xml(IDX_ASIS), slide_layout(IDX_ASIS)),
+        'steps': (slide_xml(IDX_STEPS), slide_layout(IDX_STEPS)),
+        'cols': (slide_xml(IDX_COLS), slide_layout(IDX_COLS)),
+        'end': (slide_xml(IDX_END), slide_layout(IDX_END)),
+    }
+
+    delete_all_slides(prs)
+
+    def add_from(key):
+        xml, layout = xmls[key]
+        slide = prs.slides.add_slide(layout)
+        # wipe default shapes
+        for shp in list(slide.shapes):
+            el = shp._element
+            el.getparent().remove(el)
+        # insert cloned shapes
+        for child in copy.deepcopy(xml):
+            tag = etree.QName(child).localname
+            if tag in ('cSld',):
+                # copy shape tree children from cSld/spTree
+                spTree = child.find(qn('p:spTree'))
+                if spTree is not None:
+                    for el in list(spTree):
+                        lname = etree.QName(el).localname
+                        if lname in ('nvGrpSpPr', 'grpSpPr'):
+                            continue
+                        slide.shapes._spTree.append(copy.deepcopy(el))
+            # Also handle when xml IS the sld element - children include cSld
+        # Better: xml is p:sld
+        if etree.QName(xml).localname == 'sld':
+            # already handled above if we iterate wrong — fix approach
+            pass
+        clear_guide_labels(slide)
+        return slide
+
+    # More reliable clone: use rId relationship approach
+    # Re-open template and use known method
+    return build_v2()
 
 
-def header(slide, eyebrow, title, subtitle=None):
-    """Clean content header — no amateur section numbers in the title."""
-    bg(slide, PAPER)
-    rect(slide, 0, 0, SW, Inches(0.06), fill=NIGHT)
-    tf = tb(slide, Inches(0.65), Inches(0.35), Inches(12), Inches(0.28))
-    P(tf, eyebrow.upper(), 10, True, BLUE, first=True)
-    tf = tb(slide, Inches(0.65), Inches(0.65), Inches(12), Inches(0.55))
-    P(tf, title, 26, True, NIGHT, first=True)
-    if subtitle:
-        tf = tb(slide, Inches(0.65), Inches(1.2), Inches(12), Inches(0.35))
-        P(tf, subtitle, 13, False, SLATE, first=True)
-    rect(slide, Inches(0.65), Inches(1.55) if subtitle else Inches(1.25),
-         Inches(0.9), Pt(3), fill=GOLD)
+def clone_slide(prs, index):
+    """Clone slide at index to end of presentation."""
+    source = prs.slides[index]
+    layout = source.slide_layout
+    dest = prs.slides.add_slide(layout)
+
+    # Remove shapes created by empty placeholders (keep only slide number if needed)
+    spTree = dest.shapes._spTree
+    for el in list(spTree):
+        lname = etree.QName(el).localname
+        if lname in ('sp', 'pic', 'grpSp', 'cxnSp', 'graphicFrame'):
+            spTree.remove(el)
+
+    for el in source.shapes._spTree:
+        lname = etree.QName(el).localname
+        if lname in ('sp', 'pic', 'grpSp', 'cxnSp', 'graphicFrame'):
+            spTree.append(copy.deepcopy(el))
+    return dest
 
 
-# =====================================================================
-# 1. Title
-# =====================================================================
-s = blank()
-bg(s, NIGHT)
-# left accent
-rect(s, 0, 0, Inches(0.18), SH, fill=GOLD)
-
-tf = tb(s, Inches(0.9), Inches(1.8), Inches(11.5), Inches(0.35))
-P(tf, 'INTERNAL BRIEFING', 11, True, GOLD, first=True)
-
-tf = tb(s, Inches(0.9), Inches(2.3), Inches(11.8), Inches(1.5))
-P(tf, 'AI를 쓰는 것과', 34, True, WHITE, first=True)
-P(tf, 'AI를 잘 쓰는 것은 다릅니다', 34, True, WHITE, before=8)
-
-tf = tb(s, Inches(0.9), Inches(4.1), Inches(11.5), Inches(0.8))
-P(tf, '개발 업무에서의 AI 활용 효율과, 조직이 가져가야 할 방향',
-  16, False, MUTED, first=True)
-P(tf, '사례: SAP 통합 운영 모니터링 개발 (Cursor 적용)',
-  14, False, SLATE, before=8)
-
-# bottom meta strip
-rect(s, 0, Inches(6.35), SW, Inches(1.15), fill=RGBColor(0x12, 0x1C, 0x2E))
-metas = [
-    ('Audience', '상무님 포함 동료'),
-    ('Duration', '약 10분'),
-    ('Focus', '효율 · 방향'),
-    ('Tool', 'Cursor'),
-]
-mx = Inches(0.9)
-for lab, val in metas:
-    tf = tb(s, mx, Inches(6.5), Inches(2.8), Inches(0.8))
-    P(tf, lab, 9, True, GOLD, first=True)
-    P(tf, val, 13, False, WHITE, before=4)
-    mx = Emu(mx + Inches(3.05))
-
-notes(s,
-      '【0:00–0:45】\n'
-      '인사 후 한 문장으로 프레임을 고정합니다.\n'
-      '“오늘은 프로그램 기능 설명이 아닙니다. '
-      'AI를 어떻게 써야 일이 빨라지고 품질이 유지되는지, '
-      '그리고 우리가 어떤 방향으로 가야 하는지를 말씀드리겠습니다.”')
+def remove_slide(prs, index):
+    sldIdLst = prs.slides._sldIdLst
+    sldId = list(sldIdLst)[index]
+    rId = sldId.get(qn('r:id'))
+    prs.part.drop_rel(rId)
+    sldIdLst.remove(sldId)
 
 
-# =====================================================================
-# 2. 오늘 논의의 축
-# =====================================================================
-s = blank()
-header(s, 'Frame', '오늘 논의의 두 가지 질문',
-       '프로그램 소개가 아니라, 일하는 방식에 대한 이야기입니다')
-footer(s, 2)
-
-questions = [
-    ('01', '효율',
-     'AI를 어디에, 어떻게 붙일 때\n실제 생산성이 올라가는가',
-     '조사 · 초안 · 반복 수정 · 표준 적용'),
-    ('02', '방향',
-     '개인 역량에 맡기지 않고\n조직 역량으로 남기려면 무엇이 필요한가',
-     '규칙 · 스킬 · 재사용 · 측정'),
-]
-qx = Inches(0.65)
-for num, tag, q, hint in questions:
-    box = rect(s, qx, Inches(2.1), Inches(5.9), Inches(4.2),
-               fill=WHITE, line=LINE, rounded=True)
-    tf = tb(s, Emu(qx + Inches(0.4)), Inches(2.4), Inches(5.1), Inches(0.35))
-    P(tf, f'{num}   {tag}', 12, True, BLUE, first=True)
-    tf = tb(s, Emu(qx + Inches(0.4)), Inches(3.0), Inches(5.1), Inches(1.6))
-    for i, line in enumerate(q.split('\n')):
-        P(tf, line, 20, True, NIGHT, first=(i == 0), before=(0 if i == 0 else 6))
-    tf = tb(s, Emu(qx + Inches(0.4)), Inches(5.2), Inches(5.1), Inches(0.6))
-    P(tf, hint, 12, False, SLATE, first=True)
-    qx = Emu(qx + Inches(6.15))
-
-notes(s,
-      '【0:45–1:30】\n'
-      '두 질문만 남기고 넘어갑니다. '
-      '“기능 데모는 필요하시면 별도로 드리겠습니다.”')
-
-
-# =====================================================================
-# 3. 관찰 — AI를 써도 효율이 안 나는 패턴
-# =====================================================================
-s = blank()
-header(s, 'Observation', 'AI를 도입해도 효율이 안 나는 경우',
-       '도구 문제가 아니라, 사용 방식의 문제입니다')
-footer(s, 3)
-
-rows = [
-    ('매번 다른 지시', '같은 표준을 대화마다 다시 설명 → 결과 편차 발생'),
-    ('조사 없는 생성', '근거 없이 코드만 생성 → 검증·재작업 비용 증가'),
-    ('개인 의존', '잘하는 사람만 잘 씀 → 조직 전체 생산성으로 전이되지 않음'),
-    ('결과물 중심 평가', '산출물 유무만 보고, 재사용·표준화는 남지 않음'),
-]
-y = Inches(2.0)
-for title, desc in rows:
-    rect(s, Inches(0.65), y, Inches(12.0), Inches(1.05),
-         fill=WHITE, line=LINE, rounded=True)
-    rect(s, Inches(0.65), y, Inches(0.12), Inches(1.05), fill=GOLD)
-    tf = tb(s, Inches(1.1), Emu(y + Inches(0.18)), Inches(11), Inches(0.35))
-    P(tf, title, 15, True, NIGHT, first=True)
-    tf = tb(s, Inches(1.1), Emu(y + Inches(0.52)), Inches(11), Inches(0.35))
-    P(tf, desc, 13, False, SLATE, first=True)
-    y = Emu(y + Inches(1.2))
-
-notes(s,
-      '【1:30–2:40】\n'
-      '비판이 아니라 공통 함정입니다. '
-      '“우리는 이 네 가지를 피하기 위해 규칙을 먼저 고정했습니다.”')
-
-
-# =====================================================================
-# 4. 원칙 — 효율이 나는 사용법
-# =====================================================================
-s = blank()
-header(s, 'Principle', '효율이 나는 AI 활용의 세 가지 조건',
-       '프롬프트 요령이 아니라, 일하는 구조입니다')
-footer(s, 4)
-
-principles = [
-    ('범위 고정',
-     'AI가 해도 되는 일과\n사람이 해야 하는 일을 나눕니다',
-     '조사·초안·반복 수정 → AI\n판단·책임·운영 확정 → 사람'),
-    ('표준 선반영',
-     '매번 지시하지 않도록\n규칙을 저장소에 둡니다',
-     'Rules: 상시 자동 적용\nSkills: 작업별 절차 재사용'),
-    ('검증 루프',
-     '생성으로 끝내지 않고\n진단–수정–확인을 짧게 돕니다',
-     '오류·권한·성능 이슈를\n같은 맥락에서 즉시 처리'),
-]
-px = Inches(0.65)
-for title, lead, detail in principles:
-    rect(s, px, Inches(2.0), Inches(3.95), Inches(4.5),
-         fill=WHITE, line=LINE, rounded=True)
-    rect(s, px, Inches(2.0), Inches(3.95), Inches(0.1), fill=BLUE)
-    tf = tb(s, Emu(px + Inches(0.35)), Inches(2.25), Inches(3.4), Inches(0.4))
-    P(tf, title, 16, True, BLUE, first=True)
-    tf = tb(s, Emu(px + Inches(0.35)), Inches(2.85), Inches(3.4), Inches(1.3))
-    for i, line in enumerate(lead.split('\n')):
-        P(tf, line, 15, True, NIGHT, first=(i == 0), before=(0 if i == 0 else 4))
-    tf = tb(s, Emu(px + Inches(0.35)), Inches(4.5), Inches(3.4), Inches(1.5))
-    for i, line in enumerate(detail.split('\n')):
-        P(tf, line, 12, False, SLATE, first=(i == 0), before=(0 if i == 0 else 4))
-    px = Emu(px + Inches(4.15))
-
-notes(s,
-      '【2:40–4:10】 핵심 슬라이드.\n'
-      '“효율의 본질은 모델 성능이 아니라, '
-      '범위·표준·검증이 고정되어 있는 구조입니다.”')
-
-
-# =====================================================================
-# 5. 사례 — 짧게 (증거)
-# =====================================================================
-s = blank()
-header(s, 'Case', '적용 사례로 확인한 것',
-       'SAP 통합 운영 모니터링 — 목적물이 아니라 검증 무대')
-footer(s, 5)
-
-# left narrative
-rect(s, Inches(0.65), Inches(2.0), Inches(6.2), Inches(4.5),
-     fill=WHITE, line=LINE, rounded=True)
-tf = tb(s, Inches(1.0), Inches(2.25), Inches(5.5), Inches(0.35))
-P(tf, '한 과제로 전 과정을 관통', 14, True, BLUE, first=True)
-steps = [
-    ('설계', '설계서·결정사항 이력을 대화로 유지'),
-    ('분석', '권한 추적 자료를 AI가 읽어 필요 권한 도출'),
-    ('구현', '생성–오류진단–수정을 짧은 사이클로 반복'),
-    ('표준', '읽기전용·명명·구조를 Rules로 상시 강제'),
-]
-yy = Inches(2.8)
-for k, v in steps:
-    tf = tb(s, Inches(1.0), yy, Inches(1.2), Inches(0.35))
-    P(tf, k, 13, True, NIGHT, first=True)
-    tf = tb(s, Inches(2.3), yy, Inches(4.2), Inches(0.35))
-    P(tf, v, 13, False, SLATE, first=True)
-    yy = Emu(yy + Inches(0.7))
-
-# right callout
-rect(s, Inches(7.15), Inches(2.0), Inches(5.5), Inches(4.5), fill=NIGHT, rounded=True)
-tf = tb(s, Inches(7.55), Inches(2.4), Inches(4.7), Inches(0.4))
-P(tf, '이 사례에서 얻은 결론', 12, True, GOLD, first=True)
-points = [
-    'AI는 “대신 코딩하는 도구”가 아니라\n“조사–초안–수정의 가속기”로 쓸 때 효과가 큼',
-    '표준을 .md로 고정하지 않으면\n같은 실수를 세션마다 반복함',
-    '사람은 판단과 검증에 집중할수록\n전체 리드타임이 줄어듦',
-]
-yy = Inches(3.1)
-for pt in points:
-    lines = pt.split('\n')
-    tf = tb(s, Inches(7.55), yy, Inches(4.7), Inches(1.0))
+def set_shape_text_multiline(shape, lines, sizes=None, bolds=None, colors=None):
+    if not shape.has_text_frame:
+        return
+    tf = shape.text_frame
+    tf.clear()
     for i, line in enumerate(lines):
-        P(tf, line, 13, False, WHITE, first=(i == 0), before=(0 if i == 0 else 3))
-    yy = Emu(yy + Inches(1.05))
-
-notes(s,
-      '【4:10–5:30】\n'
-      '프로그램 기능을 길게 설명하지 않습니다. '
-      '“사례는 증거일 뿐, 메시지는 사용 구조입니다.”')
-
-
-# =====================================================================
-# 6. 효율의 실체 — Rules / Skills
-# =====================================================================
-s = blank()
-header(s, 'Mechanism', '효율을 재현 가능하게 만드는 장치',
-       '개인 프롬프트 → 조직 자산으로')
-footer(s, 6)
-
-# two columns
-rect(s, Inches(0.65), Inches(2.0), Inches(5.9), Inches(3.35),
-     fill=WHITE, line=LINE, rounded=True)
-tf = tb(s, Inches(1.0), Inches(2.25), Inches(5.2), Inches(0.35))
-P(tf, 'Rules  —  항상 켜져 있는 기준', 15, True, NIGHT, first=True)
-tf = tb(s, Inches(1.0), Inches(2.85), Inches(5.2), Inches(2.2))
-for i, t in enumerate([
-    '읽기 전용, 표준 객체만 사용 등 불변식',
-    '매 대화마다 다시 설명하지 않음',
-    '위반을 사전에 차단 → 재작업 감소',
-]):
-    P(tf, '–  ' + t, 13, False, SLATE, first=(i == 0), before=(0 if i == 0 else 10))
-
-rect(s, Inches(6.8), Inches(2.0), Inches(5.9), Inches(3.35),
-     fill=WHITE, line=LINE, rounded=True)
-tf = tb(s, Inches(7.15), Inches(2.25), Inches(5.2), Inches(0.35))
-P(tf, 'Skills  —  필요할 때 꺼내는 절차', 15, True, NIGHT, first=True)
-tf = tb(s, Inches(7.15), Inches(2.85), Inches(5.2), Inches(2.2))
-for i, t in enumerate([
-    '구현 · 리뷰 · 성능 · 디버깅 · 문서/PR',
-    '검증된 순서를 그대로 재실행',
-    '담당자·세션이 바뀌어도 품질 편차 축소',
-]):
-    P(tf, '–  ' + t, 13, False, SLATE, first=(i == 0), before=(0 if i == 0 else 10))
-
-# bottom insight
-rect(s, Inches(0.65), Inches(5.55), Inches(12.05), Inches(1.2), fill=NIGHT, rounded=True)
-tf = tb(s, Inches(1.0), Inches(5.75), Inches(11.3), Inches(0.85),
-        anchor=MSO_ANCHOR.MIDDLE)
-P(tf, '핵심', 11, True, GOLD, first=True)
-P(tf, 'AI 효율은 “누가 더 잘 물어보느냐”가 아니라, '
-      '“조직이 무엇을 규칙으로 고정해 두었느냐”에서 갈립니다.',
-  15, True, WHITE, before=6)
-
-notes(s,
-      '【5:30–7:00】\n'
-      '상무님께 가장 전달하고 싶은 슬라이드. '
-      '“도구 도입만으로는 부족하고, 규칙 자산화가 필요합니다.”')
+        p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
+        r = p.add_run()
+        r.text = line
+        size = (sizes[i] if sizes and i < len(sizes) else 14)
+        bold = (bolds[i] if bolds and i < len(bolds) else False)
+        color = (colors[i] if colors and i < len(colors) else DARK)
+        r.font.size = Pt(size)
+        r.font.bold = bold
+        r.font.color.rgb = color
+        r.font.name = '맑은 고딕'
+        try:
+            rPr = r._r.get_or_add_rPr()
+            rFonts = rPr.get_or_add_rFonts()
+            rFonts.set(qn('w:eastAsia'), '맑은 고딕')
+        except Exception:
+            pass
 
 
-# =====================================================================
-# 7. 방향 — 우리가 가야 할 곳
-# =====================================================================
-s = blank()
-header(s, 'Direction', '앞으로 가져가야 할 방향',
-       '도입 여부를 넘어, 운영 방식으로')
-footer(s, 7)
+def build_v2():
+    shutil.copy(TEMPLATE, OUT)
+    prs = Presentation(str(OUT))
 
-dirs = [
-    ('단기', '검증된 과제에 AI+Rules를 기본 세트로 적용',
-     '새 과제 착수 시 규칙/스킬을 함께 준비'),
-    ('중기', '팀 공통 Rules를 자산으로 관리',
-     '영역별 Skills를 축적하고 리뷰 기준으로 사용'),
-    ('측정', '체감이 아닌 전/후 소요시간으로 확인',
-     '동일 난이도 과제 기준의 리드타임 비교'),
-    ('확산', '개인 성공 사례를 조직 가이드로 전환',
-     '잘한 프롬프트가 아니라, 재사용 가능한 절차를 공유'),
-]
-y = Inches(2.0)
-for tag, title, desc in dirs:
-    rect(s, Inches(0.65), y, Inches(12.0), Inches(1.1),
-         fill=WHITE, line=LINE, rounded=True)
-    rect(s, Inches(0.65), y, Inches(1.35), Inches(1.1), fill=NIGHT)
-    tf = tb(s, Inches(0.65), y, Inches(1.35), Inches(1.1),
-            anchor=MSO_ANCHOR.MIDDLE)
-    P(tf, tag, 13, True, WHITE, first=True, align=PP_ALIGN.CENTER)
-    tf = tb(s, Inches(2.25), Emu(y + Inches(0.2)), Inches(10), Inches(0.35))
-    P(tf, title, 15, True, NIGHT, first=True)
-    tf = tb(s, Inches(2.25), Emu(y + Inches(0.55)), Inches(10), Inches(0.35))
-    P(tf, desc, 12, False, SLATE, first=True)
-    y = Emu(y + Inches(1.2))
+    # Original template has 24 slides (0..23). We append our slides by cloning,
+    # then delete the original 24.
+    ORIG = 24
 
-notes(s,
-      '【7:00–8:40】\n'
-      '방향은 네 줄로만. '
-      '“다음 과제는 기능이 아니라, 이 네 가지를 조직 습관으로 만드는 일입니다.”')
+    # Indices in original template
+    T_COVER, T_TOC, T_SEC, T_A = 1, 2, 3, 4
+    T_ASIS, T_STEPS, T_COLS, T_END = 15, 16, 17, 23
+
+    created = []
+
+    def add(idx):
+        s = clone_slide(prs, idx)
+        clear_guide_labels(s)
+        created.append(s)
+        return s
+
+    # ========== 1. 표지 ==========
+    s = add(T_COVER)
+    # HYOSUNG ITX / BUSINESS PROPOSAL in group
+    for sh in iter_all_shapes(s.shapes):
+        if not sh.has_text_frame:
+            continue
+        t = sh.text_frame.text.strip()
+        if t == 'HYOSUNG ITX':
+            set_runs_text(sh, 'HYOSUNG ITX')
+        elif t == 'BUSINESS PROPOSAL':
+            set_runs_text(sh, 'TECH SEMINAR')
+        elif t == '20xx. 00. 00':
+            set_runs_text(sh, '2026')
+
+    # Add main title on cover (content area)
+    from pptx.enum.text import PP_ALIGN
+    add_textbox(s, Inches(2.4), Inches(4.1), Inches(10), Inches(0.7),
+                '같은 AI를 쓰는데 왜 생산성은 차이 날까?',
+                size=22, bold=True, color=NAVY)
+    add_textbox(s, Inches(2.4), Inches(4.75), Inches(10), Inches(0.5),
+                'AI 시대 SAP 개발자의 생존 전략과 업무 혁신 방법',
+                size=14, bold=False, color=GREY)
+
+    # ========== 2. 목차 ==========
+    s = add(T_TOC)
+    toc = find_shape_by_text(s, 'TITLE TEXT\nTITLE TEXT\nTITLE TEXT\nTITLE TEXT\nTITLE TEXT')
+    if toc is None:
+        # try rectangle 9 with multiline
+        for sh in s.shapes:
+            if sh.has_text_frame and 'TITLE TEXT' in sh.text_frame.text:
+                toc = sh
+                break
+    if toc:
+        set_shape_text_multiline(
+            toc,
+            [
+                '01.  AI 시대, 개발 방식은 이미 변하고 있다',
+                '02.  같은 AI, 다른 생산성 — 무엇을 다르게 하는가',
+                '03.  방법 1. 질문하지 말고 업무를 맡겨라',
+                '04.  방법 2. Prompt보다 Context가 중요하다',
+                '05.  방법 3. AI를 개발 Workflow로 만들어라',
+            ],
+            sizes=[14, 14, 14, 14, 14],
+            bolds=[True, True, True, True, True],
+            colors=[NAVY, NAVY, NAVY, NAVY, NAVY],
+        )
+
+    # ========== 3. 간지 Part 1 ==========
+    s = add(T_SEC)
+    for sh in s.shapes:
+        if sh.has_text_frame and 'TITLE' in sh.text_frame.text:
+            set_shape_text_multiline(
+                sh,
+                ['PART 1', 'AI 시대,', '개발자는 사라질까?'],
+                sizes=[14, 28, 28],
+                bolds=[True, True, True],
+                colors=[WHITE, WHITE, WHITE],
+            )
+            break
+
+    # ========== 4. AI 대체 이야기 (내용 A) ==========
+    s = add(T_A)
+    for sh in s.shapes:
+        if sh.has_text_frame and sh.text_frame.text.strip() in ('01. TEXT', '01.TEXT'):
+            set_runs_text(sh, '01. AI가 개발자를 대체한다는 이야기')
+    # body
+    add_textbox(s, Inches(0.5), Inches(1.2), Inches(12.3), Inches(0.4),
+                '최근 시장에서 반복되는 메시지', size=14, bold=True, color=BLUE)
+    headlines = [
+        ('“AI가 개발자를 대체할 것이다”', '산업·미디어에서 반복되는 대체 담론'),
+        ('“주니어 개발자의 역할이 줄어든다”', '초급 코딩·반복 업무의 자동화 가속'),
+        ('“개발자의 업무 방식이 바뀐다”', '도구·프로세스·협업 구조의 재정의'),
+    ]
+    y = 1.8
+    for title, desc in headlines:
+        add_textbox(s, Inches(0.5), Inches(y), Inches(12.3), Inches(0.35),
+                    title, size=18, bold=True, color=NAVY)
+        add_textbox(s, Inches(0.7), Inches(y + 0.35), Inches(12), Inches(0.3),
+                    desc, size=13, bold=False, color=GREY)
+        y += 1.15
+    add_textbox(s, Inches(0.5), Inches(6.2), Inches(12.3), Inches(0.5),
+                '완전 대체 여부는 논쟁의 영역이다.  다만 한 가지는 확실하다 —  개발 방식 자체는 이미 변하고 있다.',
+                size=13, bold=True, color=BLUE)
+
+    # ========== 5. 산업 변화 + 데이터 ==========
+    s = add(T_A)
+    for sh in s.shapes:
+        if sh.has_text_frame and sh.text_frame.text.strip() in ('01. TEXT', '01.TEXT'):
+            set_runs_text(sh, '02. AI는 선택이 아니라 산업 변화가 되었다')
+    add_textbox(s, Inches(0.5), Inches(1.15), Inches(12.3), Inches(0.35),
+                '기업들이 업무 프로세스에 AI를 포함시키고 있다', size=13, bold=False, color=GREY)
+
+    # KPI boxes
+    kpis = [
+        ('$2.59T', '2026년 전 세계 AI 지출\n(Gartner, +47% YoY)'),
+        ('$37B', '2025년 기업 GenAI 지출\n(Menlo, 전년 대비 3.2배)'),
+        ('72%', '생성형 AI 사용 조직\n(McKinsey, ’24 33%→’25 72%)'),
+        ('88%', '업무 기능에서 AI 상시 사용\n(McKinsey State of AI)'),
+    ]
+    x = 0.5
+    for num, label in kpis:
+        add_textbox(s, Inches(x), Inches(1.8), Inches(3.0), Inches(0.6),
+                    num, size=28, bold=True, color=NAVY)
+        add_textbox(s, Inches(x), Inches(2.5), Inches(3.0), Inches(0.8),
+                    label, size=11, bold=False, color=GREY)
+        x += 3.2
+
+    add_textbox(s, Inches(0.5), Inches(3.6), Inches(12.3), Inches(0.35),
+                '개발자가 마주하는 AI 도구 지형', size=14, bold=True, color=BLUE)
+    tools = [
+        ('GitHub Copilot', '코딩 보조'),
+        ('Cursor', 'AI IDE'),
+        ('Claude / ChatGPT', '분석·설계'),
+        ('SAP Joule', 'SAP 업무 AI'),
+        ('MS Copilot', '업무 전반'),
+    ]
+    x = 0.5
+    for name, desc in tools:
+        add_textbox(s, Inches(x), Inches(4.15), Inches(2.4), Inches(0.35),
+                    name, size=13, bold=True, color=NAVY)
+        add_textbox(s, Inches(x), Inches(4.5), Inches(2.4), Inches(0.3),
+                    desc, size=11, bold=False, color=GREY)
+        x += 2.5
+
+    add_textbox(s, Inches(0.5), Inches(5.5), Inches(12.3), Inches(0.7),
+                'AI를 사용할 것인가 말 것인가는 선택의 문제가 아니다.\n이미 많은 기업이 AI를 업무 프로세스에 포함시키고 있다.',
+                size=15, bold=True, color=NAVY)
+    add_textbox(s, Inches(0.5), Inches(6.45), Inches(12.3), Inches(0.3),
+                '※ 수치는 공개 리포트 기준 인용 (Gartner / Menlo Ventures / McKinsey)',
+                size=10, bold=False, color=GREY)
+
+    # ========== 6. 중요한 질문 ==========
+    s = add(T_A)
+    for sh in s.shapes:
+        if sh.has_text_frame and sh.text_frame.text.strip() in ('01. TEXT', '01.TEXT'):
+            set_runs_text(sh, '03. 중요한 질문')
+    add_textbox(s, Inches(0.8), Inches(2.0), Inches(11.5), Inches(0.5),
+                'AI가 개발자를 대체할까?', size=24, bold=False, color=GREY)
+    add_textbox(s, Inches(0.8), Inches(2.7), Inches(11.5), Inches(0.4),
+                '보다 중요한 질문은 이것이다.', size=14, bold=False, color=GREY)
+    add_textbox(s, Inches(0.8), Inches(3.4), Inches(11.5), Inches(1.0),
+                'AI를 활용하는 개발자가\n그렇지 않은 개발자를 대체하지 않을까?',
+                size=26, bold=True, color=NAVY)
+    add_textbox(s, Inches(0.8), Inches(5.3), Inches(11.5), Inches(0.8),
+                '같은 AI 도구를 쓰는데도,\n왜 어떤 개발자는 생산성이 크게 늘고, 어떤 개발자는 그대로일까?',
+                size=15, bold=False, color=BLUE)
+
+    # ========== 7. 간지 Part 2 ==========
+    s = add(T_SEC)
+    for sh in s.shapes:
+        if sh.has_text_frame and 'TITLE' in sh.text_frame.text:
+            set_shape_text_multiline(
+                sh,
+                ['PART 2', 'AI 생산성을', '극대화하는 방법 3가지'],
+                sizes=[14, 26, 26],
+                bolds=[True, True, True],
+                colors=[WHITE, WHITE, WHITE],
+            )
+            break
+
+    # ========== 8. Method 1 — AS-IS / TO-BE ==========
+    s = add(T_ASIS)
+    for sh in iter_all_shapes(s.shapes):
+        if not sh.has_text_frame:
+            continue
+        t = sh.text_frame.text.strip()
+        if t in ('01. TEXT', '01.TEXT'):
+            set_runs_text(sh, 'METHOD 01')
+        elif t == 'AS IS – TO BE':
+            set_runs_text(sh, '질문하지 말고, 업무를 맡겨라')
+        elif t == '핵심 내용을 입력하세요.':
+            # first occurrence AS-IS, second TO-BE — handle by order
+            pass
+        elif '이 곳에 내용을 입력하세요' in t:
+            pass
+
+    # Fill AS-IS / TO-BE texts in order of appearance
+    keys = []
+    bodies = []
+    for sh in iter_all_shapes(s.shapes):
+        if not sh.has_text_frame:
+            continue
+        t = sh.text_frame.text.strip()
+        if t == '핵심 내용을 입력하세요.':
+            keys.append(sh)
+        elif '이 곳에 내용을 입력하세요' in t:
+            bodies.append(sh)
+    if len(keys) >= 2:
+        set_runs_text(keys[0], '일반적인 AI 활용')
+        set_runs_text(keys[1], '생산성이 높은 AI 활용')
+    if len(bodies) >= 2:
+        set_shape_text_multiline(
+            bodies[0],
+            ['“SELECT 성능 개선해줘”', '', '→ 일반론적 조언', '→ 제한적인 코드 제안', '→ 맥락 없는 답변'],
+            sizes=[13, 8, 12, 12, 12],
+            bolds=[True, False, False, False, False],
+            colors=[NAVY, GREY, GREY, GREY, GREY],
+        )
+        set_shape_text_multiline(
+            bodies[1],
+            [
+                '환경·모듈·테이블·DB·목표를 정의하고',
+                '영향도 / 개선방향 / 코드 / 테스트까지 요청',
+                '',
+                '→ 영향도 분석 + 개선안',
+                '→ 수정 코드 + 검증 방법',
+            ],
+            sizes=[12, 12, 8, 12, 12],
+            bolds=[True, True, False, False, False],
+            colors=[NAVY, NAVY, GREY, GREY, GREY],
+        )
+
+    # ========== 9. Method 1 message + Method 2 start ==========
+    s = add(T_A)
+    for sh in s.shapes:
+        if sh.has_text_frame and sh.text_frame.text.strip() in ('01. TEXT', '01.TEXT'):
+            set_runs_text(sh, 'METHOD 01  ·  핵심')
+    add_textbox(s, Inches(0.8), Inches(2.3), Inches(11.5), Inches(0.5),
+                'AI 활용의 차이는 ‘질문의 수준’이 아니다.', size=20, bold=False, color=GREY)
+    add_textbox(s, Inches(0.8), Inches(3.2), Inches(11.5), Inches(1.0),
+                '업무를 얼마나 잘 정의해서\n맡기는가의 차이다.',
+                size=28, bold=True, color=NAVY)
+    add_textbox(s, Inches(0.8), Inches(5.0), Inches(11.5), Inches(0.8),
+                '검색하듯 묻지 말고, 한 건의 업무(Task)를 통째로 위임하라.\n'
+                'SAP 예: 환경 · 모듈 · 테이블 · DB · 영향도 · 코드 · 테스트까지 한 번에.',
+                size=14, bold=False, color=BLUE)
+
+    # ========== 10. Method 2 Context ==========
+    s = add(T_COLS)
+    for sh in iter_all_shapes(s.shapes):
+        if not sh.has_text_frame:
+            continue
+        t = sh.text_frame.text.strip()
+        if t in ('01. TEXT', '01.TEXT'):
+            set_runs_text(sh, 'METHOD 02')
+        elif t == '프로젝트 과정':
+            set_runs_text(sh, 'Prompt보다 Context가 중요하다')
+        elif t == '소제목 1':
+            set_runs_text(sh, '모델보다 맥락')
+        elif t == '소제목 2':
+            set_runs_text(sh, 'SAP Context 예시')
+        elif t == '소제목 3':
+            set_runs_text(sh, '만드는 기술')
+        elif '이 곳에 내용을 입력하세요' in t:
+            # fill by order
+            pass
+
+    bodies = [sh for sh in iter_all_shapes(s.shapes)
+              if sh.has_text_frame and '이 곳에 내용을 입력하세요' in sh.text_frame.text]
+    if len(bodies) >= 3:
+        set_shape_text_multiline(
+            bodies[0],
+            ['AI 성능은 모델보다', 'Context에 의해 결정된다.', '', '질문을 잘하는 사람이 아니라', '환경을 만드는 사람'],
+            sizes=[13, 13, 8, 12, 12],
+            bolds=[True, True, False, False, False],
+            colors=[NAVY, NAVY, GREY, GREY, GREY],
+        )
+        set_shape_text_multiline(
+            bodies[1],
+            ['ECC / S/4HANA', 'Naming · 개발표준', '테이블 관계 · FM/Class', 'Git · 설계문서', '업무 프로세스'],
+            sizes=[12, 12, 12, 12, 12],
+            bolds=[False]*5,
+            colors=[DARK]*5,
+        )
+        set_shape_text_multiline(
+            bodies[2],
+            ['Cursor Rules', 'Project Context', 'MCP', 'AI Memory', '저장소 표준(.md)'],
+            sizes=[12, 12, 12, 12, 12],
+            bolds=[True, True, True, True, True],
+            colors=[NAVY]*5,
+        )
+
+    # ========== 11. Method 2 key ==========
+    s = add(T_A)
+    for sh in s.shapes:
+        if sh.has_text_frame and sh.text_frame.text.strip() in ('01. TEXT', '01.TEXT'):
+            set_runs_text(sh, 'METHOD 02  ·  핵심')
+    add_textbox(s, Inches(0.8), Inches(2.5), Inches(11.5), Inches(1.2),
+                'AI에게 정답을 요구하기 전에,\nAI가 문제를 이해할 수 있는\n환경을 만들어야 한다.',
+                size=26, bold=True, color=NAVY)
+    add_textbox(s, Inches(0.8), Inches(4.8), Inches(11.5), Inches(0.8),
+                'Context Engineering > Prompt Engineering\n'
+                'Rules / 프로젝트 맥락 / MCP / 문서를 먼저 고정하면, 같은 모델도 결과가 달라진다.',
+                size=14, bold=False, color=BLUE)
+
+    # ========== 12. Method 3 Workflow STEPS ==========
+    s = add(T_STEPS)
+    for sh in iter_all_shapes(s.shapes):
+        if not sh.has_text_frame:
+            continue
+        t = sh.text_frame.text.strip()
+        if t in ('01. TEXT', '01.TEXT'):
+            set_runs_text(sh, 'METHOD 03')
+        elif t == '프로젝트 과정':
+            set_runs_text(sh, 'AI를 도구가 아닌 개발 Workflow로')
+        elif t == 'STEP 1':
+            set_runs_text(sh, 'STEP 1')
+        elif t == 'STEP 2':
+            set_runs_text(sh, 'STEP 2')
+        elif t == 'STEP 3':
+            set_runs_text(sh, 'STEP 3')
+        elif t == '핵심 단어 1':
+            set_runs_text(sh, '분석 · 설계')
+        elif t == '핵심 단어 2':
+            set_runs_text(sh, '구현 · 리뷰')
+        elif t == '핵심 단어 3':
+            set_runs_text(sh, '검증 · 문서')
+
+    # subtitle boxes under keywords
+    subs = [sh for sh in iter_all_shapes(s.shapes)
+            if sh.has_text_frame and '더블클릭하여 텍스트' in sh.text_frame.text]
+    bodies = [sh for sh in iter_all_shapes(s.shapes)
+              if sh.has_text_frame and '이 곳에 내용을 입력하세요' in sh.text_frame.text]
+    if len(subs) >= 3:
+        set_shape_text_multiline(subs[0], ['요구사항 → 영향도 분석', '관련 프로그램/테이블 탐색'],
+                                 sizes=[12, 12], bolds=[False, False], colors=[DARK, DARK])
+        set_shape_text_multiline(subs[1], ['코드 작성', 'AI Code Review'],
+                                 sizes=[12, 12], bolds=[False, False], colors=[DARK, DARK])
+        set_shape_text_multiline(subs[2], ['Test Case 생성', '변경문서 · 배포 체크리스트'],
+                                 sizes=[12, 12], bolds=[False, False], colors=[DARK, DARK])
+    if len(bodies) >= 3:
+        set_shape_text_multiline(bodies[0], ['한 번 묻고 끝내지 말고', '분석 단계부터 AI를 연결'],
+                                 sizes=[12, 12], bolds=[True, False], colors=[NAVY, GREY])
+        set_shape_text_multiline(bodies[1], ['생성과 리뷰를', '같은 루프로 반복'],
+                                 sizes=[12, 12], bolds=[True, False], colors=[NAVY, GREY])
+        set_shape_text_multiline(bodies[2], ['테스트·문서까지', '워크플로의 일부로'],
+                                 sizes=[12, 12], bolds=[True, False], colors=[NAVY, GREY])
+
+    # ========== 13. Role change ==========
+    s = add(T_A)
+    for sh in s.shapes:
+        if sh.has_text_frame and sh.text_frame.text.strip() in ('01. TEXT', '01.TEXT'):
+            set_runs_text(sh, 'METHOD 03  ·  역할의 변화')
+    add_textbox(s, Inches(0.6), Inches(1.4), Inches(5.8), Inches(0.4),
+                '기존', size=14, bold=True, color=GREY)
+    add_textbox(s, Inches(0.6), Inches(2.0), Inches(5.8), Inches(2.5),
+                '개발자가\n모든 작업을 직접 수행',
+                size=22, bold=True, color=GREY)
+    add_textbox(s, Inches(7.0), Inches(1.4), Inches(5.8), Inches(0.4),
+                '변화', size=14, bold=True, color=BLUE)
+    add_textbox(s, Inches(7.0), Inches(2.0), Inches(5.8), Inches(1.2),
+                '개발자\n방향 설정 · 검증 · 의사결정',
+                size=20, bold=True, color=NAVY)
+    add_textbox(s, Inches(7.0), Inches(3.5), Inches(5.8), Inches(1.2),
+                'AI\n반복 작업 · 초안 · 탐색 수행',
+                size=20, bold=True, color=BLUE)
+    add_textbox(s, Inches(0.6), Inches(5.5), Inches(12), Inches(0.7),
+                '한 번 사용하는 도구가 아니라, 업무 프로세스 자체에 AI를 연결할 때\n생산성 격차가 벌어진다.',
+                size=15, bold=True, color=NAVY)
+
+    # ========== 14. Closing ==========
+    s = add(T_A)
+    for sh in s.shapes:
+        if sh.has_text_frame and sh.text_frame.text.strip() in ('01. TEXT', '01.TEXT'):
+            set_runs_text(sh, 'CLOSING')
+    add_textbox(s, Inches(0.8), Inches(1.6), Inches(11.5), Inches(1.2),
+                'AI 시대 개발자의 경쟁력은\n코드를 얼마나 빨리 작성하는지가 아니다.',
+                size=22, bold=False, color=GREY)
+    add_textbox(s, Inches(0.8), Inches(3.1), Inches(11.5), Inches(1.2),
+                'AI가 얼마나 잘 일하도록\n환경을 만들 수 있는지가 경쟁력이다.',
+                size=24, bold=True, color=NAVY)
+    add_textbox(s, Inches(0.8), Inches(5.0), Inches(11.5), Inches(0.9),
+                'AI를 사용하는 개발자가 아니라,\nAI와 함께 일하는 개발자가 되어야 한다.',
+                size=18, bold=True, color=BLUE)
+    add_textbox(s, Inches(0.8), Inches(6.2), Inches(11.5), Inches(0.5),
+                '한 문장: AI는 개발자를 대체하는 기술이 아니라, '
+                'AI를 잘 활용하는 개발자가 그렇지 않은 개발자를 대체하게 만드는 기술이다.',
+                size=12, bold=False, color=GREY)
+
+    # ========== 15. End ==========
+    s = add(T_END)
+    for sh in s.shapes:
+        if sh.has_text_frame and 'End of Document' in sh.text_frame.text:
+            set_runs_text(sh, 'Thank You')
+
+    # Delete original template slides (first ORIG slides)
+    for _ in range(ORIG):
+        remove_slide(prs, 0)
+
+    prs.save(str(OUT))
+    print(f'saved {OUT} ({len(prs.slides)} slides)')
 
 
-# =====================================================================
-# 8. Closing
-# =====================================================================
-s = blank()
-bg(s, NIGHT)
-rect(s, 0, 0, Inches(0.18), SH, fill=GOLD)
-
-tf = tb(s, Inches(0.9), Inches(1.6), Inches(11.5), Inches(0.35))
-P(tf, 'TAKEAWAY', 11, True, GOLD, first=True)
-
-tf = tb(s, Inches(0.9), Inches(2.15), Inches(11.8), Inches(1.8))
-P(tf, 'AI는 도입하는 순간이 아니라', 28, True, WHITE, first=True)
-P(tf, '쓰는 구조를 만들 때 효율이 납니다', 28, True, WHITE, before=8)
-
-tf = tb(s, Inches(0.9), Inches(4.3), Inches(11.5), Inches(1.2))
-P(tf, '우리가 할 일:  범위 고정  ·  표준(.md) 자산화  ·  검증 루프  ·  전/후 측정',
-  15, False, MUTED, first=True)
-P(tf, '사례는 이미 한 번 확인했습니다. 다음은 조직 습관으로 옮기는 단계입니다.',
-  14, False, SLATE, before=10)
-
-rect(s, Inches(0.9), Inches(5.9), Inches(2.0), Pt(3), fill=GOLD)
-tf = tb(s, Inches(0.9), Inches(6.2), Inches(11.5), Inches(0.4))
-P(tf, '질의응답', 14, True, WHITE, first=True)
-
-notes(s,
-      '【8:40–10:00】\n'
-      '핵심 메시지 한 번 반복 후 Q&A.\n'
-      '예상 질문: 보안/데이터, 정량 수치, 적용 범위, 교육 방식.')
-
-OUT = 'docs/report/Y_OPS_MONITOR_V2_발표자료.pptx'
-prs.save(OUT)
-print(f'saved {OUT} ({len(prs.slides)} slides)')
+if __name__ == '__main__':
+    build_v2()
