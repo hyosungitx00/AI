@@ -313,7 +313,7 @@ CLASS lcl_navigator DEFINITION.
       IMPORTING iv_datum TYPE d
                 iv_uzeit TYPE t
                 iv_uname TYPE syuname
-                iv_ahost TYPE c LENGTH 32.
+                iv_ahost TYPE snap_beg-ahost.
     METHODS show_message
       IMPORTING iv_msgguid TYPE sxmspmast-msgguid
                 iv_pid     TYPE sxmsperror-pid.
@@ -670,13 +670,16 @@ CLASS lcl_dp_dump IMPLEMENTATION.
             ENDIF.
           ENDIF.
           IF lv_ok = abap_true.
+            DATA lv_ahost TYPE snap_beg-ahost.
+            lv_ahost = ls_d-syhost.
+            CONDENSE lv_ahost.
             APPEND VALUE ty_dump(
               line_color = 'C600'                            " ST22 영역색
               icon     = icon_red_light
               datum    = ls_d-sydate
               uzeit    = ls_d-sytime
               uname    = ls_d-syuser
-              ahost    = |{ ls_d-syhost }|
+              ahost    = lv_ahost
               rt_error = |{ ls_d-dumpid }|
               progname = |{ ls_d-programname }|
               include  = |{ ls_d-includename }|
