@@ -578,9 +578,12 @@ CLASS lcl_dp_batch IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD lif_data_provider~navigate.
-    READ TABLE mt_view INTO DATA(ls) INDEX iv_row.
+    " SM37 전용 — show_dump/ls-datum 사용 금지 (ty_batch 에 DATUM 없음)
+    DATA ls_job TYPE ty_batch.
+    READ TABLE mt_view INTO ls_job INDEX iv_row.
     IF sy-subrc = 0.
-      mo_nav->show_joblog( iv_jobname = ls-jobname iv_jobcount = ls-jobcount ).
+      mo_nav->show_joblog( iv_jobname = ls_job-jobname
+                           iv_jobcount = ls_job-jobcount ).
     ENDIF.
   ENDMETHOD.
 ENDCLASS.
