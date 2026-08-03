@@ -313,7 +313,7 @@ CLASS lcl_navigator DEFINITION.
       IMPORTING iv_datum TYPE d
                 iv_uzeit TYPE t
                 iv_uname TYPE syuname
-                iv_ahost TYPE snap-ahost.
+                iv_ahost TYPE c LENGTH 32.
     METHODS show_message
       IMPORTING iv_msgguid TYPE sxmspmast-msgguid
                 iv_pid     TYPE sxmsperror-pid.
@@ -338,28 +338,63 @@ CLASS lcl_navigator IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD show_dump.
-    " 표시 전용 - 선택한 덤프의 상세를 직접 표시 (RS_SNAP_DUMP_DISPLAY).
-    " SNAP 키(MANDT/MODNO/SEQNO)는 (일자/시간/서버/사용자)로 조회하여 확보한다.
-    "  ※ 읽기 전용 SELECT 이며, ST22 표준 상세 화면과 동일한 덤프 상세를 표시한다.
-    DATA ls_snap TYPE snap.
-    SELECT SINGLE ahost, datum, mandt, modno, seqno, uname, uzeit
-      FROM snap
-      INTO CORRESPONDING FIELDS OF @ls_snap
-      WHERE datum = @iv_datum
-        AND uzeit = @iv_uzeit
-        AND ahost = @iv_ahost
-        AND uname = @iv_uname.
+    " 표시 전용 - ST22 상세 (RS_SNAP_DUMP_DISPLAY).
+    " SNAP 은 SEQNO 단위로 여러 행이므로 헤더 뷰 SNAP_BEG + SEQNO='000' 만 사용.
+    " (TYPE snap / SEQNO 없는 SELECT SINGLE 은 키 불일치·런타임 덤프 유발 가능)
+    DATA: BEGIN OF ls_key,
+            ahost TYPE snap_beg-ahost,
+            datum TYPE snap_beg-datum,
+            mandt TYPE snap_beg-mandt,
+            modno TYPE snap_beg-modno,
+            seqno TYPE snap_beg-seqno,
+            uname TYPE snap_beg-uname,
+            uzeit TYPE snap_beg-uzeit,
+          END OF ls_key.
+    DATA lv_ahost TYPE snap_beg-ahost.
+    DATA lv_found TYPE abap_bool.
 
-    IF sy-subrc = 0.
+    lv_ahost = iv_ahost.
+    CONDENSE lv_ahost.
+
+    " 1) 일자/시간/사용자/서버 + SEQNO=000
+    IF lv_ahost IS NOT INITIAL.
+      SELECT SINGLE ahost, datum, mandt, modno, seqno, uname, uzeit
+        FROM snap_beg
+        INTO @ls_key
+        WHERE datum = @iv_datum
+          AND uzeit = @iv_uzeit
+          AND uname = @iv_uname
+          AND ahost = @lv_ahost
+          AND seqno = '000'.
+      IF sy-subrc = 0.
+        lv_found = abap_true.
+      ENDIF.
+    ENDIF.
+
+    " 2) 서버명 불일치 시 일자/시간/사용자로 재조회
+    IF lv_found = abap_false.
+      SELECT SINGLE ahost, datum, mandt, modno, seqno, uname, uzeit
+        FROM snap_beg
+        INTO @ls_key
+        WHERE datum = @iv_datum
+          AND uzeit = @iv_uzeit
+          AND uname = @iv_uname
+          AND seqno = '000'.
+      IF sy-subrc = 0.
+        lv_found = abap_true.
+      ENDIF.
+    ENDIF.
+
+    IF lv_found = abap_true.
       CALL FUNCTION 'RS_SNAP_DUMP_DISPLAY'
         EXPORTING
-          ahost          = ls_snap-ahost
-          datum          = ls_snap-datum
-          mandt          = ls_snap-mandt
-          modno          = ls_snap-modno
-          seqno          = ls_snap-seqno
-          uname          = ls_snap-uname
-          uzeit          = ls_snap-uzeit
+          ahost          = ls_key-ahost
+          datum          = ls_key-datum
+          mandt          = ls_key-mandt
+          modno          = ls_key-modno
+          seqno          = ls_key-seqno
+          uname          = ls_key-uname
+          uzeit          = ls_key-uzeit
         EXCEPTIONS
           no_entry_found = 1
           OTHERS         = 2.
@@ -716,7 +751,7 @@ CLASS lcl_dp_dump IMPLEMENTATION.
       mo_nav->show_dump( iv_datum = ls-datum
                          iv_uzeit = ls-uzeit
                          iv_uname = ls-uname
-                         iv_ahost = CONV #( ls-ahost ) ).
+                         iv_ahost = ls-ahost ).
     ENDIF.
   ENDMETHOD.
 ENDCLASS.
