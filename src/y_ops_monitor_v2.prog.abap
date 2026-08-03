@@ -103,7 +103,7 @@ TYPES: BEGIN OF ty_dump,            " ST22 (ZMON_S_DUMP 대체, <- RSDUMPTAB)
          datum    TYPE d,
          uzeit    TYPE t,
          uname    TYPE syuname,
-         ahost    TYPE c LENGTH 32,
+         ahost    TYPE snap_beg-ahost,
          rt_error TYPE c LENGTH 36,  " DUMPID (런타임 에러 유형)
          progname TYPE c LENGTH 40,
          include  TYPE c LENGTH 40,
@@ -670,16 +670,13 @@ CLASS lcl_dp_dump IMPLEMENTATION.
             ENDIF.
           ENDIF.
           IF lv_ok = abap_true.
-            DATA lv_ahost TYPE snap_beg-ahost.
-            lv_ahost = ls_d-syhost.
-            CONDENSE lv_ahost.
             APPEND VALUE ty_dump(
               line_color = 'C600'                            " ST22 영역색
               icon     = icon_red_light
               datum    = ls_d-sydate
               uzeit    = ls_d-sytime
               uname    = ls_d-syuser
-              ahost    = lv_ahost
+              ahost    = ls_d-syhost
               rt_error = |{ ls_d-dumpid }|
               progname = |{ ls_d-programname }|
               include  = |{ ls_d-includename }|
@@ -737,24 +734,26 @@ CLASS lcl_dp_dump IMPLEMENTATION.
 
   METHOD lif_data_provider~topn_source.
     " Top-N 키 = DUMPID (런타임 에러 유형)
-    LOOP AT mt_all INTO DATA(ls).
-      APPEND ls-rt_error TO rt.
+    LOOP AT mt_all INTO DATA(ls_dump).
+      APPEND ls_dump-rt_error TO rt.
     ENDLOOP.
   ENDMETHOD.
 
   METHOD lif_data_provider~time_points.
-    LOOP AT mt_all INTO DATA(ls).
-      APPEND VALUE #( d = ls-datum t = ls-uzeit ) TO rt.
+    LOOP AT mt_all INTO DATA(ls_dump).
+      APPEND VALUE #( d = ls_dump-datum t = ls_dump-uzeit ) TO rt.
     ENDLOOP.
   ENDMETHOD.
 
   METHOD lif_data_provider~navigate.
-    READ TABLE mt_view INTO DATA(ls) INDEX iv_row.
+    " ls / RSDUMP 구조체와 혼동 방지: ty_dump 명시 (DATUM/UZEIT/UNAME/AHOST)
+    DATA ls_dump TYPE ty_dump.
+    READ TABLE mt_view INTO ls_dump INDEX iv_row.
     IF sy-subrc = 0.
-      mo_nav->show_dump( iv_datum = ls-datum
-                         iv_uzeit = ls-uzeit
-                         iv_uname = ls-uname
-                         iv_ahost = ls-ahost ).
+      mo_nav->show_dump( iv_datum = ls_dump-datum
+                         iv_uzeit = ls_dump-uzeit
+                         iv_uname = ls_dump-uname
+                         iv_ahost = ls_dump-ahost ).
     ENDIF.
   ENDMETHOD.
 ENDCLASS.
