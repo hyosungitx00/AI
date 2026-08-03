@@ -552,16 +552,14 @@ CLASS lcl_dp_batch IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD lif_data_provider~fieldcat.
-    lcl_util=>add_col( EXPORTING iv_field = 'JOBNAME'   iv_text = '잡명'      CHANGING ct_fcat = rt ).
-    lcl_util=>add_col( EXPORTING iv_field = 'JOBCOUNT'  iv_text = '잡카운트'  CHANGING ct_fcat = rt ).
-    lcl_util=>add_col( EXPORTING iv_field = 'STATUS_TX' iv_text = '상태'      CHANGING ct_fcat = rt ).
-    lcl_util=>add_col( EXPORTING iv_field = 'PROGNAME'  iv_text = '프로그램'  CHANGING ct_fcat = rt ).
-    lcl_util=>add_col( EXPORTING iv_field = 'SDLUNAME'  iv_text = '사용자'    CHANGING ct_fcat = rt ).
-    lcl_util=>add_col( EXPORTING iv_field = 'STRTDATE'  iv_text = '시작일'    CHANGING ct_fcat = rt ).
-    lcl_util=>add_col( EXPORTING iv_field = 'STRTTIME'  iv_text = '시작시간'  CHANGING ct_fcat = rt ).
-    lcl_util=>add_col( EXPORTING iv_field = 'ENDDATE'   iv_text = '종료일'    CHANGING ct_fcat = rt ).
-    lcl_util=>add_col( EXPORTING iv_field = 'ENDTIME'   iv_text = '종료시간'  CHANGING ct_fcat = rt ).
-    lcl_util=>add_col( EXPORTING iv_field = 'STATUS'    iv_text = 'STATUS' iv_hide = abap_true CHANGING ct_fcat = rt ).
+    " 표시 열: 잡명, 프로그램, 사용자, 시작일, 시작시간, 종료일, 종료시간
+    lcl_util=>add_col( EXPORTING iv_field = 'JOBNAME'  iv_text = '잡명'     CHANGING ct_fcat = rt ).
+    lcl_util=>add_col( EXPORTING iv_field = 'PROGNAME' iv_text = '프로그램' CHANGING ct_fcat = rt ).
+    lcl_util=>add_col( EXPORTING iv_field = 'SDLUNAME' iv_text = '사용자'   CHANGING ct_fcat = rt ).
+    lcl_util=>add_col( EXPORTING iv_field = 'STRTDATE' iv_text = '시작일'   CHANGING ct_fcat = rt ).
+    lcl_util=>add_col( EXPORTING iv_field = 'STRTTIME' iv_text = '시작시간' CHANGING ct_fcat = rt ).
+    lcl_util=>add_col( EXPORTING iv_field = 'ENDDATE'  iv_text = '종료일'   CHANGING ct_fcat = rt ).
+    lcl_util=>add_col( EXPORTING iv_field = 'ENDTIME'  iv_text = '종료시간' CHANGING ct_fcat = rt ).
   ENDMETHOD.
 
   METHOD lif_data_provider~topn_source.
@@ -725,14 +723,12 @@ CLASS lcl_dp_dump IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD lif_data_provider~fieldcat.
-    lcl_util=>add_col( EXPORTING iv_field = 'DATUM'    iv_text = '발생일'    CHANGING ct_fcat = rt ).
-    lcl_util=>add_col( EXPORTING iv_field = 'UZEIT'    iv_text = '발생시간'  CHANGING ct_fcat = rt ).
-    lcl_util=>add_col( EXPORTING iv_field = 'UNAME'    iv_text = '사용자'    CHANGING ct_fcat = rt ).
-    lcl_util=>add_col( EXPORTING iv_field = 'AHOST'    iv_text = '서버'      CHANGING ct_fcat = rt ).
-    lcl_util=>add_col( EXPORTING iv_field = 'RT_ERROR' iv_text = '에러유형'  CHANGING ct_fcat = rt ).
-    lcl_util=>add_col( EXPORTING iv_field = 'PROGNAME' iv_text = '프로그램'  CHANGING ct_fcat = rt ).
-    lcl_util=>add_col( EXPORTING iv_field = 'INCLUDE'  iv_text = '인클루드'  CHANGING ct_fcat = rt ).
-    lcl_util=>add_col( EXPORTING iv_field = 'LINE'     iv_text = '라인'      CHANGING ct_fcat = rt ).
+    " 표시 열: 프로그램, 에러유형, 사용자, 발생일, 발생시간
+    lcl_util=>add_col( EXPORTING iv_field = 'PROGNAME' iv_text = '프로그램' CHANGING ct_fcat = rt ).
+    lcl_util=>add_col( EXPORTING iv_field = 'RT_ERROR' iv_text = '에러유형' CHANGING ct_fcat = rt ).
+    lcl_util=>add_col( EXPORTING iv_field = 'UNAME'    iv_text = '사용자'   CHANGING ct_fcat = rt ).
+    lcl_util=>add_col( EXPORTING iv_field = 'DATUM'    iv_text = '발생일'   CHANGING ct_fcat = rt ).
+    lcl_util=>add_col( EXPORTING iv_field = 'UZEIT'    iv_text = '발생시간' CHANGING ct_fcat = rt ).
   ENDMETHOD.
 
   METHOD lif_data_provider~topn_source.
@@ -931,15 +927,12 @@ CLASS lcl_dp_interface IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD lif_data_provider~fieldcat.
-    lcl_util=>add_col( EXPORTING iv_field = 'EXE_DATE'  iv_text = '발생일'      CHANGING ct_fcat = rt ).
-    lcl_util=>add_col( EXPORTING iv_field = 'EXE_TIME'  iv_text = '발생시간'    CHANGING ct_fcat = rt ).
-    lcl_util=>add_col( EXPORTING iv_field = 'IF_NAME'   iv_text = '인터페이스'  CHANGING ct_fcat = rt ).
-    lcl_util=>add_col( EXPORTING iv_field = 'OPERATION' iv_text = '오퍼레이션'  CHANGING ct_fcat = rt ).
-    lcl_util=>add_col( EXPORTING iv_field = 'SENDER'    iv_text = '송신'        CHANGING ct_fcat = rt ).
-    lcl_util=>add_col( EXPORTING iv_field = 'RECEIVER'  iv_text = '수신'        CHANGING ct_fcat = rt ).
-    lcl_util=>add_col( EXPORTING iv_field = 'MSGSTATE'  iv_text = '상태'        CHANGING ct_fcat = rt ).
-    lcl_util=>add_col( EXPORTING iv_field = 'ERRSTAT'   iv_text = '에러상태'    CHANGING ct_fcat = rt ).
-    " MSGGUID 는 드릴다운 키로만 사용(내부 보관), ALV 표시/필드카탈로그에서는 제외
+    " 표시 열: 인터페이스, 상태, 발생일, 발생시간
+    " MSGGUID/PID 는 드릴다운 키로만 내부 보관 (ALV 미표시)
+    lcl_util=>add_col( EXPORTING iv_field = 'IF_NAME'  iv_text = '인터페이스' CHANGING ct_fcat = rt ).
+    lcl_util=>add_col( EXPORTING iv_field = 'MSGSTATE' iv_text = '상태'       CHANGING ct_fcat = rt ).
+    lcl_util=>add_col( EXPORTING iv_field = 'EXE_DATE' iv_text = '발생일'     CHANGING ct_fcat = rt ).
+    lcl_util=>add_col( EXPORTING iv_field = 'EXE_TIME' iv_text = '발생시간'   CHANGING ct_fcat = rt ).
   ENDMETHOD.
 
   METHOD lif_data_provider~topn_source.

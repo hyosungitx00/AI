@@ -5,7 +5,7 @@
 | 문서명 | 통합 운영 모니터링 프로그램 (SM37 / ST22 / SXI_MONITOR) 상세 설계서 |
 | 대상 시스템 | SAP S/4HANA (ABAP Integration Engine 사용) |
 | 화면 환경 | SAP GUI (Classic Dynpro + OO ALV) |
-| 문서 버전 | v0.4 (Draft) |
+| 문서 버전 | v0.5 (Draft) |
 | 작성 목적 | ABAP 개발 착수 전 기능/데이터/화면/로직 확정을 위한 기술 설계 |
 | 상태 | 검토 대기 (Review) |
 
@@ -433,18 +433,41 @@ flowchart TB
 
 ### 6.4 ALV 필드 카탈로그(요약)
 
+표시 열만 필드카탈로그에 등록한다. 드릴다운 키(`JOBCOUNT`/`AHOST`/`MSGGUID`/`PID` 등)는 내부 테이블에 보관하되 ALV에는 표시하지 않는다.
+
 #### 6.4.1 SM37 ALV
-`ICON` / `JOBNAME` / `JOBCOUNT` / `STATUS_TX` / `PROGNAME` / `SDLUNAME` / `STRTDATE` / `STRTTIME` / `ENDDATE` / `ENDTIME`
+| 표시 순서 | 필드 | 헤더 |
+|-----------|------|------|
+| 1 | `JOBNAME` | 잡명 |
+| 2 | `PROGNAME` | 프로그램 |
+| 3 | `SDLUNAME` | 사용자 |
+| 4 | `STRTDATE` | 시작일 |
+| 5 | `STRTTIME` | 시작시간 |
+| 6 | `ENDDATE` | 종료일 |
+| 7 | `ENDTIME` | 종료시간 |
 
 #### 6.4.2 ST22 ALV  (← `RSDUMPTAB`)
-`ICON` / `DATUM`(SYDATE) / `UZEIT`(SYTIME) / `UNAME`(SYUSER) / `AHOST`(SYHOST) / `RT_ERROR`(DUMPID) / `PROGNAME`(PROGRAMNAME) / `INCLUDE`(INCLUDENAME) / `LINE`(LINENUMBER)
-> `RSDUMPTAB`에 `MANDT` 없음 → 클라이언트 컬럼 제외.
+| 표시 순서 | 필드 | 헤더 | 출처 |
+|-----------|------|------|------|
+| 1 | `PROGNAME` | 프로그램 | `PROGRAMNAME` |
+| 2 | `RT_ERROR` | 에러유형 | `DUMPID` |
+| 3 | `UNAME` | 사용자 | `SYUSER` |
+| 4 | `DATUM` | 발생일 | `SYDATE` |
+| 5 | `UZEIT` | 발생시간 | `SYTIME` |
+
+> `RSDUMPTAB`에 `MANDT` 없음 → 클라이언트 컬럼 제외. 드릴다운용 `AHOST` 등은 내부 보관.
 
 #### 6.4.3 SXI ALV
-`ICON` / `EXE_DATE` / `EXE_TIME` / `IF_NAME`(OB_NAME) / `OPERATION`(OB_OPERATION) / `SENDER`(OB_SYSTEM) / `RECEIVER`(IB_SYSTEM) / `MSGSTATE`(STATE_TX) / `ERRSTAT` / `MSGGUID`(숨김 가능)
-> 시각 컬럼은 `EXETIMEST`(UTC)를 로컬로 환산해 표시. 방향 컬럼 없음(송신→수신 흐름으로 표현).
+| 표시 순서 | 필드 | 헤더 | 출처 |
+|-----------|------|------|------|
+| 1 | `IF_NAME` | 인터페이스 | `OB_NAME` |
+| 2 | `MSGSTATE` | 상태 | `SXMSPMAST-MSGSTATE` |
+| 3 | `EXE_DATE` | 발생일 | `EXETIMEST`→로컬 |
+| 4 | `EXE_TIME` | 발생시간 | `EXETIMEST`→로컬 |
 
-> 공통: 정렬/필터/합계/레이아웃 저장/엑셀 다운로드 등 ALV 표준 기능 활성화. 컬럼 폭/순서는 빌드 시 필드카탈로그에서 조정.
+> 시각 컬럼은 `EXETIMEST`(UTC)를 로컬로 환산해 표시. `MSGGUID`/`PID`는 드릴다운 키로만 내부 보관.
+
+> 공통: 컬럼 폭은 ALV `cwidth_opt`로 자동 조정. 내부 키 필드는 필드카탈로그에 넣지 않는다.
 
 ### 6.5 드릴다운(이벤트) 매핑
 | 영역 | 이벤트 | 처리 | 호출 대상(읽기전용) |
@@ -674,4 +697,5 @@ P_TODAT = SY-DATUM. P_TOTIM = SY-UZEIT.
 | v0.1 | 2026-06-16 | 최초 작성(Draft) — 개요/요구사항/아키텍처/데이터소스/화면/로직/권한/성능/테스트/확장/Open Issues |
 | v0.2 | 2026-06-16 | O-1~O-5 확정 반영(SM37 종료시각·드릴다운, ST22 SNAP·ST22호출, SXI 필드/UTC/방식A) + **관점 선택형 차트 패널(`CL_GUI_CHART_ENGINE`)** 및 `ZCL_MON_AGGREGATOR` 추가, IGS(O-9) 해소, Open Issues 재정리(O-10/O-11) |
 | v0.3 | 2026-06-18 | O-6~O-11 일괄 확정 반영 — 신호등 3단계 임계치(O-6), 권한 체크 방식(O-7, 객체 검증 보류), **ST22 조회 `RS_ST22_GET_DUMPS`/`RSDUMPTAB`·`DUMPID`로 변경(O-3 갱신/O-11)**, SXI 필드 확정(`OB_SYSTEM`/`IB_SYSTEM`/`OB_NAME`/`OB_OPERATION`, O-10), 결과 상한 `P_MAXROW`(O-8), 차트 Top-N 키(SM37=JOBNAME/ST22=DUMPID/SXI=OB_NAME)·영역별 독립 Top-N·전체 기준 집계 |
-| v0.4 | 2026-07-03 | **O-7 권한 객체 STAUTHTRACE 검증 완료·확정** — SM37 `S_BTCH_JOB`(`JOBGROUP='*'`/`JOBACTION='SHOW'`), ST22 **`S_ADMI_FCD`→`S_ABAPDUMP` 정정**(`ACTVT=03`/`DUMP_INFO=FULL`/`DUMP_CCLNT=ALL`/`DUMP_CUSER=ALL`), SXI `S_XMB_MONI`(`ACTVT=03`, `S_XMB_ADM` 미요구). 잔여 Open Issue 없음(전건 확정) |
+| v0.4 | 2026-07-03 | **O-7 권한 객체 STAUTHTRACE 검증 완료·확정** — SM37 `S_BTCH_JOB`(`JOBGROUP='*'`/`JOBACTION='SHOW'`), ST22 **`S_ADMI_FCD`→`S_ABAPDUMP` 정정**(`ACTVT=03`/`DUMP_INFO=FULL`/`DUMP_CCLNT=ALL`/`DUMP_CUSER=ALL`), SXI `S_XMB_MONI`(`ACTVT=03`, `S_XMB_ADM 미요구`). 잔여 Open Issue 없음(전건 확정) |
+| v0.5 | 2026-08-03 | **6.4 ALV 표시 열 축소** — SM37(잡명/프로그램/사용자/시작·종료 일시), ST22(프로그램/에러유형/사용자/발생 일시), SXI(인터페이스/상태/발생 일시). 드릴다운 키는 내부 보관·미표시 |
