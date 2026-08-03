@@ -3,7 +3,7 @@
 *&---------------------------------------------------------------------*
 *& 통합 운영 모니터링 (SM37 / ST22 / SXI_MONITOR) - 로컬 우선(V2) 구현
 *&
-*& 설계서: docs/design/integrated-ops-monitor-design.md (v0.4)
+*& 설계서: docs/design/integrated-ops-monitor-design.md (v0.5)
 *&
 *& [로컬 우선 원칙]
 *&  - 새 저장소 오브젝트(DDIC/글로벌 클래스/인터페이스/메시지 클래스)를
