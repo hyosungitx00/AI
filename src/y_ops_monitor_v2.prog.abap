@@ -30,9 +30,10 @@ TYPE-POOLS: icon.
 *&---------------------------------------------------------------------*
 *&  선택 화면 필드용 전역 참조 변수
 *&---------------------------------------------------------------------*
-DATA: gv_jobname TYPE tbtco-jobname,
-      gv_uname   TYPE tbtco-sdluname,
-      gv_iface   TYPE sxmspemas-ob_name.
+DATA: gv_jobname    TYPE tbtco-jobname,
+      gv_uname      TYPE tbtco-sdluname,
+      gv_iface      TYPE sxmspemas-ob_name,
+      gv_hours_last TYPE i.              " P_HOURS 변경 감지용
 
 *&---------------------------------------------------------------------*
 *&  선택 화면 (Selection Screen)
@@ -1599,6 +1600,7 @@ DATA: go_ctrl      TYPE REF TO lcl_controller,
 INITIALIZATION.
   gv_banner = 'Cursor AI 기반 | 읽기전용 통합 운영 모니터링 대시보드 (SM37 / ST22 / SXI)'. "#EC NOTEXT
   PERFORM calc_default_period.
+  gv_hours_last = p_hours.
 
 *&---------------------------------------------------------------------*
 *&  AT SELECTION-SCREEN
@@ -1616,9 +1618,10 @@ AT SELECTION-SCREEN.
   ENDIF.
 
 AT SELECTION-SCREEN ON p_hours.
-  " P_HOURS 입력 시 FROM/TO 를 현재시각 기준으로 자동 재계산 (데모 편의)
-  IF p_hours > 0.
+  " P_HOURS 값이 바뀐 경우에만 FROM/TO 자동 재계산 (수동 기간 입력 보존)
+  IF p_hours > 0 AND p_hours <> gv_hours_last.
     PERFORM calc_default_period.
+    gv_hours_last = p_hours.
   ENDIF.
 
 AT SELECTION-SCREEN ON p_topn.
