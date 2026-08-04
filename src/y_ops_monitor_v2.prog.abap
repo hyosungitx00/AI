@@ -3,7 +3,7 @@
 *&---------------------------------------------------------------------*
 *& 통합 운영 모니터링 (SM37 / ST22 / SXI_MONITOR) - 로컬 우선(V2) 구현
 *&
-*& 설계서: docs/design/integrated-ops-monitor-design.md (v0.5)
+*& 설계서: docs/design/integrated-ops-monitor-design.md (v0.6)
 *&
 *& [로컬 우선 원칙]
 *&  - 새 저장소 오브젝트(DDIC/글로벌 클래스/인터페이스/메시지 클래스)를
@@ -15,7 +15,12 @@
 *&    IN UPDATE TASK, 상태 변경 BAPI/FM 전면 금지.
 *&  - 드릴다운은 표시(Display) 모드 표준 화면/FM만 호출한다.
 *&
-*& [화면] Dynpro 0100 + GUI Status 'S0100'(REFRESH/TOGGLE/BACK) 은 SE51/SE41 로 생성.
+*& [데모 하이라이트]
+*&  - 신호등 KPI 배너 / 조회소요시간 / 자동갱신 / 관점토글 차트
+*&  - ALV 핫스팟·툴바 / STATS·HELP 커맨드 / 선택영역 동적 분할
+*&
+*& [화면] Dynpro 0100 + GUI Status 'S0100'
+*&        (REFRESH/TOGGLE/STATS/HELP/BACK) 은 SE51/SE41 로 생성.
 *&        생성 방법: docs/build/y_ops_monitor_v2-build-guide.md 참조.
 *&---------------------------------------------------------------------*
 REPORT y_ops_monitor_v2.
@@ -32,6 +37,10 @@ DATA: gv_jobname TYPE tbtco-jobname,
 *&---------------------------------------------------------------------*
 *&  선택 화면 (Selection Screen)
 *&---------------------------------------------------------------------*
+SELECTION-SCREEN BEGIN OF BLOCK b0 WITH FRAME TITLE TEXT-b00.  " 프로그램 소개
+SELECTION-SCREEN COMMENT /1(72) gv_banner.   " INITIALIZATION 에서 문구 설정
+SELECTION-SCREEN END OF BLOCK b0.
+
 SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE TEXT-b01.  " 조회 기간
 PARAMETERS: p_frdat TYPE d,
             p_frtim TYPE t,
@@ -195,11 +204,12 @@ TYPES ty_provider_tab TYPE STANDARD TABLE OF REF TO lif_data_provider WITH DEFAU
 CLASS lcl_util DEFINITION.
   PUBLIC SECTION.
     CLASS-METHODS add_col
-      IMPORTING iv_field TYPE lvc_fname
-                iv_text  TYPE string
-                iv_icon  TYPE abap_bool DEFAULT abap_false
-                iv_hide  TYPE abap_bool DEFAULT abap_false
-      CHANGING  ct_fcat  TYPE lvc_t_fcat.
+      IMPORTING iv_field   TYPE lvc_fname
+                iv_text    TYPE string
+                iv_icon    TYPE abap_bool DEFAULT abap_false
+                iv_hide    TYPE abap_bool DEFAULT abap_false
+                iv_hotspot TYPE abap_bool DEFAULT abap_false
+      CHANGING  ct_fcat    TYPE lvc_t_fcat.
     CLASS-METHODS local_to_utc
       IMPORTING iv_date      TYPE d
                 iv_time      TYPE t
@@ -220,6 +230,7 @@ CLASS lcl_util IMPLEMENTATION.
     ls-scrtext_s = iv_text.
     ls-icon      = iv_icon.
     ls-no_out    = iv_hide.
+    ls-hotspot   = iv_hotspot.
     APPEND ls TO ct_fcat.
   ENDMETHOD.
 
@@ -552,8 +563,9 @@ CLASS lcl_dp_batch IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD lif_data_provider~fieldcat.
-    " 표시 열: 잡명, 프로그램, 사용자, 시작일, 시작시간, 종료일, 종료시간
-    lcl_util=>add_col( EXPORTING iv_field = 'JOBNAME'  iv_text = '잡명'     CHANGING ct_fcat = rt ).
+    " 표시 열: 잡명(핫스팟), 프로그램, 사용자, 시작일, 시작시간, 종료일, 종료시간
+    lcl_util=>add_col( EXPORTING iv_field = 'JOBNAME'  iv_text = '잡명'
+                                 iv_hotspot = abap_true CHANGING ct_fcat = rt ).
     lcl_util=>add_col( EXPORTING iv_field = 'PROGNAME' iv_text = '프로그램' CHANGING ct_fcat = rt ).
     lcl_util=>add_col( EXPORTING iv_field = 'SDLUNAME' iv_text = '사용자'   CHANGING ct_fcat = rt ).
     lcl_util=>add_col( EXPORTING iv_field = 'STRTDATE' iv_text = '시작일'   CHANGING ct_fcat = rt ).
@@ -723,8 +735,9 @@ CLASS lcl_dp_dump IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD lif_data_provider~fieldcat.
-    " 표시 열: 프로그램, 에러유형, 사용자, 발생일, 발생시간
-    lcl_util=>add_col( EXPORTING iv_field = 'PROGNAME' iv_text = '프로그램' CHANGING ct_fcat = rt ).
+    " 표시 열: 프로그램(핫스팟), 에러유형, 사용자, 발생일, 발생시간
+    lcl_util=>add_col( EXPORTING iv_field = 'PROGNAME' iv_text = '프로그램'
+                                 iv_hotspot = abap_true CHANGING ct_fcat = rt ).
     lcl_util=>add_col( EXPORTING iv_field = 'RT_ERROR' iv_text = '에러유형' CHANGING ct_fcat = rt ).
     lcl_util=>add_col( EXPORTING iv_field = 'UNAME'    iv_text = '사용자'   CHANGING ct_fcat = rt ).
     lcl_util=>add_col( EXPORTING iv_field = 'DATUM'    iv_text = '발생일'   CHANGING ct_fcat = rt ).
@@ -927,9 +940,10 @@ CLASS lcl_dp_interface IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD lif_data_provider~fieldcat.
-    " 표시 열: 인터페이스, 상태, 발생일, 발생시간
+    " 표시 열: 인터페이스(핫스팟), 상태, 발생일, 발생시간
     " MSGGUID/PID 는 드릴다운 키로만 내부 보관 (ALV 미표시)
-    lcl_util=>add_col( EXPORTING iv_field = 'IF_NAME'  iv_text = '인터페이스' CHANGING ct_fcat = rt ).
+    lcl_util=>add_col( EXPORTING iv_field = 'IF_NAME'  iv_text = '인터페이스'
+                                 iv_hotspot = abap_true CHANGING ct_fcat = rt ).
     lcl_util=>add_col( EXPORTING iv_field = 'MSGSTATE' iv_text = '상태'       CHANGING ct_fcat = rt ).
     lcl_util=>add_col( EXPORTING iv_field = 'EXE_DATE' iv_text = '발생일'     CHANGING ct_fcat = rt ).
     lcl_util=>add_col( EXPORTING iv_field = 'EXE_TIME' iv_text = '발생시간'   CHANGING ct_fcat = rt ).
@@ -965,9 +979,12 @@ CLASS lcl_controller DEFINITION.
     METHODS constructor.
     METHODS run IMPORTING is_sel TYPE ty_sel.
     METHODS providers RETURNING VALUE(rt) TYPE ty_provider_tab.
+    METHODS elapsed_sec RETURNING VALUE(rv) TYPE i.
+    METHODS selected_count RETURNING VALUE(rv) TYPE i.
   PRIVATE SECTION.
-    DATA: mo_nav      TYPE REF TO lcl_navigator,
-          mt_provider TYPE ty_provider_tab.
+    DATA: mo_nav        TYPE REF TO lcl_navigator,
+          mt_provider   TYPE ty_provider_tab,
+          mv_elapsed_sec TYPE i.
 ENDCLASS.
 
 CLASS lcl_controller IMPLEMENTATION.
@@ -980,6 +997,10 @@ CLASS lcl_controller IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD run.
+    DATA: lv_t0 TYPE timestampl,
+          lv_t1 TYPE timestampl.
+    GET TIME STAMP FIELD lv_t0.
+
     LOOP AT mt_provider INTO DATA(lo_prov).
       IF lo_prov->is_selected( ) = abap_false.
         CONTINUE.
@@ -991,10 +1012,32 @@ CLASS lcl_controller IMPLEMENTATION.
           MESSAGE lv_txt TYPE 'S' DISPLAY LIKE 'W'.
       ENDTRY.
     ENDLOOP.
+
+    GET TIME STAMP FIELD lv_t1.
+    mv_elapsed_sec = CONV i( cl_abap_tstmp=>subtract( tstmp1 = lv_t1 tstmp2 = lv_t0 ) ).
+    IF mv_elapsed_sec < 0.
+      mv_elapsed_sec = 0.
+    ENDIF.
   ENDMETHOD.
 
   METHOD providers.
     rt = mt_provider.
+  ENDMETHOD.
+
+  METHOD elapsed_sec.
+    rv = mv_elapsed_sec.
+  ENDMETHOD.
+
+  METHOD selected_count.
+    rv = 0.
+    LOOP AT mt_provider INTO DATA(lo_prov).
+      IF lo_prov->is_selected( ) = abap_true.
+        rv = rv + 1.
+      ENDIF.
+    ENDLOOP.
+    IF rv < 1.
+      rv = 1.
+    ENDIF.
   ENDMETHOD.
 ENDCLASS.
 
@@ -1008,6 +1051,8 @@ CLASS lcl_ui_dashboard DEFINITION.
     METHODS display.
     METHODS toggle_perspective.
     METHODS refresh.
+    METHODS show_stats.   " KPI 팝업 (STATS)
+    METHODS show_help.    " 사용법 팝업 (HELP)
   PRIVATE SECTION.
     TYPES: BEGIN OF ty_grid_map,
              grid TYPE REF TO cl_gui_alv_grid,
@@ -1027,12 +1072,13 @@ CLASS lcl_ui_dashboard DEFINITION.
           mv_persp       TYPE i VALUE 1,
           mv_refresh_dt  TYPE d,                              " 마지막 조회 일자
           mv_refresh_tm  TYPE t,                              " 마지막 조회 시각
+          mv_area_cols   TYPE i VALUE 3,                      " 선택 영역 수(동적 분할)
           mo_cont        TYPE REF TO cl_gui_custom_container,
           mo_split       TYPE REF TO cl_gui_splitter_container,
-          mo_split_chart TYPE REF TO cl_gui_splitter_container,  " 중간 차트 3분할
-          mo_split_alv   TYPE REF TO cl_gui_splitter_container,  " 하단 ALV 3분할
+          mo_split_chart TYPE REF TO cl_gui_splitter_container,  " 중간 차트 N분할
+          mo_split_alv   TYPE REF TO cl_gui_splitter_container,  " 하단 ALV N분할
           mo_cell_sum    TYPE REF TO cl_gui_container,           " 상단 요약(텍스트) 셀
-          mo_dd_sum      TYPE REF TO cl_dd_document,             " 상단 한줄 요약
+          mo_dd_sum      TYPE REF TO cl_dd_document,             " 상단 KPI 요약
           mo_timer       TYPE REF TO cl_gui_timer,              " 자동 새로고침 타이머
           mt_grid        TYPE STANDARD TABLE OF ty_grid_map,
           mt_chart_cell  TYPE STANDARD TABLE OF ty_chart_cell,   " 영역별 차트 셀/엔진
@@ -1046,8 +1092,13 @@ CLASS lcl_ui_dashboard DEFINITION.
     METHODS build_chart_cells.
     METHODS render_chart.
     METHODS start_timer.
+    METHODS navigate_row
+      IMPORTING io_grid TYPE REF TO cl_gui_alv_grid
+                iv_row  TYPE i.
     METHODS on_double_click FOR EVENT double_click OF cl_gui_alv_grid
       IMPORTING e_row sender.
+    METHODS on_hotspot FOR EVENT hotspot_click OF cl_gui_alv_grid
+      IMPORTING e_row_id sender.
     METHODS on_timer FOR EVENT finished OF cl_gui_timer.
 ENDCLASS.
 
@@ -1056,6 +1107,7 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
     mo_ctrl  = io_ctrl.
     ms_sel   = is_sel.
     mv_persp = c_persp_topn.
+    mv_area_cols = mo_ctrl->selected_count( ).
   ENDMETHOD.
 
   METHOD display.
@@ -1088,7 +1140,7 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
       RETURN.
     ENDIF.
 
-    " 세로 3단: (1)요약 (2)차트 (3)3분할 ALV
+    " 세로 3단: (1)KPI 요약 (2)차트 (3)ALV — 차트/ALV 는 선택 영역 수만큼 동적 분할
     CREATE OBJECT mo_split
       EXPORTING  parent            = mo_cont
                  rows              = 3
@@ -1100,18 +1152,17 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
       MESSAGE |스플리터 생성 실패 (subrc={ sy-subrc }).| TYPE 'I'. "#EC NOTEXT
       RETURN.
     ENDIF.
-    mo_split->set_row_height( id = 1 height = 10 ).   " 상단 요약 10%
-    mo_split->set_row_height( id = 2 height = 45 ).   " 중간 차트 45%
-    mo_split->set_row_height( id = 3 height = 45 ).   " 하단 ALV  45%
+    mo_split->set_row_height( id = 1 height = 14 ).   " 상단 KPI 14%
+    mo_split->set_row_height( id = 2 height = 43 ).   " 중간 차트 43%
+    mo_split->set_row_height( id = 3 height = 43 ).   " 하단 ALV  43%
 
     mo_cell_sum = mo_split->get_container( row = 1 column = 1 ).
 
-    " 중간(차트) 셀을 좌/중/우 3분할 (영역별 개별 차트)
     DATA(lo_chart_cell) = mo_split->get_container( row = 2 column = 1 ).
     CREATE OBJECT mo_split_chart
       EXPORTING  parent            = lo_chart_cell
                  rows              = 1
-                 columns           = 3
+                 columns           = mv_area_cols
       EXCEPTIONS cntl_error        = 1
                  cntl_system_error = 2
                  OTHERS            = 3.
@@ -1120,12 +1171,11 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
       RETURN.
     ENDIF.
 
-    " 하단(ALV) 셀을 좌/중/우 3분할
     DATA(lo_alv_cell) = mo_split->get_container( row = 3 column = 1 ).
     CREATE OBJECT mo_split_alv
       EXPORTING  parent            = lo_alv_cell
                  rows              = 1
-                 columns           = 3
+                 columns           = mv_area_cols
       EXCEPTIONS cntl_error        = 1
                  cntl_system_error = 2
                  OTHERS            = 3.
@@ -1136,26 +1186,63 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD build_summary.
-    " 상단 = 한 줄 텍스트 요약 (신호등 아이콘 + 영역별 건수 + 조회기간 + 조회시각 + 안내)
+    " 상단 KPI: 헬스 배너 + 신호등 영역건수 + 조회기간/시각/소요/자동갱신
     CLEAR mt_summary.
+    DATA: lv_total     TYPE i,
+          lv_max_level TYPE i,
+          lv_active    TYPE i,
+          lv_skipped   TYPE i.
+
     DATA(lt_prov) = mo_ctrl->providers( ).
     LOOP AT lt_prov INTO DATA(lo_prov).
       IF lo_prov->is_selected( ) = abap_false.
         CONTINUE.
       ENDIF.
       IF lo_prov->is_skipped( ) = abap_true.
+        lv_skipped = lv_skipped + 1.
         APPEND VALUE ty_summary(
           area     = lo_prov->area_id( )
           area_txt = lo_prov->area_text( )
           count    = 0
           level    = 0 ) TO mt_summary.
       ELSE.
-        APPEND lo_prov->summary( ) TO mt_summary.
+        DATA(ls_sum0) = lo_prov->summary( ).
+        APPEND ls_sum0 TO mt_summary.
+        lv_total = lv_total + ls_sum0-count.
+        lv_active = lv_active + 1.
+        IF ls_sum0-level > lv_max_level.
+          lv_max_level = ls_sum0-level.
+        ENDIF.
       ENDIF.
     ENDLOOP.
 
     CREATE OBJECT mo_dd_sum.
 
+    " --- 헬스 헤드라인 ---
+    DATA(lv_health) = COND string(
+      WHEN lv_active = 0 AND lv_skipped > 0
+        THEN |권한 부족 — 선택 영역 조회 불가 (권한 없음 { lv_skipped })|
+      WHEN lv_total = 0
+        THEN |시스템 정상 — 조회 기간 내 이상 없음 (ALL CLEAR)|
+      WHEN lv_max_level >= 3
+        THEN |장애 주의 — 적색 임계 도달, 즉시 확인 (총 { lv_total }건)|
+      WHEN lv_max_level = 2
+        THEN |주의 — 황색 임계 도달 영역 있음 (총 { lv_total }건)|
+      ELSE |모니터링 중 — 경미한 이상 감지 (총 { lv_total }건)| ).
+
+    DATA(lv_health_icon) = COND string(
+      WHEN lv_total = 0 AND lv_active > 0 THEN `ICON_GREEN_LIGHT`
+      WHEN lv_max_level >= 3 THEN `ICON_RED_LIGHT`
+      WHEN lv_max_level = 2 THEN `ICON_YELLOW_LIGHT`
+      WHEN lv_active = 0 THEN `ICON_LED_INACTIVE`
+      ELSE `ICON_GREEN_LIGHT` ).
+
+    mo_dd_sum->add_icon( sap_icon = CONV #( lv_health_icon ) ).
+    mo_dd_sum->add_gap( width = 5 ).
+    mo_dd_sum->add_text( text = CONV #( lv_health ) ).
+    mo_dd_sum->new_line( ).
+
+    " --- 영역별 신호등 ---
     LOOP AT mt_summary INTO DATA(ls_sum).
       DATA lv_iconname TYPE string.
       CASE ls_sum-level.
@@ -1170,20 +1257,31 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
         WHEN ls_sum-level = 0 THEN |{ ls_sum-area_txt } 권한없음|
         ELSE |{ ls_sum-area_txt } { ls_sum-count }건| ).
       mo_dd_sum->add_text( text = CONV #( lv_txt ) ).
-      mo_dd_sum->add_gap( width = 30 ).
+      mo_dd_sum->add_gap( width = 24 ).
     ENDLOOP.
 
     mo_dd_sum->new_line( ).
+
+    " --- 메타: 기간 / 조회시각 / 소요 / 자동갱신 / 관점 ---
+    DATA(lv_elapsed) = mo_ctrl->elapsed_sec( ).
+    DATA(lv_persp) = COND string(
+      WHEN mv_persp = c_persp_topn THEN `차트=Top-N`
+      ELSE `차트=시간추이` ).
+    DATA(lv_auto) = COND string(
+      WHEN ms_sel-autorf > 0 THEN |자동갱신 { ms_sel-autorf }초|
+      ELSE `자동갱신 OFF` ).
+
+    mo_dd_sum->add_text( text = |기간 { ms_sel-from_date DATE = USER } { ms_sel-from_time TIME = USER } ~ { ms_sel-to_date DATE = USER } { ms_sel-to_time TIME = USER }| ).
+    mo_dd_sum->add_gap( width = 12 ).
+    mo_dd_sum->add_text( text = |조회 { mv_refresh_dt DATE = USER } { mv_refresh_tm TIME = USER }| ).
+    mo_dd_sum->add_gap( width = 12 ).
+    mo_dd_sum->add_text( text = |소요 { lv_elapsed }초| ).
+    mo_dd_sum->add_gap( width = 12 ).
+    mo_dd_sum->add_text( text = CONV #( lv_auto ) ).
+    mo_dd_sum->add_gap( width = 12 ).
+    mo_dd_sum->add_text( text = CONV #( lv_persp ) ).
     mo_dd_sum->new_line( ).
-    mo_dd_sum->add_text( text = |조회 기간:| ).
-    mo_dd_sum->add_gap( width = 5 ).
-    mo_dd_sum->add_text( text = |{ ms_sel-from_date DATE = USER } { ms_sel-from_time TIME = USER }| ).
-    mo_dd_sum->add_gap( width = 5 ).
-    mo_dd_sum->add_text( text = |~| ).
-    mo_dd_sum->add_gap( width = 5 ).
-    mo_dd_sum->add_text( text = | { ms_sel-to_date DATE = USER } { ms_sel-to_time TIME = USER }| ).
-    mo_dd_sum->add_gap( width = 15 ).
-    mo_dd_sum->add_text( text = |※ 라인 더블클릭 시 표준 상세화면으로 이동 · [REFRESH] 새로고침 · [TOGGLE] 차트 관점 전환| ).
+    mo_dd_sum->add_text( text = |핫스팟/더블클릭=상세 · REFRESH=재조회 · TOGGLE=차트전환 · STATS=KPI · HELP=도움말| ). "#EC NOTEXT
 
     mo_dd_sum->merge_document( ).
     mo_dd_sum->display_document( EXPORTING reuse_control = abap_true
@@ -1224,16 +1322,19 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
 
       DATA ls_layo TYPE lvc_s_layo.
       ls_layo-cwidth_opt = abap_true.
-      ls_layo-info_fname = 'LINE_COLOR'.    " 영역 고정색 행 강조 (FR-08 툴바 유지)
+      ls_layo-zebra      = abap_true.       " 가독성(얼룩무늬)
+      ls_layo-sel_mode   = 'A'.             " 행 선택 하이라이트
+      ls_layo-info_fname = 'LINE_COLOR'.    " 영역 고정색 행 강조
       ls_layo-grid_title = lv_title.
       ls_layo-smalltitle = abap_true.
-      ls_layo-no_toolbar = abap_true.       " ALV 툴바 제거(공간 절약)
+      ls_layo-no_toolbar = abap_false.      " 표준 ALV 툴바(정렬/필터/엑셀)
 
       lo_grid->set_table_for_first_display(
         EXPORTING is_layout = ls_layo
         CHANGING  it_fieldcatalog = lt_fcat it_outtab = <tab> ).
 
       SET HANDLER on_double_click FOR lo_grid.
+      SET HANDLER on_hotspot FOR lo_grid.
       APPEND VALUE ty_grid_map( grid = lo_grid prov = lo_prov ) TO mt_grid.
 
       lv_col = lv_col + 1.
@@ -1357,10 +1458,13 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
         && |<Series>{ lv_pts }</Series>|
         && |</ChartData>|.
 
-      " 커스터마이징 XML (가로 막대 + 제목) - SAPChartCustomizing 2.0
+      " Top-N=가로막대, 시간추이=세로컬럼 — 관점 전환 시 시각 차별화
+      DATA(lv_ctype) = COND string(
+        WHEN mv_persp = c_persp_topn THEN `Bars` ELSE `Columns` ).
+
       DATA(lv_cust) = |<?xml version="1.0" encoding="utf-8"?>|
         && |<SAPChartCustomizing version="2.0">|
-        && |<GlobalSettings><Defaults><ChartType>Bars</ChartType></Defaults></GlobalSettings>|
+        && |<GlobalSettings><Defaults><ChartType>{ lv_ctype }</ChartType></Defaults></GlobalSettings>|
         && |<Elements><ChartElements><Title><Caption>|
         && escape( val = lv_title format = cl_abap_format=>e_xml_text )
         && |</Caption></Title></ChartElements></Elements>|
@@ -1379,6 +1483,7 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
       mv_persp = c_persp_topn.
     ENDIF.
     render_chart( ).
+    build_summary( ).   " 상단 관점 라벨 동기화
   ENDMETHOD.
 
   METHOD refresh.
@@ -1419,13 +1524,64 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
     ENDIF.
   ENDMETHOD.
 
-  METHOD on_double_click.
-    READ TABLE mt_grid INTO DATA(ls) WITH KEY grid = sender.
-    IF sy-subrc = 0.
-      DATA lv_row TYPE i.
-      lv_row = e_row-index.
-      ls-prov->navigate( iv_row = lv_row ).
+  METHOD navigate_row.
+    READ TABLE mt_grid INTO DATA(ls) WITH KEY grid = io_grid.
+    IF sy-subrc = 0 AND iv_row > 0.
+      ls-prov->navigate( iv_row = iv_row ).
     ENDIF.
+  ENDMETHOD.
+
+  METHOD on_double_click.
+    navigate_row( io_grid = sender iv_row = e_row-index ).
+  ENDMETHOD.
+
+  METHOD on_hotspot.
+    navigate_row( io_grid = sender iv_row = e_row_id-index ).
+  ENDMETHOD.
+
+  METHOD show_stats.
+    " 데모용 KPI 팝업 — 읽기 전용 집계만 표시
+    DATA: lv_total TYPE i,
+          lv_line  TYPE string,
+          lv_msg   TYPE string.
+
+    LOOP AT mt_summary INTO DATA(ls).
+      lv_total = lv_total + ls-count.
+      DATA(lv_lv) = SWITCH string( ls-level
+        WHEN 3 THEN `적색`
+        WHEN 2 THEN `황색`
+        WHEN 1 THEN `녹색`
+        ELSE `권한없음` ).
+      lv_line = |{ ls-area_txt }: { ls-count }건 ({ lv_lv })|.
+      IF lv_msg IS INITIAL.
+        lv_msg = lv_line.
+      ELSE.
+        lv_msg = |{ lv_msg } / { lv_line }|.
+      ENDIF.
+    ENDLOOP.
+
+    DATA(lv_persp) = COND string(
+      WHEN mv_persp = c_persp_topn THEN `Top-N` ELSE `시간추이` ).
+
+    MESSAGE |[Ops Monitor KPI] 총이상 { lv_total }건 | &&
+            |{ lv_msg } | &&
+            |조회 { mv_refresh_dt DATE = USER } { mv_refresh_tm TIME = USER } | &&
+            |소요 { mo_ctrl->elapsed_sec( ) }초 | &&
+            |차트 { lv_persp } | &&
+            |영역 { mv_area_cols }분할|
+      TYPE 'I'.                                             "#EC NOTEXT
+  ENDMETHOD.
+
+  METHOD show_help.
+    MESSAGE |[사용법] | &&
+            |1) 핫스팟(밑줄) 클릭 또는 행 더블클릭 → 표준 상세(표시전용) | &&
+            |2) REFRESH → 현재 조건 재조회 | &&
+            |3) TOGGLE → Top-N ↔ 시간추이 차트 전환 | &&
+            |4) STATS → KPI 요약 팝업 | &&
+            |5) P_AUTORF>0 → 자동 새로고침 | &&
+            |6) ALV 툴바 → 정렬/필터/엑셀 다운로드 | &&
+            |※ 본 프로그램은 읽기전용(재처리/재실행 없음)|
+      TYPE 'I'.                                             "#EC NOTEXT
   ENDMETHOD.
 ENDCLASS.
 
@@ -1441,27 +1597,34 @@ DATA: go_ctrl      TYPE REF TO lcl_controller,
 *&  INITIALIZATION - 기본 조회기간(현재 -P_HOURS)
 *&---------------------------------------------------------------------*
 INITIALIZATION.
+  gv_banner = 'Cursor AI 기반 | 읽기전용 통합 운영 모니터링 대시보드 (SM37 / ST22 / SXI)'. "#EC NOTEXT
   PERFORM calc_default_period.
 
 *&---------------------------------------------------------------------*
 *&  AT SELECTION-SCREEN
 *&---------------------------------------------------------------------*
 AT SELECTION-SCREEN OUTPUT.
-  " P_HOURS 변경 편의: 값이 있으면 FROM/TO 재계산 힌트 (사용자 직접수정 우선)
+  IF gv_banner IS INITIAL.
+    gv_banner = 'Cursor AI 기반 | 읽기전용 통합 운영 모니터링 대시보드 (SM37 / ST22 / SXI)'. "#EC NOTEXT
+  ENDIF.
 
 AT SELECTION-SCREEN.
   " 기간 역전 검증
   IF p_todat < p_frdat
      OR ( p_todat = p_frdat AND p_totim < p_frtim ).
     MESSAGE '조회 종료가 시작보다 빠릅니다.' TYPE 'E'.     "#EC NOTEXT
-    "TODO: 메시지 클래스(ZOPSMON) 전환
+  ENDIF.
+
+AT SELECTION-SCREEN ON p_hours.
+  " P_HOURS 입력 시 FROM/TO 를 현재시각 기준으로 자동 재계산 (데모 편의)
+  IF p_hours > 0.
+    PERFORM calc_default_period.
   ENDIF.
 
 AT SELECTION-SCREEN ON p_topn.
   " 차트 Top-N 은 1~5 만 허용
   IF p_topn < 1 OR p_topn > 5.
     MESSAGE '차트 Top-N 은 1 ~ 5 만 입력 가능합니다.' TYPE 'E'.  "#EC NOTEXT
-    "TODO: 메시지 클래스(ZOPSMON) 전환
   ENDIF.
 
 *&---------------------------------------------------------------------*
@@ -1522,7 +1685,7 @@ ENDFORM.
 *&  MODULE STATUS_0100 OUTPUT  (PBO)
 *&---------------------------------------------------------------------*
 MODULE status_0100 OUTPUT.
-  " GUI Status 'S0100' (SE41): 기능 REFRESH / TOGGLE / BACK / EXIT / CANCEL
+  " GUI Status 'S0100' (SE41): REFRESH / TOGGLE / STATS / HELP / BACK / EXIT / CANCEL
   SET PF-STATUS 'S0100'.
   SET TITLEBAR  'T0100'.
 
@@ -1549,6 +1712,14 @@ MODULE user_command_0100 INPUT.
     WHEN 'REFRESH'.
       IF go_dashboard IS BOUND.
         go_dashboard->refresh( ).
+      ENDIF.
+    WHEN 'STATS'.
+      IF go_dashboard IS BOUND.
+        go_dashboard->show_stats( ).
+      ENDIF.
+    WHEN 'HELP'.
+      IF go_dashboard IS BOUND.
+        go_dashboard->show_help( ).
       ENDIF.
     WHEN 'BACK' OR 'EXIT' OR 'CANCEL'.
       LEAVE TO SCREEN 0.

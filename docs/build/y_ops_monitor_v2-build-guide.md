@@ -36,9 +36,11 @@ PROCESS AFTER INPUT.
 - `SE41` → 프로그램 `Y_OPS_MONITOR_V2`.
 - **Status `S0100`** (Type: Screen/Dialog Status) 생성. 앱툴바 버튼:
   - **`REFRESH`** — 화면에서 재조회(새로고침). 아이콘 예: `ICON_REFRESH`.
-  - **`TOGGLE`** — 차트 관점(Top-N ↔ 시간대별 추이) 전환. 아이콘 예: `ICON_CHART`.
+  - **`TOGGLE`** — 차트 관점(Top-N ↔ 시간대별 추이) 전환. 아이콘 예: `ICON_CHART` / `ICON_TOGGLE`.
+  - **`STATS`** — KPI 요약 팝업. 아이콘 예: `ICON_STATISTICS` / `ICON_INFORMATION`.
+  - **`HELP`** — 사용법 팝업. 아이콘 예: `ICON_INFORMATION` / `ICON_SYSTEM_HELP`.
   - 기능 키에 **`BACK` / `EXIT` / `CANCEL`** 표준 배치(F3/Shift+F3/F12).
-- **Titlebar `T0100`** 생성: 예) "통합 운영 모니터링 (SM37/ST22/SXI)".
+- **Titlebar `T0100`** 생성: 예) "통합 운영 모니터링 — Cursor AI Demo (SM37/ST22/SXI)".
 
 ## 4. 텍스트 요소 (SE38 → Goto > Text Elements)
 ### 4.1 Selection Texts (선택 텍스트) — 확정
@@ -63,6 +65,7 @@ PROCESS AFTER INPUT.
 ### 4.2 Text Symbols (블록 제목)
 | 심볼 | 텍스트 |
 |------|--------|
+| B00 | Cursor AI Ops Monitor |
 | B01 | 조회 기간 |
 | B02 | 조회 영역 선택 |
 | B03 | 추가 필터(옵션) |
@@ -94,11 +97,12 @@ PROCESS AFTER INPUT.
 | ST22 | `S_ABAPDUMP` | `ACTVT='03'`, `DUMP_INFO='FULL'`, `DUMP_CCLNT='ALL'`, `DUMP_CUSER='ALL'` |
 | SXI  | `S_XMB_MONI` | `ACTVT='03'` (기타 필드 DUMMY) |
 
-## 9. 상단 요약 / 중간 차트 구현 (1차 범위)
-- **상단(요약)**: `CL_DD_DOCUMENT` 로 **한 줄 텍스트 요약**(신호등 아이콘 + 영역별 건수 + 조회기간). 설계 6.3.
-- **중간(차트)**: `CL_DD_DOCUMENT` 기반 **가로 막대 그래프**(영역별 Top-N). `TOGGLE` 로 **시간대별 추이**로 전환. 집계 로직(전체 건수 기준 Top-N / 적응형 시간버킷)은 실제 동작.
-- **하단**: 3분할 ALV(SM37/ST22/SXI), 더블클릭 드릴다운.
-- 그래픽 IGS 차트(`CL_GUI_CHART_ENGINE`, 설계 6.2a/O-9)는 `render_chart` 의 `"TODO(옵션)` 지점에서 교체 가능(선택).
+## 9. 대시보드 데모 기능 (v0.6)
+- **상단 KPI**: 헬스 배너(ALL CLEAR/주의/장애) + 신호등 영역건수 + 조회기간/조회시각/소요초/자동갱신/차트관점.
+- **중간 차트**: IGS `CL_GUI_CHART_ENGINE` — Top-N=Bars, 시간추이=Columns. `TOGGLE` 전환.
+- **하단 ALV**: 선택 영역 수만큼 **동적 분할**, zebra/툴바/핫스팟, 더블클릭·핫스팟 드릴다운.
+- **커맨드**: `REFRESH` / `TOGGLE` / `STATS`(KPI 팝업) / `HELP`(사용법).
+- **선택화면**: 배너 문구, `P_HOURS` 변경 시 FROM/TO 자동 재계산.
 
 ## 10. 이후 단계 (로컬 검증 통과 후)
 - 로컬 타입/클래스를 **DDIC 구조·글로벌 클래스·인터페이스·메시지 클래스**로 분리.

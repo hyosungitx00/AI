@@ -5,7 +5,7 @@
 | 문서명 | 통합 운영 모니터링 프로그램 (SM37 / ST22 / SXI_MONITOR) 상세 설계서 |
 | 대상 시스템 | SAP S/4HANA (ABAP Integration Engine 사용) |
 | 화면 환경 | SAP GUI (Classic Dynpro + OO ALV) |
-| 문서 버전 | v0.5 (Draft) |
+| 문서 버전 | v0.6 (Draft) |
 | 작성 목적 | ABAP 개발 착수 전 기능/데이터/화면/로직 확정을 위한 기술 설계 |
 | 상태 | 검토 대기 (Review) |
 
@@ -699,3 +699,4 @@ P_TODAT = SY-DATUM. P_TOTIM = SY-UZEIT.
 | v0.3 | 2026-06-18 | O-6~O-11 일괄 확정 반영 — 신호등 3단계 임계치(O-6), 권한 체크 방식(O-7, 객체 검증 보류), **ST22 조회 `RS_ST22_GET_DUMPS`/`RSDUMPTAB`·`DUMPID`로 변경(O-3 갱신/O-11)**, SXI 필드 확정(`OB_SYSTEM`/`IB_SYSTEM`/`OB_NAME`/`OB_OPERATION`, O-10), 결과 상한 `P_MAXROW`(O-8), 차트 Top-N 키(SM37=JOBNAME/ST22=DUMPID/SXI=OB_NAME)·영역별 독립 Top-N·전체 기준 집계 |
 | v0.4 | 2026-07-03 | **O-7 권한 객체 STAUTHTRACE 검증 완료·확정** — SM37 `S_BTCH_JOB`(`JOBGROUP='*'`/`JOBACTION='SHOW'`), ST22 **`S_ADMI_FCD`→`S_ABAPDUMP` 정정**(`ACTVT=03`/`DUMP_INFO=FULL`/`DUMP_CCLNT=ALL`/`DUMP_CUSER=ALL`), SXI `S_XMB_MONI`(`ACTVT=03`, `S_XMB_ADM` 미요구). 잔여 Open Issue 없음(전건 확정) |
 | v0.5 | 2026-08-03 | **6.4 ALV 표시 열 축소** — SM37(잡명/프로그램/사용자/시작·종료 일시), ST22(프로그램/에러유형/사용자/발생 일시), SXI(인터페이스/상태/발생 일시). 드릴다운 키는 내부 보관·미표시 |
+| v0.6 | 2026-08-04 | **데모 UX 강화** — KPI 헬스 배너·조회소요·자동갱신 표시, ALV 핫스팟/툴바/zebra, STATS/HELP 커맨드, 선택영역 동적 스플리터, Top-N↔시간추이 차트타입 전환, P_HOURS 자동 기간 재계산 |
