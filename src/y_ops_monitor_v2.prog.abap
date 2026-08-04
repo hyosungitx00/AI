@@ -219,6 +219,9 @@ CLASS lcl_util DEFINITION.
       IMPORTING iv_ts   TYPE timestampl
       EXPORTING ev_date TYPE d
                 ev_time TYPE t.
+    " ALV 툴바: 검색/정렬/필터만 남기고 나머지 제외 목록
+    CLASS-METHODS alv_toolbar_exclude
+      RETURNING VALUE(rt) TYPE ui_functions.
 ENDCLASS.
 
 CLASS lcl_util IMPLEMENTATION.
@@ -244,6 +247,65 @@ CLASS lcl_util IMPLEMENTATION.
   METHOD utc_to_local.
     CONVERT TIME STAMP iv_ts TIME ZONE sy-zonlo
             INTO DATE ev_date TIME ev_time.
+  ENDMETHOD.
+
+  METHOD alv_toolbar_exclude.
+    " 유지: FIND / FIND_MORE / SORT_ASC / SORT_DSC / FILTER / DELETE_FILTER
+    " 그 외(합계·인쇄·엑셀·내보내기·레이아웃·정보·편집 등) 제거
+    APPEND cl_gui_alv_grid=>mc_fc_sum              TO rt.
+    APPEND cl_gui_alv_grid=>mc_fc_subtot           TO rt.
+    APPEND cl_gui_alv_grid=>mc_mb_sum             TO rt.
+    APPEND cl_gui_alv_grid=>mc_mb_subtot          TO rt.
+    APPEND cl_gui_alv_grid=>mc_fc_print           TO rt.
+    APPEND cl_gui_alv_grid=>mc_fc_print_back      TO rt.
+    APPEND cl_gui_alv_grid=>mc_fc_print_prev      TO rt.
+    APPEND cl_gui_alv_grid=>mc_fc_views           TO rt.
+    APPEND cl_gui_alv_grid=>mc_fc_view_crystal    TO rt.
+    APPEND cl_gui_alv_grid=>mc_fc_view_excel      TO rt.
+    APPEND cl_gui_alv_grid=>mc_fc_view_grid       TO rt.
+    APPEND cl_gui_alv_grid=>mc_fc_view_lotus      TO rt.
+    APPEND cl_gui_alv_grid=>mc_mb_view            TO rt.
+    APPEND cl_gui_alv_grid=>mc_fc_export          TO rt.
+    APPEND cl_gui_alv_grid=>mc_mb_export          TO rt.
+    APPEND cl_gui_alv_grid=>mc_fc_graph           TO rt.
+    APPEND cl_gui_alv_grid=>mc_fc_info            TO rt.
+    APPEND cl_gui_alv_grid=>mc_fc_detail          TO rt.
+    APPEND cl_gui_alv_grid=>mc_fc_help            TO rt.
+    APPEND cl_gui_alv_grid=>mc_fc_html            TO rt.
+    APPEND cl_gui_alv_grid=>mc_fc_word_processor  TO rt.
+    APPEND cl_gui_alv_grid=>mc_fc_send            TO rt.
+    APPEND cl_gui_alv_grid=>mc_fc_to_office       TO rt.
+    APPEND cl_gui_alv_grid=>mc_fc_call_abc        TO rt.
+    APPEND cl_gui_alv_grid=>mc_fc_call_xxl        TO rt.
+    APPEND cl_gui_alv_grid=>mc_fc_call_crystal    TO rt.
+    APPEND cl_gui_alv_grid=>mc_fc_expcrdesig      TO rt.
+    APPEND cl_gui_alv_grid=>mc_fc_expcrtempl      TO rt.
+    APPEND cl_gui_alv_grid=>mc_fc_fix_layout      TO rt.
+    APPEND cl_gui_alv_grid=>mc_fc_maximum         TO rt.
+    APPEND cl_gui_alv_grid=>mc_fc_minimum         TO rt.
+    APPEND cl_gui_alv_grid=>mc_fc_average         TO rt.
+    APPEND cl_gui_alv_grid=>mc_fc_count           TO rt.
+    APPEND cl_gui_alv_grid=>mc_fc_auf             TO rt.
+    APPEND cl_gui_alv_grid=>mc_fc_check           TO rt.
+    APPEND cl_gui_alv_grid=>mc_fc_refresh         TO rt.
+    APPEND cl_gui_alv_grid=>mc_fc_loc_copy        TO rt.
+    APPEND cl_gui_alv_grid=>mc_fc_loc_copy_row    TO rt.
+    APPEND cl_gui_alv_grid=>mc_fc_loc_cut         TO rt.
+    APPEND cl_gui_alv_grid=>mc_fc_loc_delete_row  TO rt.
+    APPEND cl_gui_alv_grid=>mc_fc_loc_insert_row  TO rt.
+    APPEND cl_gui_alv_grid=>mc_fc_loc_move_row    TO rt.
+    APPEND cl_gui_alv_grid=>mc_fc_loc_append_row  TO rt.
+    APPEND cl_gui_alv_grid=>mc_fc_loc_paste       TO rt.
+    APPEND cl_gui_alv_grid=>mc_fc_loc_paste_new_row TO rt.
+    APPEND cl_gui_alv_grid=>mc_fc_loc_undo        TO rt.
+    APPEND cl_gui_alv_grid=>mc_fc_select_all      TO rt.
+    APPEND cl_gui_alv_grid=>mc_fc_deselect_all    TO rt.
+    APPEND cl_gui_alv_grid=>mc_fc_data_save       TO rt.
+    APPEND cl_gui_alv_grid=>mc_fc_load_variant    TO rt.
+    APPEND cl_gui_alv_grid=>mc_fc_current_variant TO rt.
+    APPEND cl_gui_alv_grid=>mc_fc_save_variant    TO rt.
+    APPEND cl_gui_alv_grid=>mc_fc_maintain_variant TO rt.
+    APPEND cl_gui_alv_grid=>mc_mb_variant         TO rt.
   ENDMETHOD.
 ENDCLASS.
 
@@ -1328,10 +1390,14 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
       ls_layo-info_fname = 'LINE_COLOR'.    " 영역 고정색 행 강조
       ls_layo-grid_title = lv_title.
       ls_layo-smalltitle = abap_true.
-      ls_layo-no_toolbar = abap_false.      " 표준 ALV 툴바(정렬/필터/엑셀)
+      ls_layo-no_toolbar = abap_false.      " 툴바 ON — 검색/정렬/필터만 유지
+
+      " 합계·인쇄·엑셀/내보내기·레이아웃·정보 등 제외 (검색/정렬/필터 유지)
+      DATA(lt_excl) = lcl_util=>alv_toolbar_exclude( ).
 
       lo_grid->set_table_for_first_display(
-        EXPORTING is_layout = ls_layo
+        EXPORTING is_layout            = ls_layo
+                  it_toolbar_excluding = lt_excl
         CHANGING  it_fieldcatalog = lt_fcat it_outtab = <tab> ).
 
       SET HANDLER on_double_click FOR lo_grid.
