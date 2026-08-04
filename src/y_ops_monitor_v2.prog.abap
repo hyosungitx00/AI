@@ -39,7 +39,7 @@ DATA: gv_jobname    TYPE tbtco-jobname,
 *&  선택 화면 (Selection Screen)
 *&---------------------------------------------------------------------*
 SELECTION-SCREEN BEGIN OF BLOCK b0 WITH FRAME TITLE TEXT-b00.  " 프로그램 소개
-SELECTION-SCREEN COMMENT /1(72) gv_banner.   " INITIALIZATION 에서 문구 설정
+SELECTION-SCREEN COMMENT /1(72) txt_bnr.   " 코멘트명 최대 8자, INITIALIZATION 에서 설정
 SELECTION-SCREEN END OF BLOCK b0.
 
 SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE TEXT-b01.  " 조회 기간
@@ -1095,7 +1095,7 @@ CLASS lcl_ui_dashboard DEFINITION.
     METHODS start_timer.
     METHODS navigate_row
       IMPORTING io_grid TYPE REF TO cl_gui_alv_grid
-                iv_row  TYPE i.
+                iv_row  TYPE lvc_index.
     METHODS on_double_click FOR EVENT double_click OF cl_gui_alv_grid
       IMPORTING e_row sender.
     METHODS on_hotspot FOR EVENT hotspot_click OF cl_gui_alv_grid
@@ -1528,7 +1528,8 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
   METHOD navigate_row.
     READ TABLE mt_grid INTO DATA(ls) WITH KEY grid = io_grid.
     IF sy-subrc = 0 AND iv_row > 0.
-      ls-prov->navigate( iv_row = iv_row ).
+      " lif_data_provider~navigate 는 TYPE i — lvc_index 를 명시 변환
+      ls-prov->navigate( iv_row = CONV i( iv_row ) ).
     ENDIF.
   ENDMETHOD.
 
@@ -1598,7 +1599,7 @@ DATA: go_ctrl      TYPE REF TO lcl_controller,
 *&  INITIALIZATION - 기본 조회기간(현재 -P_HOURS)
 *&---------------------------------------------------------------------*
 INITIALIZATION.
-  gv_banner = 'Cursor AI 기반 | 읽기전용 통합 운영 모니터링 대시보드 (SM37 / ST22 / SXI)'. "#EC NOTEXT
+  txt_bnr = 'Cursor AI 기반 | 읽기전용 통합 운영 모니터링 대시보드 (SM37 / ST22 / SXI)'. "#EC NOTEXT
   PERFORM calc_default_period.
   gv_hours_last = p_hours.
 
@@ -1606,8 +1607,8 @@ INITIALIZATION.
 *&  AT SELECTION-SCREEN
 *&---------------------------------------------------------------------*
 AT SELECTION-SCREEN OUTPUT.
-  IF gv_banner IS INITIAL.
-    gv_banner = 'Cursor AI 기반 | 읽기전용 통합 운영 모니터링 대시보드 (SM37 / ST22 / SXI)'. "#EC NOTEXT
+  IF txt_bnr IS INITIAL.
+    txt_bnr = 'Cursor AI 기반 | 읽기전용 통합 운영 모니터링 대시보드 (SM37 / ST22 / SXI)'. "#EC NOTEXT
   ENDIF.
 
 AT SELECTION-SCREEN.
