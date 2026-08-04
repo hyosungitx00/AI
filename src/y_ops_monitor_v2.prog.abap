@@ -251,61 +251,86 @@ CLASS lcl_util IMPLEMENTATION.
 
   METHOD alv_toolbar_exclude.
     " 유지: FIND / FIND_MORE / SORT_ASC / SORT_DSC / FILTER / DELETE_FILTER
-    " 그 외(합계·인쇄·엑셀·내보내기·레이아웃·정보·편집 등) 제거
-    APPEND cl_gui_alv_grid=>mc_fc_sum              TO rt.
-    APPEND cl_gui_alv_grid=>mc_fc_subtot           TO rt.
-    APPEND cl_gui_alv_grid=>mc_mb_sum             TO rt.
-    APPEND cl_gui_alv_grid=>mc_mb_subtot          TO rt.
-    APPEND cl_gui_alv_grid=>mc_fc_print           TO rt.
-    APPEND cl_gui_alv_grid=>mc_fc_print_back      TO rt.
-    APPEND cl_gui_alv_grid=>mc_fc_print_prev      TO rt.
-    APPEND cl_gui_alv_grid=>mc_fc_views           TO rt.
-    APPEND cl_gui_alv_grid=>mc_fc_view_crystal    TO rt.
-    APPEND cl_gui_alv_grid=>mc_fc_view_excel      TO rt.
-    APPEND cl_gui_alv_grid=>mc_fc_view_grid       TO rt.
-    APPEND cl_gui_alv_grid=>mc_fc_view_lotus      TO rt.
-    APPEND cl_gui_alv_grid=>mc_mb_view            TO rt.
-    APPEND cl_gui_alv_grid=>mc_fc_export          TO rt.
-    APPEND cl_gui_alv_grid=>mc_mb_export          TO rt.
-    APPEND cl_gui_alv_grid=>mc_fc_graph           TO rt.
-    APPEND cl_gui_alv_grid=>mc_fc_info            TO rt.
-    APPEND cl_gui_alv_grid=>mc_fc_detail          TO rt.
-    APPEND cl_gui_alv_grid=>mc_fc_help            TO rt.
-    APPEND cl_gui_alv_grid=>mc_fc_html            TO rt.
-    APPEND cl_gui_alv_grid=>mc_fc_word_processor  TO rt.
-    APPEND cl_gui_alv_grid=>mc_fc_send            TO rt.
-    APPEND cl_gui_alv_grid=>mc_fc_to_office       TO rt.
-    APPEND cl_gui_alv_grid=>mc_fc_call_abc        TO rt.
-    APPEND cl_gui_alv_grid=>mc_fc_call_xxl        TO rt.
-    APPEND cl_gui_alv_grid=>mc_fc_call_crystal    TO rt.
-    APPEND cl_gui_alv_grid=>mc_fc_expcrdesig      TO rt.
-    APPEND cl_gui_alv_grid=>mc_fc_expcrtempl      TO rt.
-    APPEND cl_gui_alv_grid=>mc_fc_fix_layout      TO rt.
-    APPEND cl_gui_alv_grid=>mc_fc_maximum         TO rt.
-    APPEND cl_gui_alv_grid=>mc_fc_minimum         TO rt.
-    APPEND cl_gui_alv_grid=>mc_fc_average         TO rt.
-    APPEND cl_gui_alv_grid=>mc_fc_count           TO rt.
-    APPEND cl_gui_alv_grid=>mc_fc_auf             TO rt.
-    APPEND cl_gui_alv_grid=>mc_fc_check           TO rt.
-    APPEND cl_gui_alv_grid=>mc_fc_refresh         TO rt.
-    APPEND cl_gui_alv_grid=>mc_fc_loc_copy        TO rt.
-    APPEND cl_gui_alv_grid=>mc_fc_loc_copy_row    TO rt.
-    APPEND cl_gui_alv_grid=>mc_fc_loc_cut         TO rt.
-    APPEND cl_gui_alv_grid=>mc_fc_loc_delete_row  TO rt.
-    APPEND cl_gui_alv_grid=>mc_fc_loc_insert_row  TO rt.
-    APPEND cl_gui_alv_grid=>mc_fc_loc_move_row    TO rt.
-    APPEND cl_gui_alv_grid=>mc_fc_loc_append_row  TO rt.
-    APPEND cl_gui_alv_grid=>mc_fc_loc_paste       TO rt.
-    APPEND cl_gui_alv_grid=>mc_fc_loc_paste_new_row TO rt.
-    APPEND cl_gui_alv_grid=>mc_fc_loc_undo        TO rt.
-    APPEND cl_gui_alv_grid=>mc_fc_select_all      TO rt.
-    APPEND cl_gui_alv_grid=>mc_fc_deselect_all    TO rt.
-    APPEND cl_gui_alv_grid=>mc_fc_data_save       TO rt.
-    APPEND cl_gui_alv_grid=>mc_fc_load_variant    TO rt.
-    APPEND cl_gui_alv_grid=>mc_fc_current_variant TO rt.
-    APPEND cl_gui_alv_grid=>mc_fc_save_variant    TO rt.
-    APPEND cl_gui_alv_grid=>mc_fc_maintain_variant TO rt.
-    APPEND cl_gui_alv_grid=>mc_mb_variant         TO rt.
+    " 그 외 제거. 상수명은 ECC 버전에 따라 다를 수 있어 표준 fcode 문자열도 병행.
+    DATA lt_fc TYPE STANDARD TABLE OF ui_func WITH DEFAULT KEY.
+    APPEND cl_gui_alv_grid=>mc_fc_sum               TO lt_fc.
+    APPEND cl_gui_alv_grid=>mc_fc_subtot            TO lt_fc.
+    APPEND cl_gui_alv_grid=>mc_mb_sum              TO lt_fc.
+    APPEND cl_gui_alv_grid=>mc_mb_subtot           TO lt_fc.
+    APPEND cl_gui_alv_grid=>mc_fc_print            TO lt_fc.
+    APPEND cl_gui_alv_grid=>mc_fc_print_back       TO lt_fc.
+    APPEND cl_gui_alv_grid=>mc_fc_print_prev       TO lt_fc.
+    APPEND cl_gui_alv_grid=>mc_fc_views            TO lt_fc.
+    APPEND cl_gui_alv_grid=>mc_fc_view_crystal     TO lt_fc.
+    APPEND cl_gui_alv_grid=>mc_fc_view_excel       TO lt_fc.
+    APPEND cl_gui_alv_grid=>mc_fc_view_grid        TO lt_fc.
+    APPEND cl_gui_alv_grid=>mc_fc_view_lotus       TO lt_fc.
+    APPEND cl_gui_alv_grid=>mc_mb_view             TO lt_fc.
+    APPEND cl_gui_alv_grid=>mc_mb_export           TO lt_fc.
+    APPEND cl_gui_alv_grid=>mc_fc_graph            TO lt_fc.
+    APPEND cl_gui_alv_grid=>mc_fc_info             TO lt_fc.
+    APPEND cl_gui_alv_grid=>mc_fc_detail           TO lt_fc.
+    APPEND cl_gui_alv_grid=>mc_fc_help             TO lt_fc.
+    APPEND cl_gui_alv_grid=>mc_fc_html             TO lt_fc.
+    APPEND cl_gui_alv_grid=>mc_fc_word_processor   TO lt_fc.
+    APPEND cl_gui_alv_grid=>mc_fc_send             TO lt_fc.
+    APPEND cl_gui_alv_grid=>mc_fc_to_office        TO lt_fc.
+    APPEND cl_gui_alv_grid=>mc_fc_call_abc         TO lt_fc.
+    APPEND cl_gui_alv_grid=>mc_fc_call_xxl         TO lt_fc.
+    APPEND cl_gui_alv_grid=>mc_fc_maximum          TO lt_fc.
+    APPEND cl_gui_alv_grid=>mc_fc_minimum          TO lt_fc.
+    APPEND cl_gui_alv_grid=>mc_fc_average          TO lt_fc.
+    APPEND cl_gui_alv_grid=>mc_fc_count            TO lt_fc.
+    APPEND cl_gui_alv_grid=>mc_fc_auf              TO lt_fc.
+    APPEND cl_gui_alv_grid=>mc_fc_check            TO lt_fc.
+    APPEND cl_gui_alv_grid=>mc_fc_refresh          TO lt_fc.
+    APPEND cl_gui_alv_grid=>mc_fc_loc_copy         TO lt_fc.
+    APPEND cl_gui_alv_grid=>mc_fc_loc_copy_row     TO lt_fc.
+    APPEND cl_gui_alv_grid=>mc_fc_loc_cut          TO lt_fc.
+    APPEND cl_gui_alv_grid=>mc_fc_loc_delete_row   TO lt_fc.
+    APPEND cl_gui_alv_grid=>mc_fc_loc_insert_row   TO lt_fc.
+    APPEND cl_gui_alv_grid=>mc_fc_loc_move_row     TO lt_fc.
+    APPEND cl_gui_alv_grid=>mc_fc_loc_append_row   TO lt_fc.
+    APPEND cl_gui_alv_grid=>mc_fc_loc_paste        TO lt_fc.
+    APPEND cl_gui_alv_grid=>mc_fc_loc_paste_new_row TO lt_fc.
+    APPEND cl_gui_alv_grid=>mc_fc_loc_undo         TO lt_fc.
+    APPEND cl_gui_alv_grid=>mc_fc_select_all       TO lt_fc.
+    APPEND cl_gui_alv_grid=>mc_fc_deselect_all     TO lt_fc.
+    APPEND cl_gui_alv_grid=>mc_fc_data_save        TO lt_fc.
+    APPEND cl_gui_alv_grid=>mc_fc_load_variant     TO lt_fc.
+    APPEND cl_gui_alv_grid=>mc_fc_current_variant  TO lt_fc.
+    APPEND cl_gui_alv_grid=>mc_fc_save_variant     TO lt_fc.
+    APPEND cl_gui_alv_grid=>mc_fc_maintain_variant TO lt_fc.
+    APPEND cl_gui_alv_grid=>mc_mb_variant          TO lt_fc.
+    APPEND cl_gui_alv_grid=>mc_fc_fix_columns      TO lt_fc.
+    " 버전별 상수 미존재 기능은 fcode 문자열로 제외
+    APPEND '&EXPORT'     TO lt_fc.   " 내보내기 메뉴/로컬파일
+    APPEND '&PC'         TO lt_fc.   " 로컬 파일
+    APPEND '&XXL'        TO lt_fc.   " 스프레드시트
+    APPEND '&AQW'        TO lt_fc.   " 워드프로세싱
+    APPEND '&VCRYSTAL'   TO lt_fc.
+    APPEND '&CRYSTAL'    TO lt_fc.
+    APPEND '&GRAPH'      TO lt_fc.
+    APPEND '&INFO'       TO lt_fc.
+    APPEND '&DETAIL'     TO lt_fc.
+    APPEND '&PRINT_BACK' TO lt_fc.
+    APPEND '&RNT'        TO lt_fc.
+    APPEND '&RNT_PREV'   TO lt_fc.
+    APPEND '&ML'         TO lt_fc.   " 메일
+    APPEND '&SEND'       TO lt_fc.
+    APPEND '&ABC'        TO lt_fc.
+    APPEND '&AVE'        TO lt_fc.
+    APPEND '&SUM'        TO lt_fc.
+    APPEND '&SUBTOT'     TO lt_fc.
+    APPEND '&MAX'        TO lt_fc.
+    APPEND '&MIN'        TO lt_fc.
+    APPEND '&COUNT'      TO lt_fc.
+    APPEND '&AUF'        TO lt_fc.
+    APPEND '&COL0'       TO lt_fc.   " 레이아웃 변경
+    APPEND '&OPT'        TO lt_fc.
+    SORT lt_fc.
+    DELETE ADJACENT DUPLICATES FROM lt_fc.
+    rt = lt_fc.
   ENDMETHOD.
 ENDCLASS.
 
