@@ -1999,15 +1999,103 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD show_help.
-    MESSAGE |[사용법] | &&
-            |1) 핫스팟(밑줄) 클릭 또는 행 더블클릭 → 표준 상세(표시전용) | &&
-            |2) REFRESH → 현재 조건 재조회 | &&
-            |3) TOGGLE → Top-N ↔ 시간추이 차트 전환 | &&
-            |4) STATS → KPI 요약 팝업 | &&
-            |5) P_AUTORF>0 → 자동 새로고침 | &&
-            |6) ALV 툴바 → 정렬/필터/엑셀 다운로드 | &&
-            |※ 본 프로그램은 읽기전용(재처리/재실행 없음)|
-      TYPE 'I'.                                             "#EC NOTEXT
+    " 사용법 팝업 — HTML 카드 (STATS 와 동일 다이얼로그 컨테이너 재사용)
+    DATA: lv_html TYPE string,
+          lv_url  TYPE c LENGTH 2048,
+          lt_html TYPE TABLE OF w3html.
+
+    lv_html =
+      '<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>'
+      && '<style type="text/css">'
+      && 'body{margin:0;padding:0;font-family:Segoe UI,Tahoma,Arial,sans-serif;background:#EEF2F6;color:#263238;}'
+      && '.step{background:#fff;border:1px solid #E3E8EF;border-radius:6px;padding:10px 12px;margin:0 0 8px 0;}'
+      && '.num{display:inline-block;width:22px;height:22px;line-height:22px;text-align:center;'
+      && 'border-radius:11px;background:#00897B;color:#fff;font-size:11px;font-weight:bold;margin-right:8px;}'
+      && '.cmd{display:inline-block;background:#E0F2F1;color:#00695C;font-size:11px;font-weight:bold;'
+      && 'padding:2px 8px;border-radius:4px;margin:0 4px;}'
+      && '.note{background:#FFF8E1;border:1px solid #FFE082;border-radius:6px;padding:10px 12px;'
+      && 'font-size:12px;color:#F57F17;margin-top:4px;}'
+      && '</style></head><body>'
+      && '<div style="background:#00897B;background:linear-gradient(135deg,#00897B 0%,#00695C 100%);'
+      && 'padding:18px 20px 16px 20px;color:#fff;">'
+      && '<div style="font-size:11px;letter-spacing:1.5px;opacity:0.85;margin:0 0 6px 0;">OPS MONITOR</div>'
+      && '<div style="font-size:22px;font-weight:bold;margin:0 0 4px 0;">사용 가이드</div>'
+      && '<div style="font-size:12px;opacity:0.92;">읽기 전용 통합 운영 모니터링 · SM37 / ST22 / SXI</div>'
+      && '</div>'
+      && '<div style="padding:14px 16px 8px 16px;">'
+      && '<div class="step"><span class="num">1</span>'
+      && '<b>상세 조회</b><div style="margin:4px 0 0 30px;font-size:12px;color:#546E7A;">'
+      && '핫스팟(밑줄) 클릭 또는 행 더블클릭 → 표준 화면 <b>표시 전용</b></div></div>'
+      && '<div class="step"><span class="num">2</span>'
+      && '<span class="cmd">REFRESH</span><b>재조회</b>'
+      && '<div style="margin:4px 0 0 30px;font-size:12px;color:#546E7A;">현재 선택 조건으로 데이터를 다시 읽습니다</div></div>'
+      && '<div class="step"><span class="num">3</span>'
+      && '<span class="cmd">TOGGLE</span><b>차트 전환</b>'
+      && '<div style="margin:4px 0 0 30px;font-size:12px;color:#546E7A;">Top-N 집중도 ↔ 시간대별 추이</div></div>'
+      && '<div class="step"><span class="num">4</span>'
+      && '<span class="cmd">STATS</span><b>KPI 요약</b>'
+      && '<div style="margin:4px 0 0 30px;font-size:12px;color:#546E7A;">헬스 상태 · 영역별 건수 · 신호등 팝업</div></div>'
+      && '<div class="step"><span class="num">5</span>'
+      && '<span class="cmd">P_AUTORF</span><b>자동 새로고침</b>'
+      && '<div style="margin:4px 0 0 30px;font-size:12px;color:#546E7A;">0 초과 시 해당 초 주기로 자동 재조회</div></div>'
+      && '<div class="step"><span class="num">6</span>'
+      && '<b>ALV 툴바</b><div style="margin:4px 0 0 30px;font-size:12px;color:#546E7A;">'
+      && '찾기 · 정렬 · 필터 · 엑셀 다운로드</div></div>'
+      && '<div class="note"><b>읽기 전용</b> — 재처리 / 재실행 / 메시지 재전송 기능 없음</div>'
+      && '<div style="text-align:center;font-size:10px;color:#B0BEC5;padding:10px 0 6px 0;">'
+      && '창 닫기(X) 로 복귀</div>'
+      && '</div></body></html>'.
+
+    IF mo_stats_html IS BOUND.
+      mo_stats_html->free( EXCEPTIONS OTHERS = 1 ).
+      CLEAR mo_stats_html.
+    ENDIF.
+    IF mo_stats_dlg IS BOUND.
+      mo_stats_dlg->free( EXCEPTIONS OTHERS = 1 ).
+      CLEAR mo_stats_dlg.
+    ENDIF.
+
+    CREATE OBJECT mo_stats_dlg
+      EXPORTING
+        width   = 520
+        height  = 520
+        top     = 40
+        left    = 140
+        caption = 'Ops Monitor · 사용 가이드'.              "#EC NOTEXT
+    SET HANDLER on_stats_close FOR mo_stats_dlg.
+
+    CREATE OBJECT mo_stats_html
+      EXPORTING parent = mo_stats_dlg.
+
+    DATA(lv_rest) = lv_html.
+    WHILE lv_rest IS NOT INITIAL.
+      IF strlen( lv_rest ) > 255.
+        APPEND lv_rest(255) TO lt_html.
+        lv_rest = lv_rest+255.
+      ELSE.
+        APPEND lv_rest TO lt_html.
+        CLEAR lv_rest.
+      ENDIF.
+    ENDWHILE.
+
+    mo_stats_html->load_data(
+      EXPORTING  type                 = 'text'
+                 subtype              = 'html'
+                 size                 = strlen( lv_html )
+      IMPORTING  assigned_url         = lv_url
+      CHANGING   data_table           = lt_html
+      EXCEPTIONS dp_invalid_parameter = 1
+                 dp_error_general     = 2
+                 cntl_error           = 3
+                 OTHERS               = 4 ).
+    IF sy-subrc = 0.
+      mo_stats_html->show_url(
+        EXPORTING  url        = lv_url
+        EXCEPTIONS cntl_error = 1
+                   OTHERS     = 2 ).
+    ELSE.
+      MESSAGE '도움말을 표시할 수 없습니다.' TYPE 'S' DISPLAY LIKE 'W'. "#EC NOTEXT
+    ENDIF.
   ENDMETHOD.
 ENDCLASS.
 
