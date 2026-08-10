@@ -11,7 +11,8 @@ These conventions are always in effect. On-demand playbooks live in `.cursor/ski
 — consult them and apply their techniques automatically during implementation,
 review, refactoring, and documentation. Delivery/paste preferences and
 intake-before-polish live in `abap-delivery-preferences.mdc`. For vague UX
-requests use `abap-requirement-intake` then `abap-ops-monitor-ux`.
+requests use `abap-requirement-intake` then `abap-ops-monitor-ux`. Before any
+ABAP paste, run `abap-activation-preflight` to cut compile/type error loops.
 
 ## Non-negotiable invariants
 
