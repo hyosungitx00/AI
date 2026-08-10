@@ -1569,6 +1569,7 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
         ENDLOOP.
       ELSE.
         lv_title = |{ <cc>-area_txt } 시간추이|.
+        " 이 영역 버킷만으로 최대값 산출 (차트별 독립 스케일)
         LOOP AT mt_chart_time INTO DATA(ls_b).
           lv_cnt = COND #( WHEN <cc>-area = 'SM37' THEN ls_b-sm37
                            WHEN <cc>-area = 'ST22' THEN ls_b-st22
@@ -1577,6 +1578,9 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
             lv_max = lv_cnt.
           ENDIF.
         ENDLOOP.
+        IF lv_max < 1.
+          lv_max = 1.
+        ENDIF.
         lv_body = lv_body && '<div class="cols">'.
         LOOP AT mt_chart_time INTO ls_b.
           lv_cnt = COND #( WHEN <cc>-area = 'SM37' THEN ls_b-sm37
