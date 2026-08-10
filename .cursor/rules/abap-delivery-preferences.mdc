@@ -18,6 +18,17 @@ real session friction (company laptop, no GitHub, SE38 paste workflow).
   together (e.g. `mo_stats_dlg` / `mo_stats_html` / `on_stats_close` with
   `show_stats`). Never give a method body that references undeclared members.
 
+## Activation preflight (error-turn killer)
+
+- Before every ABAP paste, run skill `abap-activation-preflight` and fix
+  Blockers in the **same** turn.
+- Do not ask the user to activate “한번 돌려보고 오류 알려주세요” as the
+  primary verification for issues the preflight table already covers
+  (unknown field, ECC `MC_FC_*`, CSS `{` in string templates, untyped
+  navigate structures, private-method calls).
+- Prefer adapting **existing working code** in `src/y_ops_monitor_v2.prog.abap`
+  over inventing GUI/FM signatures.
+
 ## Before open-ended UX work
 
 - If the request is vague (“있어보이게”, “멋지게”, “데모용”) **and** no brief

@@ -57,7 +57,14 @@ refactor). Note which monitoring area(s) and standard objects are touched.
 - User text via text symbols; messages via message class (i18n).
 - Duplicated period/timezone logic consolidated into shared utilities.
 
-## 7. Report findings
+## 7. Activation readiness
+
+Before finishing, run `abap-activation-preflight` (P1–P10). Treat undeclared
+members, ECC-incompatible ALV constants, string-template/CSS clashes, and
+untyped navigate structures as **Must fix** — they caused repeated compile
+loops in prior sessions.
+
+## 8. Report findings
 
 Group by severity, each with **file:line**, the issue, the *why*, and a fix:
 

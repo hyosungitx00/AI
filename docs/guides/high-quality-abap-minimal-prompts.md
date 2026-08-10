@@ -10,7 +10,8 @@
 | `docs/templates/ops-monitor-request-brief.md` | 사용자가 선호를 **한 번에** 고정 | 에이전트가 추측 → 다턴 수정 |
 | `.cursor/skills/abap-requirement-intake` | Brief 없을 때 **질문 ≤8회**로 계약 | 모호한 요청이 즉시 저퀄 초안으로 감 |
 | `.cursor/skills/abap-ops-monitor-ux` | “있어보이게”의 **구체 기준** 고정 | MESSAGE→HTML, IGS→HTML 등 재작업 |
-| `.cursor/rules/abap-delivery-preferences.mdc` | SE38 붙여넣기·선언부 동시 제공 | `MO_* unknown`, GitHub 경로 실패 |
+| `.cursor/skills/abap-activation-preflight` | 붙여넣기 전 **정적 활성화 점검** | 문법/타입/미선언 오류로 재질문 |
+| `.cursor/rules/abap-delivery-preferences.mdc` | SE38 붙여넣기·선언부 동시·Preflight 강제 | `MO_* unknown`, GitHub 경로 실패 |
 | 기존 read-only / clean-oo / review 스킬 | 안전·구조·검수 | 기능은 되나 운영 불변 깨짐 |
 
 ## 왜 이 조합이 최적인가
@@ -44,9 +45,29 @@ flowchart TD
   G -->|Yes| H[abap-ops-monitor-ux]
   G -->|No| I[구현]
   H --> I
-  I --> J[선언부+구현 붙여넣기 전달]
+  I --> P[abap-activation-preflight]
+  P -->|Blocker| I
+  P -->|PASS| J[선언부+구현 붙여넣기 전달]
   J --> K[abap-code-review 자가점검]
 ```
+
+## 오류(문법·타입·활성화) 턴을 줄이려면
+
+이 세션에서 오류성 재질문은 대략 **문법/타입 ~18 + 런타임/화면 ~3** 규모였고,
+반복 패턴은 다음이었습니다.
+
+| 패턴 | 예시 | 방어 |
+|------|------|------|
+| 선언 누락 | `MO_STATS_HTML` unknown | 선언부+구현 동시 납품 (P1) |
+| ECC API 추측 | `MC_FC_EXPORT`, 없는 차트 메서드 | 레포 검증 패턴만 사용 (P3–P4) |
+| 문자열 템플릿 | CSS `{` vs `\|…\|` | HTML은 `&&` 연결 (P5) |
+| 구조 타입 | `LS-DATUM` 없음 | `ty_dump` 등 명시 타입 (P6) |
+
+**추가 수단 = `abap-activation-preflight`를 납품 게이트로 강제**하는 것입니다.
+사용자에게 “활성화해 보고 오류를 달라”고 넘기기 전에 에이전트가 P1–P10을
+통과시켜야 합니다. (원격에 SAP 컴파일러가 없으므로 100% 대체는 불가하나,
+세션에서 반복된 실패군은 대부분 정적 차단 가능합니다.)
+
 
 ### 사용자 쪽 (최소 프롬프트 예시)
 
