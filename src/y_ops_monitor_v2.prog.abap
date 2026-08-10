@@ -338,16 +338,15 @@ CLASS lcl_util IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD chart_rgb_for_area.
-    " IGS Values/Series/Color 용. RGB(r,g,b) + 팔레트 인덱스(@n) 병행.
-    " 반환: 'RGB(...)|@n' — 호출측에서 분리해 사용.
+    " HTML/CSS 차트용 헥스(앞에 # 없이). ALV C400/C600/C700 계열.
     DATA lv_area TYPE string.
     lv_area = iv_area.
     TRANSLATE lv_area TO UPPER CASE.
     CASE lv_area.
-      WHEN 'SM37'. rv_rgb = 'RGB(198,40,40)|@5'.     " 적 (C400)
-      WHEN 'ST22'. rv_rgb = 'RGB(249,168,37)|@3'.    " 황 (C600)
-      WHEN 'SXI'.  rv_rgb = 'RGB(142,36,170)|@7'.    " 보라 (C700)
-      WHEN OTHERS. rv_rgb = 'RGB(96,125,139)|@1'.
+      WHEN 'SM37'. rv_rgb = 'C62828'.   " 적
+      WHEN 'ST22'. rv_rgb = 'F9A825'.   " 황
+      WHEN 'SXI'.  rv_rgb = '8E24AA'.   " 보라
+      WHEN OTHERS. rv_rgb = '607D8B'.
     ENDCASE.
   ENDMETHOD.
 ENDCLASS.
@@ -1169,7 +1168,7 @@ CLASS lcl_ui_dashboard DEFINITION.
              area_txt TYPE string,
              skipped  TYPE abap_bool,
              cell     TYPE REF TO cl_gui_container,
-             chart    TYPE REF TO cl_gui_chart_engine,   " IGS 차트 엔진
+             html     TYPE REF TO cl_gui_html_viewer,  " HTML/CSS 차트(색·방향 확실)
            END OF ty_chart_cell.
     CONSTANTS: c_persp_topn TYPE i VALUE 1,
                c_persp_time TYPE i VALUE 2.
@@ -1502,7 +1501,7 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD build_chart_cells.
-    " 중간 차트를 영역별(선택된 프로바이더)로 좌->우 배치하고 IGS 차트 엔진 생성
+    " 중간 차트 = 영역별 HTML Viewer (IGS Color/Bars 미반영 회피)
     CLEAR mt_chart_cell.
     DATA lv_col TYPE i VALUE 1.
     DATA(lt_prov) = mo_ctrl->providers( ).
@@ -1511,57 +1510,54 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
         CONTINUE.
       ENDIF.
       DATA(lo_cell) = mo_split_chart->get_container( row = 1 column = lv_col ).
-      DATA lo_chart TYPE REF TO cl_gui_chart_engine.
-      CREATE OBJECT lo_chart EXPORTING parent = lo_cell.
+      DATA lo_html TYPE REF TO cl_gui_html_viewer.
+      CREATE OBJECT lo_html EXPORTING parent = lo_cell.
       APPEND VALUE ty_chart_cell(
         area     = lo_prov->area_id( )
         area_txt = lo_prov->area_text( )
         skipped  = lo_prov->is_skipped( )
         cell     = lo_cell
-        chart    = lo_chart ) TO mt_chart_cell.
+        html     = lo_html ) TO mt_chart_cell.
       lv_col = lv_col + 1.
     ENDLOOP.
   ENDMETHOD.
 
   METHOD render_chart.
-    " ChartData + Series customizing 링크 (GRAPHICS_GUI_CE_DEMO / Chart Designer 방식).
-    " 색: Values/Series Color·LineColor 에 RGB(r,g,b) 와 @팔레트인덱스 동시 지정.
-    " 방향: Top-N=Bars(가로), 시간추이=Columns(세로). version=2.0 유지.
+    " HTML/CSS 차트: Top-N=가로막대, 시간추이=세로막대, 영역별 고정색.
+    " (IGS CL_GUI_CHART_ENGINE 는 본 시스템에서 Color/Bars 미적용 → HTML 로 대체)
     LOOP AT mt_chart_cell ASSIGNING FIELD-SYMBOL(<cc>).
 
       DATA: lv_title TYPE string,
-            lv_label TYPE string,
-            lv_cat   TYPE string,
-            lv_pts   TYPE string,
-            lv_cnt   TYPE i,
-            lv_color TYPE string,
             lv_rgb   TYPE string,
-            lv_idx   TYPE string,
-            lv_pal   TYPE string.
-      CLEAR: lv_cat, lv_pts.
+            lv_body  TYPE string,
+            lv_html  TYPE string,
+            lv_lbl   TYPE string,
+            lv_cnt   TYPE i,
+            lv_max   TYPE i VALUE 1,
+            lv_pct   TYPE i,
+            lv_url   TYPE c LENGTH 2048,
+            lt_html  TYPE TABLE OF w3html.
 
-      lv_color = lcl_util=>chart_rgb_for_area( <cc>-area ).
-      SPLIT lv_color AT '|' INTO lv_rgb lv_idx.
-      IF lv_idx IS INITIAL.
-        lv_idx = '@1'.
-      ENDIF.
-      " 팔레트도 영역별로 달리 해 1번째 시리즈 기본색이 갈리도록 함
-      CASE <cc>-area.
-        WHEN 'SM37'. lv_pal = 'Tradeshow'.
-        WHEN 'ST22'. lv_pal = 'Soft'.
-        WHEN 'SXI'.  lv_pal = 'Simplified'.
-        WHEN OTHERS. lv_pal = 'Default'.
-      ENDCASE.
-
-      lv_label = escape( val = CONV string( <cc>-area_txt )
-                         format = cl_abap_format=>e_xml_text ).
+      CLEAR: lv_body, lt_html.
+      lv_rgb = lcl_util=>chart_rgb_for_area( <cc>-area ).
 
       IF mv_persp = c_persp_topn.
         lv_title = |{ <cc>-area_txt } Top-{ ms_sel-topn }|.
         LOOP AT mt_chart_topn INTO DATA(ls_t) WHERE area = <cc>-area.
-          lv_cat = lv_cat && |<Category>{ escape( val = CONV string( ls_t-key )
-                                                   format = cl_abap_format=>e_xml_text ) }</Category>|.
-          lv_pts = lv_pts && |<Point><Value type="y">{ ls_t-count }</Value></Point>|.
+          IF ls_t-count > lv_max.
+            lv_max = ls_t-count.
+          ENDIF.
+        ENDLOOP.
+        LOOP AT mt_chart_topn INTO ls_t WHERE area = <cc>-area.
+          lv_lbl = escape( val = CONV string( ls_t-key ) format = cl_abap_format=>e_xml_text ).
+          lv_pct = COND i( WHEN lv_max > 0 THEN ( ls_t-count * 100 ) / lv_max ELSE 0 ).
+          IF lv_pct < 2 AND ls_t-count > 0.
+            lv_pct = 2.
+          ENDIF.
+          lv_body = lv_body
+            && |<div class="row"><div class="lbl" title="{ lv_lbl }">{ lv_lbl }</div>|
+            && |<div class="barwrap"><div class="barh" style="width:{ lv_pct }%;background:#{ lv_rgb };"></div></div>|
+            && |<div class="val">{ ls_t-count }</div></div>|.
         ENDLOOP.
       ELSE.
         lv_title = |{ <cc>-area_txt } 시간추이|.
@@ -1569,51 +1565,81 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
           lv_cnt = COND #( WHEN <cc>-area = 'SM37' THEN ls_b-sm37
                            WHEN <cc>-area = 'ST22' THEN ls_b-st22
                            ELSE ls_b-sxi ).
-          lv_cat = lv_cat && |<Category>{ escape( val = CONV string( ls_b-bucket )
-                                                   format = cl_abap_format=>e_xml_text ) }</Category>|.
-          lv_pts = lv_pts && |<Point><Value type="y">{ lv_cnt }</Value></Point>|.
+          IF lv_cnt > lv_max.
+            lv_max = lv_cnt.
+          ENDIF.
         ENDLOOP.
+        lv_body = lv_body && |<div class="cols">|.
+        LOOP AT mt_chart_time INTO ls_b.
+          lv_cnt = COND #( WHEN <cc>-area = 'SM37' THEN ls_b-sm37
+                           WHEN <cc>-area = 'ST22' THEN ls_b-st22
+                           ELSE ls_b-sxi ).
+          lv_lbl = escape( val = CONV string( ls_b-bucket ) format = cl_abap_format=>e_xml_text ).
+          lv_pct = COND i( WHEN lv_max > 0 THEN ( lv_cnt * 100 ) / lv_max ELSE 0 ).
+          IF lv_pct < 2 AND lv_cnt > 0.
+            lv_pct = 2.
+          ENDIF.
+          lv_body = lv_body
+            && |<div class="col"><div class="barvwrap"><div class="barv" style="height:{ lv_pct }%;background:#{ lv_rgb };"></div></div>|
+            && |<div class="clbl" title="{ lv_lbl }">{ lv_lbl }</div><div class="val">{ lv_cnt }</div></div>|.
+        ENDLOOP.
+        lv_body = lv_body && |</div>|.
       ENDIF.
 
-      IF lv_cat IS INITIAL.
+      IF lv_body IS INITIAL.
         DATA(lv_note) = COND string( WHEN <cc>-skipped = abap_true THEN `권한 없음` ELSE `이상 없음` ).
-        lv_cat = |<Category>{ escape( val = lv_note format = cl_abap_format=>e_xml_text ) }</Category>|.
-        lv_pts = |<Point><Value type="y">0</Value></Point>|.
+        lv_body = |<div class="empty">{ escape( val = lv_note format = cl_abap_format=>e_xml_text ) }</div>|.
       ENDIF.
 
-      " ChartData — Series.customizing = Customizing Values/Series.id 와 반드시 일치
-      DATA(lv_data) = |<?xml version="1.0" encoding="utf-8"?>|
-        && |<ChartData>|
-        && |<Categories>{ lv_cat }</Categories>|
-        && |<Series customizing="Series1" label="{ lv_label }">{ lv_pts }</Series>|
-        && |</ChartData>|.
+      lv_html =
+        |<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>|
+        && |<style type="text/css">|
+        && |body{{margin:6px;font-family:Arial,sans-serif;background:#ffffff;color:#222;}}|
+        && |h3{{margin:0 0 8px 0;font-size:12px;border-left:6px solid #{ lv_rgb };padding-left:6px;}}|
+        && |.row{{display:flex;align-items:center;margin:3px 0;font-size:11px;}}|
+        && |.lbl{{width:38%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}}|
+        && |.barwrap{{width:50%;background:#eeeeee;height:14px;}}|
+        && |.barh{{height:14px;}}|
+        && |.val{{width:12%;text-align:right;padding-left:4px;}}|
+        && |.cols{{display:flex;align-items:flex-end;height:170px;width:100%;}}|
+        && |.col{{flex:1;text-align:center;margin:0 2px;font-size:9px;}}|
+        && |.barvwrap{{height:130px;display:flex;align-items:flex-end;background:#f5f5f5;}}|
+        && |.barv{{width:100%;min-height:0;}}|
+        && |.clbl{{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px;}}|
+        && |.empty{{padding:24px;color:#666;font-size:12px;}}|
+        && |</style></head><body>|
+        && |<h3>{ escape( val = lv_title format = cl_abap_format=>e_xml_text ) }</h3>|
+        && lv_body
+        && |</body></html>|.
 
-      DATA(lv_ctype) = COND string(
-        WHEN mv_persp = c_persp_topn THEN `Bars` ELSE `Columns` ).
+      " string → w3html 테이블
+      DATA(lv_rest) = lv_html.
+      WHILE lv_rest IS NOT INITIAL.
+        IF strlen( lv_rest ) > 255.
+          APPEND lv_rest(255) TO lt_html.
+          lv_rest = lv_rest+255.
+        ELSE.
+          APPEND lv_rest TO lt_html.
+          CLEAR lv_rest.
+        ENDIF.
+      ENDWHILE.
 
-      DATA(lv_cust) = |<?xml version="1.0" encoding="utf-8"?>|
-        && |<SAPChartCustomizing version="2.0">|
-        && |<GlobalSettings>|
-        && |<ColorPalette>{ lv_pal }</ColorPalette>|
-        && |<Defaults><ChartType>{ lv_ctype }</ChartType></Defaults>|
-        && |</GlobalSettings>|
-        && |<Elements><ChartElements><Title><Caption>|
-        && escape( val = lv_title format = cl_abap_format=>e_xml_text )
-        && |</Caption></Title></ChartElements></Elements>|
-        && |<Values>|
-        && |<Series id="Series1">|
-        && |<Color>{ lv_rgb }</Color>|
-        && |<LineColor>{ lv_rgb }</LineColor>|
-        && |<Color>{ lv_idx }</Color>|
-        && |<LineColor>{ lv_idx }</LineColor>|
-        && |</Series>|
-        && |</Values>|
-        && |</SAPChartCustomizing>|.
-
-      " 데모 프로그램과 동일 순서: data → customizing → render
-      <cc>-chart->set_data( data = lv_data ).
-      <cc>-chart->set_customizing( data = lv_cust ).
-      <cc>-chart->render( ).
+      <cc>-html->load_data(
+        EXPORTING  type                 = 'text'
+                   subtype              = 'html'
+                   size                 = strlen( lv_html )
+        IMPORTING  assigned_url         = lv_url
+        CHANGING   data_table           = lt_html
+        EXCEPTIONS dp_invalid_parameter = 1
+                   dp_error_general     = 2
+                   cntl_error           = 3
+                   OTHERS               = 4 ).
+      IF sy-subrc = 0.
+        <cc>-html->show_url(
+          EXPORTING  url        = lv_url
+          EXCEPTIONS cntl_error = 1
+                     OTHERS     = 2 ).
+      ENDIF.
     ENDLOOP.
   ENDMETHOD.
 
