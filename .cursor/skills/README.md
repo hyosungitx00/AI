@@ -12,6 +12,8 @@ Each skill is a `SKILL.md` with YAML frontmatter (`name`, `description`,
 [`docs/guides/high-quality-abap-minimal-prompts.md`](../../docs/guides/high-quality-abap-minimal-prompts.md)
 · 브리프 템플릿:
 [`docs/templates/ops-monitor-request-brief.md`](../../docs/templates/ops-monitor-request-brief.md)
+· **설계서 재현 테스트:**
+[`docs/guides/replay-quality-test.md`](../../docs/guides/replay-quality-test.md)
 
 ## Skills
 

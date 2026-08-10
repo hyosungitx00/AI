@@ -92,3 +92,11 @@ Brief Default로 STATS KPI를 데모용 HTML 팝업으로 개선해줘.
 - 차트·STATS·HELP·ALV만 모아도 **약 25건** — 이 구간이 UX 스킬로 흡수 대상
 
 목표 상태: 유사 UX 요청을 **Brief 0~1 + Intake 0~1 + 구현 1~2** 턴으로 수렴.
+
+## 재현 실험 (설계서 → 질문 수 측정)
+
+동일 설계서로 새 세션에서 질문 수를 재려면:
+
+- 프로토콜: [`replay-quality-test.md`](replay-quality-test.md)
+- 첫 프롬프트: [`../templates/replay-test-starter-prompt.md`](../templates/replay-test-starter-prompt.md)
+- 채점표: [`../templates/replay-test-scorecard.md`](../templates/replay-test-scorecard.md)
