@@ -1570,7 +1570,27 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
             && |;"></div></div><div class="val">{ ls_t-count }</div></div>|.
         ENDLOOP.
       ELSE.
-        lv_title = |{ <cc>-area_txt } 시간추이|.
+        " 시간추이: 축 라벨은 처음·끝만, 1칸 단위는 제목/축에 표시 (중간 라벨 과다 방지)
+        DATA: lv_unit     TYPE string,
+              lv_first    TYPE string,
+              lv_last     TYPE string,
+              lv_tip      TYPE string,
+              lv_size_h   TYPE i,
+              lv_bucket_n TYPE i.
+
+        lv_size_h = lcl_aggregator=>bucket_size_hours(
+          iv_from_date = ms_sel-from_date iv_from_time = ms_sel-from_time
+          iv_to_date   = ms_sel-to_date   iv_to_time   = ms_sel-to_time ).
+        IF lv_size_h <= 1.
+          lv_unit = '1칸=1시간'.
+        ELSEIF lv_size_h <= 24.
+          lv_unit = '1칸=1일'.
+        ELSE.
+          lv_unit = '1칸=1주'.
+        ENDIF.
+
+        lv_title = |{ <cc>-area_txt } 시간추이 ({ lv_unit })|.
+
         " 이 영역 버킷만으로 최대값 산출 (차트별 독립 스케일)
         LOOP AT mt_chart_time INTO DATA(ls_b).
           lv_cnt = COND #( WHEN <cc>-area = 'SM37' THEN ls_b-sm37
@@ -1583,23 +1603,43 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
         IF lv_max < 1.
           lv_max = 1.
         ENDIF.
+
         lv_body = lv_body && '<div class="cols">'.
+        lv_bucket_n = lines( mt_chart_time ).
         LOOP AT mt_chart_time INTO ls_b.
           lv_cnt = COND #( WHEN <cc>-area = 'SM37' THEN ls_b-sm37
                            WHEN <cc>-area = 'ST22' THEN ls_b-st22
                            ELSE ls_b-sxi ).
           lv_lbl = escape( val = CONV string( ls_b-bucket ) format = cl_abap_format=>e_xml_text ).
+          IF sy-tabix = 1.
+            lv_first = lv_lbl.
+          ENDIF.
+          IF sy-tabix = lv_bucket_n.
+            lv_last = lv_lbl.
+          ENDIF.
           lv_pct = COND i( WHEN lv_max > 0 THEN ( lv_cnt * 100 ) / lv_max ELSE 0 ).
           IF lv_pct < 2 AND lv_cnt > 0.
             lv_pct = 2.
           ENDIF.
+          " 막대만 그리고 라벨은 tooltip(title) — 축은 하단 처음/끝만 표시
+          lv_tip = |{ lv_lbl }: { lv_cnt }건|.
           lv_body = lv_body
-            && |<div class="col"><div class="barvwrap"><div class="barv" style="height:{ lv_pct }%;background:|
+            && |<div class="col" title="{ lv_tip }"><div class="barvwrap"><div class="barv" style="height:{ lv_pct }%;background:|
             && '#' && lv_rgb
-            && |;"></div></div><div class="clbl" title="{ lv_lbl }">{ lv_lbl }</div>|
-            && |<div class="val">{ lv_cnt }</div></div>|.
+            && |;"></div></div></div>|.
         ENDLOOP.
         lv_body = lv_body && '</div>'.
+
+        " 축: 시작 | 1칸 단위 | 끝
+        IF lv_first IS NOT INITIAL OR lv_last IS NOT INITIAL.
+          DATA(lv_unit_esc) = escape( val = lv_unit format = cl_abap_format=>e_xml_text ).
+          lv_body = lv_body
+            && '<div class="axis">'
+            && |<span class="a-start" title="{ lv_first }">{ lv_first }</span>|
+            && |<span class="a-unit">{ lv_unit_esc }</span>|
+            && |<span class="a-end" title="{ lv_last }">{ lv_last }</span>|
+            && '</div>'.
+        ENDIF.
       ENDIF.
 
       IF lv_body IS INITIAL.
@@ -1620,11 +1660,13 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
         && '.barwrap{width:50%;background:#eeeeee;height:14px;}'
         && '.barh{height:14px;}'
         && '.val{width:12%;text-align:right;padding-left:4px;}'
-        && '.cols{display:flex;align-items:flex-end;height:170px;width:100%;}'
-        && '.col{flex:1;text-align:center;margin:0 2px;font-size:9px;}'
-        && '.barvwrap{height:130px;display:flex;align-items:flex-end;background:#f5f5f5;}'
+        && '.cols{display:flex;align-items:flex-end;height:150px;width:100%;}'
+        && '.col{flex:1;text-align:center;margin:0 1px;font-size:9px;}'
+        && '.barvwrap{height:140px;display:flex;align-items:flex-end;background:#f5f5f5;}'
         && '.barv{width:100%;min-height:0;}'
-        && '.clbl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px;}'
+        && '.axis{display:flex;justify-content:space-between;align-items:center;margin-top:4px;font-size:10px;color:#444;}'
+        && '.a-start,.a-end{max-width:38%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}'
+        && '.a-unit{flex:0 0 auto;padding:0 6px;font-weight:bold;color:#222;background:#f0f0f0;border-radius:3px;}'
         && '.empty{padding:24px;color:#666;font-size:12px;}'
         && '</style></head><body>'
         && '<h3>' && lv_title_esc && '</h3>'
