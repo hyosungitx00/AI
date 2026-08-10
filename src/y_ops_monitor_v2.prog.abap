@@ -338,15 +338,15 @@ CLASS lcl_util IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD chart_rgb_for_area.
-    " ALV 행색과 동일 계열: SM37=C400(적), ST22=C600(황), SXI=C700(보라)
+    " IGS Color 태그용: RGB(r,g,b). ALV C400/C600/C700 계열.
     DATA lv_area TYPE string.
     lv_area = iv_area.
     TRANSLATE lv_area TO UPPER CASE.
     CASE lv_area.
-      WHEN 'SM37'. rv_rgb = 'C62828'.
-      WHEN 'ST22'. rv_rgb = 'F9A825'.
-      WHEN 'SXI'.  rv_rgb = '8E24AA'.
-      WHEN OTHERS. rv_rgb = '607D8B'.
+      WHEN 'SM37'. rv_rgb = 'RGB(198,40,40)'.    " 적 (C400)
+      WHEN 'ST22'. rv_rgb = 'RGB(249,168,37)'.   " 황 (C600)
+      WHEN 'SXI'.  rv_rgb = 'RGB(142,36,170)'.   " 보라 (C700)
+      WHEN OTHERS. rv_rgb = 'RGB(96,125,139)'.
     ENDCASE.
   ENDMETHOD.
 ENDCLASS.
@@ -1523,26 +1523,28 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD render_chart.
-    " 중간 = 영역별 개별 그래픽 차트 (CL_GUI_CHART_ENGINE, IGS). XML(데이터+커스터마이징) 전달.
-    " 관점 토글로 Top-N <-> 시간추이. 영역색 = ALV LINE_COLOR 계열(SM37적/ST22황/SXI보라).
-    "TODO: 대상 시스템 IGS 설정 확인(SM59 IGS_RFC_DEST / GRAPHICS_IGS_ADMIN). XML 스키마는 필요 시 미세조정.
+    " 중간 = 영역별 개별 그래픽 차트 (CL_GUI_CHART_ENGINE, IGS).
+    " 색상: Series customizing 링크 + Color/LineColor = RGB(r,g,b) (헥스/Point RGB 는 IGS 미반영).
+    "TODO: 대상 시스템 IGS 설정 확인(SM59 IGS_RFC_DEST / GRAPHICS_IGS_ADMIN).
     LOOP AT mt_chart_cell ASSIGNING FIELD-SYMBOL(<cc>).
 
       DATA: lv_title TYPE string,
+            lv_label TYPE string,
             lv_cat   TYPE string,   " <Categories> 내부
-            lv_pts   TYPE string,   " <Point> 반복
+            lv_pts   TYPE string,   " 시리즈 값
             lv_cnt   TYPE i,
             lv_rgb   TYPE string.
       CLEAR: lv_cat, lv_pts.
-      lv_rgb = lcl_util=>chart_rgb_for_area( <cc>-area ).
+      lv_rgb   = lcl_util=>chart_rgb_for_area( <cc>-area ).
+      lv_label = escape( val = CONV string( <cc>-area_txt )
+                         format = cl_abap_format=>e_xml_text ).
 
       IF mv_persp = c_persp_topn.
         lv_title = |{ <cc>-area_txt } Top-{ ms_sel-topn }|.
         LOOP AT mt_chart_topn INTO DATA(ls_t) WHERE area = <cc>-area.
-          lv_cat = lv_cat && |<Category>{ escape( val = CONV string( ls_t-key )
-                                                   format = cl_abap_format=>e_xml_text ) }</Category>|.
-          " Point RGB = 영역 고정색 (막대마다 동일 계열)
-          lv_pts = lv_pts && |<Point><Value>{ ls_t-count }</Value><RGB>{ lv_rgb }</RGB></Point>|.
+          lv_cat = lv_cat && |<C>{ escape( val = CONV string( ls_t-key )
+                                           format = cl_abap_format=>e_xml_text ) }</C>|.
+          lv_pts = lv_pts && |<S>{ ls_t-count }</S>|.
         ENDLOOP.
       ELSE.
         lv_title = |{ <cc>-area_txt } 시간추이|.
@@ -1550,41 +1552,44 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
           lv_cnt = COND #( WHEN <cc>-area = 'SM37' THEN ls_b-sm37
                            WHEN <cc>-area = 'ST22' THEN ls_b-st22
                            ELSE ls_b-sxi ).
-          lv_cat = lv_cat && |<Category>{ escape( val = CONV string( ls_b-bucket )
-                                                   format = cl_abap_format=>e_xml_text ) }</Category>|.
-          lv_pts = lv_pts && |<Point><Value>{ lv_cnt }</Value><RGB>{ lv_rgb }</RGB></Point>|.
+          lv_cat = lv_cat && |<C>{ escape( val = CONV string( ls_b-bucket )
+                                           format = cl_abap_format=>e_xml_text ) }</C>|.
+          lv_pts = lv_pts && |<S>{ lv_cnt }</S>|.
         ENDLOOP.
       ENDIF.
 
       " 데이터가 없으면(권한없음/이상없음) 안내용 단일 카테고리로 대체
       IF lv_cat IS INITIAL.
         DATA(lv_note) = COND string( WHEN <cc>-skipped = abap_true THEN `권한 없음` ELSE `이상 없음` ).
-        lv_cat = |<Category>{ escape( val = lv_note format = cl_abap_format=>e_xml_text ) }</Category>|.
-        lv_pts = |<Point><Value>0</Value><RGB>{ lv_rgb }</RGB></Point>|.
+        lv_cat = |<C>{ escape( val = lv_note format = cl_abap_format=>e_xml_text ) }</C>|.
+        lv_pts = |<S>0</S>|.
       ENDIF.
 
-      " 데이터 XML (SAP Chart Engine ChartData) — Series 에도 영역색 부여
+      " SimpleChartData + Series customizing="Series1" 로 커스터마이징 색상 연결
       DATA(lv_data) = |<?xml version="1.0" encoding="utf-8"?>|
-        && |<ChartData>|
+        && |<SimpleChartData>|
         && |<Categories>{ lv_cat }</Categories>|
-        && |<Series><RGB>{ lv_rgb }</RGB>{ lv_pts }</Series>|
-        && |</ChartData>|.
+        && |<Series customizing="Series1" label="{ lv_label }">{ lv_pts }</Series>|
+        && |</SimpleChartData>|.
 
-      " Top-N=가로막대, 시간추이=세로컬럼 — 관점 전환 시 시각 차별화
+      " Top-N=가로막대, 시간추이=세로컬럼
       DATA(lv_ctype) = COND string(
         WHEN mv_persp = c_persp_topn THEN `Bars` ELSE `Columns` ).
 
-      " Customizing: ColorScheme + Series RGB (IGS 버전별 반영 경로 이중화)
       DATA(lv_cust) = |<?xml version="1.0" encoding="utf-8"?>|
-        && |<SAPChartCustomizing version="2.0">|
+        && |<SAPChartCustomizing version="1.1">|
         && |<GlobalSettings>|
         && |<Defaults><ChartType>{ lv_ctype }</ChartType></Defaults>|
-        && |<ColorScheme><OwnedColors><Color><RGB>{ lv_rgb }</RGB></Color></OwnedColors></ColorScheme>|
         && |</GlobalSettings>|
         && |<Elements><ChartElements><Title><Caption>|
         && escape( val = lv_title format = cl_abap_format=>e_xml_text )
         && |</Caption></Title></ChartElements></Elements>|
-        && |<Values><Series><RGB>{ lv_rgb }</RGB></Series></Values>|
+        && |<Values>|
+        && |<Series id="Series1">|
+        && |<Color>{ lv_rgb }</Color>|
+        && |<LineColor>{ lv_rgb }</LineColor>|
+        && |</Series>|
+        && |</Values>|
         && |</SAPChartCustomizing>|.
 
       <cc>-chart->set_customizing( data = lv_cust ).
