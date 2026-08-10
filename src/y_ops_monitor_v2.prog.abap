@@ -1191,7 +1191,9 @@ CLASS lcl_ui_dashboard DEFINITION.
           mt_chart_cell  TYPE STANDARD TABLE OF ty_chart_cell,   " 영역별 차트 셀/엔진
           mt_summary     TYPE ty_summary_tab,
           mt_chart_topn  TYPE ty_chart_topn_tab,
-          mt_chart_time  TYPE ty_chart_time_tab.
+          mt_chart_time  TYPE ty_chart_time_tab,
+          mo_stats_dlg   TYPE REF TO cl_gui_dialogbox_container, " KPI 팝업
+          mo_stats_html  TYPE REF TO cl_gui_html_viewer.
     METHODS build_containers.
     METHODS build_summary.
     METHODS build_area_grids.
@@ -1207,6 +1209,7 @@ CLASS lcl_ui_dashboard DEFINITION.
     METHODS on_hotspot FOR EVENT hotspot_click OF cl_gui_alv_grid
       IMPORTING e_row_id sender.
     METHODS on_timer FOR EVENT finished OF cl_gui_timer.
+    METHODS on_stats_close FOR EVENT close OF cl_gui_dialogbox_container.
 ENDCLASS.
 
 CLASS lcl_ui_dashboard IMPLEMENTATION.
@@ -1544,6 +1547,14 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
       CLEAR: lv_body, lv_html, lv_title, lv_lbl, lv_cnt, lv_pct, lt_html.
       lv_max = 0.
       lv_rgb = lcl_util=>chart_rgb_for_area( <cc>-area ).
+      " 시간추이 축용(아래 ELSE 에서 사용) — 영역 전환 시 잔존 방지
+      DATA: lv_unit     TYPE string,
+            lv_first    TYPE string,
+            lv_last     TYPE string,
+            lv_tip      TYPE string,
+            lv_size_h   TYPE i,
+            lv_bucket_n TYPE i.
+      CLEAR: lv_unit, lv_first, lv_last, lv_tip, lv_size_h, lv_bucket_n.
 
       IF mv_persp = c_persp_topn.
         lv_title = |{ <cc>-area_txt } Top-{ ms_sel-topn }|.
@@ -1571,13 +1582,6 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
         ENDLOOP.
       ELSE.
         " 시간추이: 축 라벨은 처음·끝만, 1칸 단위는 제목/축에 표시 (중간 라벨 과다 방지)
-        DATA: lv_unit     TYPE string,
-              lv_first    TYPE string,
-              lv_last     TYPE string,
-              lv_tip      TYPE string,
-              lv_size_h   TYPE i,
-              lv_bucket_n TYPE i.
-
         lv_size_h = lcl_aggregator=>bucket_size_hours(
           iv_from_date = ms_sel-from_date iv_from_time = ms_sel-from_time
           iv_to_date   = ms_sel-to_date   iv_to_time   = ms_sel-to_time ).
@@ -1769,36 +1773,229 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD show_stats.
-    " 데모용 KPI 팝업 — 읽기 전용 집계만 표시
-    DATA: lv_total TYPE i,
-          lv_line  TYPE string,
-          lv_msg   TYPE string.
+    " KPI 팝업 — 헤더 배너 + 영역 카드 + 비율 바 (HTML Dialog)
+    DATA: lv_total      TYPE i,
+          lv_max_level  TYPE i,
+          lv_max_cnt    TYPE i,
+          lv_cards      TYPE string,
+          lv_html       TYPE string,
+          lv_health     TYPE string,
+          lv_health_sub TYPE string,
+          lv_hdr1       TYPE string,
+          lv_hdr2       TYPE string,
+          lv_url        TYPE c LENGTH 2048,
+          lt_html       TYPE TABLE OF w3html.
 
+    " 1패스: 합계 / 최대레벨 / 막대 스케일
+    LOOP AT mt_summary INTO DATA(ls0).
+      lv_total = lv_total + ls0-count.
+      IF ls0-level > lv_max_level.
+        lv_max_level = ls0-level.
+      ENDIF.
+      IF ls0-count > lv_max_cnt.
+        lv_max_cnt = ls0-count.
+      ENDIF.
+    ENDLOOP.
+    IF lv_max_cnt <= 0.
+      lv_max_cnt = 1.
+    ENDIF.
+
+    IF mt_summary IS INITIAL.
+      lv_health     = '조회된 영역 없음'.
+      lv_health_sub = '선택 화면에서 영역을 지정한 뒤 조회하세요'.
+      lv_hdr1       = '546E7A'.
+      lv_hdr2       = '37474F'.
+    ELSEIF lv_total = 0.
+      lv_health     = 'ALL CLEAR'.
+      lv_health_sub = '조회 기간 내 이상 건수 없음 — 시스템 정상'.
+      lv_hdr1       = '1B7A4C'.
+      lv_hdr2       = '0D5C38'.
+    ELSEIF lv_max_level >= 3.
+      lv_health     = 'CRITICAL'.
+      lv_health_sub = |적색 임계 도달 — 즉시 확인 필요 (총 { lv_total }건)|.
+      lv_hdr1       = 'C62828'.
+      lv_hdr2       = '8E0000'.
+    ELSEIF lv_max_level = 2.
+      lv_health     = 'WARNING'.
+      lv_health_sub = |황색 임계 영역 있음 — 추이 점검 (총 { lv_total }건)|.
+      lv_hdr1       = 'EF6C00'.
+      lv_hdr2       = 'E65100'.
+    ELSE.
+      lv_health     = 'STABLE'.
+      lv_health_sub = |경미한 이상만 감지됨 (총 { lv_total }건)|.
+      lv_hdr1       = '00897B'.
+      lv_hdr2       = '00695C'.
+    ENDIF.
+
+    " 2패스: 영역 카드
     LOOP AT mt_summary INTO DATA(ls).
-      lv_total = lv_total + ls-count.
+      DATA(lv_dot) = lcl_util=>chart_rgb_for_area( ls-area ).
       DATA(lv_lv) = SWITCH string( ls-level
         WHEN 3 THEN `적색`
         WHEN 2 THEN `황색`
         WHEN 1 THEN `녹색`
         ELSE `권한없음` ).
-      lv_line = |{ ls-area_txt }: { ls-count }건 ({ lv_lv })|.
-      IF lv_msg IS INITIAL.
-        lv_msg = lv_line.
-      ELSE.
-        lv_msg = |{ lv_msg } / { lv_line }|.
+      DATA(lv_badge_bg) = SWITCH string( ls-level
+        WHEN 3 THEN `FFCDD2`
+        WHEN 2 THEN `FFF3E0`
+        WHEN 1 THEN `C8E6C9`
+        ELSE `ECEFF1` ).
+      DATA(lv_badge_fg) = SWITCH string( ls-level
+        WHEN 3 THEN `B71C1C`
+        WHEN 2 THEN `E65100`
+        WHEN 1 THEN `1B5E20`
+        ELSE `546E7A` ).
+      DATA(lv_area_esc) = escape( val = CONV string( ls-area_txt )
+                                  format = cl_abap_format=>e_xml_text ).
+      DATA(lv_pct) = ( ls-count * 100 ) DIV lv_max_cnt.
+      IF lv_pct < 4 AND ls-count > 0.
+        lv_pct = 4.   " 최소 가시 폭
       ENDIF.
+      DATA(lv_share) = COND string(
+        WHEN lv_total > 0 THEN |{ ( ls-count * 100 ) DIV lv_total }%|
+        ELSE `—` ).
+
+      lv_cards = lv_cards
+        && '<div style="background:#fff;border:1px solid #E3E8EF;border-left:4px solid #'
+        && lv_dot && ';border-radius:6px;padding:12px 14px;margin:0 0 10px 0;">'
+        && '<table width="100%" cellspacing="0" cellpadding="0"><tr>'
+        && '<td style="vertical-align:middle;">'
+        && '<div style="font-size:12px;color:#78909C;margin:0 0 2px 0;">' && lv_area_esc && '</div>'
+        && '<div style="font-size:22px;font-weight:bold;color:#263238;line-height:1.1;">'
+        && |{ ls-count }| && '<span style="font-size:12px;font-weight:normal;color:#90A4AE;"> 건</span></div>'
+        && '</td>'
+        && '<td style="text-align:right;vertical-align:middle;width:88px;">'
+        && '<span style="display:inline-block;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:bold;background:#'
+        && lv_badge_bg && ';color:#' && lv_badge_fg && ';">' && lv_lv && '</span>'
+        && '<div style="font-size:10px;color:#90A4AE;margin-top:4px;">비중 ' && lv_share && '</div>'
+        && '</td></tr></table>'
+        && '<div style="background:#ECEFF1;height:6px;border-radius:3px;margin-top:10px;overflow:hidden;">'
+        && '<div style="background:#' && lv_dot && ';height:6px;width:'
+        && |{ lv_pct }| && '%;border-radius:3px;"></div></div>'
+        && '</div>'.
     ENDLOOP.
+
+    IF lv_cards IS INITIAL.
+      lv_cards =
+        '<div style="background:#fff;border:1px dashed #CFD8DC;border-radius:6px;padding:28px;text-align:center;color:#90A4AE;font-size:13px;">'
+        && '표시할 KPI 가 없습니다.</div>'.
+    ENDIF.
 
     DATA(lv_persp) = COND string(
       WHEN mv_persp = c_persp_topn THEN `Top-N` ELSE `시간추이` ).
+    DATA(lv_auto) = COND string(
+      WHEN ms_sel-autorf > 0 THEN |{ ms_sel-autorf }초| ELSE `OFF` ).
+    DATA(lv_health_esc) = escape( val = lv_health format = cl_abap_format=>e_xml_text ).
+    DATA(lv_sub_esc) = escape( val = lv_health_sub format = cl_abap_format=>e_xml_text ).
+    DATA(lv_persp_esc) = escape( val = lv_persp format = cl_abap_format=>e_xml_text ).
+    DATA(lv_when) = |{ mv_refresh_dt DATE = USER } { mv_refresh_tm TIME = USER }|.
+    DATA(lv_elapsed) = mo_ctrl->elapsed_sec( ).
+    DATA(lv_period) = |{ ms_sel-from_date DATE = USER } { ms_sel-from_time TIME = USER }|
+                   && | ~ { ms_sel-to_date DATE = USER } { ms_sel-to_time TIME = USER }|.
+    DATA(lv_period_esc) = escape( val = lv_period format = cl_abap_format=>e_xml_text ).
 
-    MESSAGE |[Ops Monitor KPI] 총이상 { lv_total }건 | &&
-            |{ lv_msg } | &&
-            |조회 { mv_refresh_dt DATE = USER } { mv_refresh_tm TIME = USER } | &&
-            |소요 { mo_ctrl->elapsed_sec( ) }초 | &&
-            |차트 { lv_persp } | &&
-            |영역 { mv_area_cols }분할|
-      TYPE 'I'.                                             "#EC NOTEXT
+    lv_html =
+      '<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>'
+      && '<style type="text/css">'
+      && 'body{margin:0;padding:0;font-family:Segoe UI,Tahoma,Arial,sans-serif;background:#EEF2F6;color:#263238;}'
+      && '.chip{display:inline-block;background:#F5F7FA;border:1px solid #E0E6ED;color:#546E7A;'
+      && 'font-size:11px;padding:5px 10px;border-radius:14px;margin:0 6px 6px 0;}'
+      && '</style></head><body>'
+      " 헤더 배너 (헬스 상태색)
+      && '<div style="background:#' && lv_hdr1 && ';background:linear-gradient(135deg,#'
+      && lv_hdr1 && ' 0%,#' && lv_hdr2 && ' 100%);padding:18px 20px 16px 20px;color:#fff;">'
+      && '<div style="font-size:11px;letter-spacing:1.5px;opacity:0.85;margin:0 0 6px 0;">OPS MONITOR</div>'
+      && '<div style="font-size:22px;font-weight:bold;margin:0 0 4px 0;">' && lv_health_esc && '</div>'
+      && '<div style="font-size:12px;opacity:0.92;margin:0 0 14px 0;">' && lv_sub_esc && '</div>'
+      && '<table width="100%" cellspacing="0" cellpadding="0"><tr>'
+      && '<td style="vertical-align:bottom;">'
+      && '<div style="font-size:11px;opacity:0.8;">총 이상 건수</div>'
+      && '<div style="font-size:36px;font-weight:bold;line-height:1;color:#FFFFFF;">'
+      && |{ lv_total }| && '</div>'
+      && '</td>'
+      && '<td style="text-align:right;vertical-align:bottom;">'
+      && '<div style="display:inline-block;background:#' && lv_hdr2
+      && ';border:1px solid #FFFFFF;border-radius:16px;padding:6px 12px;font-size:11px;color:#FFFFFF;">기간 '
+      && lv_period_esc && '</div>'
+      && '</td></tr></table>'
+      && '</div>'
+      " 본문
+      && '<div style="padding:14px 16px 8px 16px;">'
+      && '<div style="font-size:11px;color:#90A4AE;letter-spacing:0.8px;margin:0 0 8px 2px;">AREA BREAKDOWN</div>'
+      && lv_cards
+      && '<div style="margin:4px 0 2px 0;">'
+      && |<span class="chip">조회 { lv_when }</span>|
+      && |<span class="chip">소요 { lv_elapsed }초</span>|
+      && |<span class="chip">차트 { lv_persp_esc }</span>|
+      && |<span class="chip">분할 { mv_area_cols }</span>|
+      && |<span class="chip">자동갱신 { lv_auto }</span>|
+      && '</div>'
+      && '<div style="text-align:center;font-size:10px;color:#B0BEC5;padding:6px 0 10px 0;">'
+      && '읽기 전용 · 창 닫기(X) 로 복귀</div>'
+      && '</div></body></html>'.
+
+    " 이전 팝업이 열려 있으면 정리
+    IF mo_stats_html IS BOUND.
+      mo_stats_html->free( EXCEPTIONS OTHERS = 1 ).
+      CLEAR mo_stats_html.
+    ENDIF.
+    IF mo_stats_dlg IS BOUND.
+      mo_stats_dlg->free( EXCEPTIONS OTHERS = 1 ).
+      CLEAR mo_stats_dlg.
+    ENDIF.
+
+    CREATE OBJECT mo_stats_dlg
+      EXPORTING
+        width   = 560
+        height  = 480
+        top     = 50
+        left    = 120
+        caption = 'Ops Monitor · KPI 요약'.                 "#EC NOTEXT
+    SET HANDLER on_stats_close FOR mo_stats_dlg.
+
+    CREATE OBJECT mo_stats_html
+      EXPORTING parent = mo_stats_dlg.
+
+    DATA(lv_rest) = lv_html.
+    WHILE lv_rest IS NOT INITIAL.
+      IF strlen( lv_rest ) > 255.
+        APPEND lv_rest(255) TO lt_html.
+        lv_rest = lv_rest+255.
+      ELSE.
+        APPEND lv_rest TO lt_html.
+        CLEAR lv_rest.
+      ENDIF.
+    ENDWHILE.
+
+    mo_stats_html->load_data(
+      EXPORTING  type                 = 'text'
+                 subtype              = 'html'
+                 size                 = strlen( lv_html )
+      IMPORTING  assigned_url         = lv_url
+      CHANGING   data_table           = lt_html
+      EXCEPTIONS dp_invalid_parameter = 1
+                 dp_error_general     = 2
+                 cntl_error           = 3
+                 OTHERS               = 4 ).
+    IF sy-subrc = 0.
+      mo_stats_html->show_url(
+        EXPORTING  url        = lv_url
+        EXCEPTIONS cntl_error = 1
+                   OTHERS     = 2 ).
+    ELSE.
+      MESSAGE 'KPI 팝업을 표시할 수 없습니다.' TYPE 'S' DISPLAY LIKE 'W'. "#EC NOTEXT
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD on_stats_close.
+    IF mo_stats_html IS BOUND.
+      mo_stats_html->free( EXCEPTIONS OTHERS = 1 ).
+      CLEAR mo_stats_html.
+    ENDIF.
+    IF mo_stats_dlg IS BOUND.
+      mo_stats_dlg->free( EXCEPTIONS OTHERS = 1 ).
+      CLEAR mo_stats_dlg.
+    ENDIF.
   ENDMETHOD.
 
   METHOD show_help.
