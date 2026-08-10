@@ -1,0 +1,57 @@
+---
+description: Always-on conventions for this SAP ECC/S4HANA ABAP project (read-only ops monitoring). Applies to implementation, review, refactoring, and documentation.
+alwaysApply: true
+---
+
+# ABAP Project Conventions (always-on)
+
+This is an **SAP ECC / S/4HANA ABAP** project. The current initiative is a
+**read-only integrated operations monitoring** program (SM37 / ST22 / SXI_MONITOR).
+These conventions are always in effect. On-demand playbooks live in `.cursor/skills/`
+— consult them and apply their techniques automatically during implementation,
+review, refactoring, and documentation. Delivery/paste preferences and
+intake-before-polish live in `abap-delivery-preferences.mdc`. For vague UX
+requests use `abap-requirement-intake` then `abap-ops-monitor-ux`. Before any
+ABAP paste, run `abap-activation-preflight` to cut compile/type error loops.
+
+## Non-negotiable invariants
+
+- **Read-only.** No `INSERT / UPDATE / MODIFY / DELETE`, no `COMMIT WORK` /
+  `ROLLBACK` (for business intent), no `ENQUEUE_* / DEQUEUE_*`, no update task
+  (`CALL FUNCTION ... IN UPDATE TASK`), and no state-changing BAPIs/FMs
+  (job re-run, message re-send, etc.). Drill-downs call **display-mode** standard
+  screens/FMs only.
+- **Standard objects only** for data sources — standard tables and standard read
+  FMs. No custom Z-tables or direct external-system access as a data source.
+- **Bounded queries.** Every `SELECT` is constrained by the selection-screen
+  period (default −24h). Never full-scan. Name the field list explicitly; avoid
+  `SELECT *`.
+
+## Naming & structure
+
+- Namespace `Z` (or the customer namespace). Report `Z_OPS_MONITOR`,
+  transaction/message class `ZOPSMON`.
+- Interface-first, OO design: `ZIF_MON_DATA_PROVIDER` contract implemented by
+  per-area providers (`ZCL_MON_DP_BATCH/DUMP/INTERFACE`); orchestrated by
+  `ZCL_MON_CONTROLLER`; UI in `ZCL_MON_UI_DASHBOARD`; drill-down isolated in
+  `ZCL_MON_NAVIGATOR`; chart aggregation in `ZCL_MON_AGGREGATOR`.
+- Variable prefixes per customer ABAP guide: local `l*`, global `g*`, importing
+  `i*`/`im_`, exporting `e*`/`ex_`, members `m*`, constants `c_*`, types `ty_*`.
+- New monitoring area = new provider class implementing `ZIF_MON_DATA_PROVIDER`
+  + registry entry. Do not touch the controller/UL orchestration to add an area.
+
+## Quality baseline
+
+- All user-facing text via **text symbols** and a **message class** (i18n).
+- Thresholds/tunables as **class constants**, not hardcoded literals in logic.
+- Per-area isolation: one area's failure (auth/exception/no data) must not break
+  others — wrap area calls in `TRY/CATCH` and check authority per area, skipping
+  areas the user lacks rights for.
+- Keep the design doc in `docs/design/` in sync with code decisions; record open
+  questions as `Open Issues` with a `TODO:` marker in code where unresolved.
+
+## Language
+
+- Repository docs and commit messages follow the existing style (Korean design
+  docs, Conventional-Commit-style prefixes: `docs:`, `feat:`, `fix:`,
+  `refactor:`). Match the surrounding language of the file you edit.
