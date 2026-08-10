@@ -338,15 +338,17 @@ CLASS lcl_util IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD chart_rgb_for_area.
-    " HTML/CSS 차트용 헥스(앞에 # 없이). ALV C400/C600/C700 계열.
+    " HTML/CSS 차트용 헥스(앞에 # 없이).
+    " ALV LINE_COLOR 와 동일 계열을 채도만 높여 막대에 사용:
+    "   SM37 C400=청록, ST22 C600=분홍/적, SXI C700=주황
     DATA lv_area TYPE string.
     lv_area = iv_area.
     TRANSLATE lv_area TO UPPER CASE.
     CASE lv_area.
-      WHEN 'SM37'. rv_rgb = 'C62828'.   " 적
-      WHEN 'ST22'. rv_rgb = 'F9A825'.   " 황
-      WHEN 'SXI'.  rv_rgb = '8E24AA'.   " 보라
-      WHEN OTHERS. rv_rgb = '607D8B'.
+      WHEN 'SM37'. rv_rgb = '26A69A'.   " C400 청록
+      WHEN 'ST22'. rv_rgb = 'EF5350'.   " C600 분홍/적
+      WHEN 'SXI'.  rv_rgb = 'FFA726'.   " C700 주황
+      WHEN OTHERS. rv_rgb = '78909C'.
     ENDCASE.
   ENDMETHOD.
 ENDCLASS.
