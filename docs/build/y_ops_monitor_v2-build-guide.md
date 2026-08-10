@@ -99,7 +99,7 @@ PROCESS AFTER INPUT.
 
 ## 9. 대시보드 데모 기능 (v0.6)
 - **상단 KPI**: 헬스 배너(ALL CLEAR/주의/장애) + 신호등 영역건수 + 조회기간/조회시각/소요초/자동갱신/차트관점.
-- **중간 차트**: IGS `CL_GUI_CHART_ENGINE` — Top-N=Bars, 시간추이=Columns. `TOGGLE` 전환.
+- **중간 차트**: `CL_GUI_HTML_VIEWER` HTML/CSS — Top-N=가로막대, 시간추이=세로막대, 영역별 색(SM37적/ST22황/SXI보라). `TOGGLE` 전환.
 - **하단 ALV**: 선택 영역 수만큼 **동적 분할**, zebra/핫스팟, 툴바는 **검색·정렬·필터만** 유지(합계/인쇄/엑셀/레이아웃 등 제외), 더블클릭·핫스팟 드릴다운.
 - **커맨드**: `REFRESH` / `TOGGLE` / `STATS`(KPI 팝업) / `HELP`(사용법).
 - **선택화면**: 배너 문구, `P_HOURS` 변경 시 FROM/TO 자동 재계산.
