@@ -1554,10 +1554,12 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
           IF lv_pct < 2 AND ls_t-count > 0.
             lv_pct = 2.
           ENDIF.
+          " #색상 / CSS {} 는 문자열 템플릿 밖에 두어 '{' 구문오류 방지
           lv_body = lv_body
             && |<div class="row"><div class="lbl" title="{ lv_lbl }">{ lv_lbl }</div>|
-            && |<div class="barwrap"><div class="barh" style="width:{ lv_pct }%;background:#{ lv_rgb };"></div></div>|
-            && |<div class="val">{ ls_t-count }</div></div>|.
+            && |<div class="barwrap"><div class="barh" style="width:{ lv_pct }%;background:|
+            && '#' && lv_rgb
+            && |;"></div></div><div class="val">{ ls_t-count }</div></div>|.
         ENDLOOP.
       ELSE.
         lv_title = |{ <cc>-area_txt } 시간추이|.
@@ -1569,7 +1571,7 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
             lv_max = lv_cnt.
           ENDIF.
         ENDLOOP.
-        lv_body = lv_body && |<div class="cols">|.
+        lv_body = lv_body && '<div class="cols">'.
         LOOP AT mt_chart_time INTO ls_b.
           lv_cnt = COND #( WHEN <cc>-area = 'SM37' THEN ls_b-sm37
                            WHEN <cc>-area = 'ST22' THEN ls_b-st22
@@ -1580,37 +1582,42 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
             lv_pct = 2.
           ENDIF.
           lv_body = lv_body
-            && |<div class="col"><div class="barvwrap"><div class="barv" style="height:{ lv_pct }%;background:#{ lv_rgb };"></div></div>|
-            && |<div class="clbl" title="{ lv_lbl }">{ lv_lbl }</div><div class="val">{ lv_cnt }</div></div>|.
+            && |<div class="col"><div class="barvwrap"><div class="barv" style="height:{ lv_pct }%;background:|
+            && '#' && lv_rgb
+            && |;"></div></div><div class="clbl" title="{ lv_lbl }">{ lv_lbl }</div>|
+            && |<div class="val">{ lv_cnt }</div></div>|.
         ENDLOOP.
-        lv_body = lv_body && |</div>|.
+        lv_body = lv_body && '</div>'.
       ENDIF.
 
       IF lv_body IS INITIAL.
         DATA(lv_note) = COND string( WHEN <cc>-skipped = abap_true THEN `권한 없음` ELSE `이상 없음` ).
-        lv_body = |<div class="empty">{ escape( val = lv_note format = cl_abap_format=>e_xml_text ) }</div>|.
+        DATA(lv_note_esc) = escape( val = lv_note format = cl_abap_format=>e_xml_text ).
+        lv_body = |<div class="empty">{ lv_note_esc }</div>|.
       ENDIF.
 
+      DATA(lv_title_esc) = escape( val = lv_title format = cl_abap_format=>e_xml_text ).
+      " CSS 중괄호는 리터럴 따옴표 문자열로만 작성 (템플릿 '{' 규칙 회피)
       lv_html =
-        |<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>|
-        && |<style type="text/css">|
-        && |body{{margin:6px;font-family:Arial,sans-serif;background:#ffffff;color:#222;}}|
-        && |h3{{margin:0 0 8px 0;font-size:12px;border-left:6px solid #{ lv_rgb };padding-left:6px;}}|
-        && |.row{{display:flex;align-items:center;margin:3px 0;font-size:11px;}}|
-        && |.lbl{{width:38%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}}|
-        && |.barwrap{{width:50%;background:#eeeeee;height:14px;}}|
-        && |.barh{{height:14px;}}|
-        && |.val{{width:12%;text-align:right;padding-left:4px;}}|
-        && |.cols{{display:flex;align-items:flex-end;height:170px;width:100%;}}|
-        && |.col{{flex:1;text-align:center;margin:0 2px;font-size:9px;}}|
-        && |.barvwrap{{height:130px;display:flex;align-items:flex-end;background:#f5f5f5;}}|
-        && |.barv{{width:100%;min-height:0;}}|
-        && |.clbl{{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px;}}|
-        && |.empty{{padding:24px;color:#666;font-size:12px;}}|
-        && |</style></head><body>|
-        && |<h3>{ escape( val = lv_title format = cl_abap_format=>e_xml_text ) }</h3>|
+        '<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>'
+        && '<style type="text/css">'
+        && 'body{margin:6px;font-family:Arial,sans-serif;background:#ffffff;color:#222;}'
+        && 'h3{margin:0 0 8px 0;font-size:12px;border-left:6px solid #' && lv_rgb && ';padding-left:6px;}'
+        && '.row{display:flex;align-items:center;margin:3px 0;font-size:11px;}'
+        && '.lbl{width:38%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}'
+        && '.barwrap{width:50%;background:#eeeeee;height:14px;}'
+        && '.barh{height:14px;}'
+        && '.val{width:12%;text-align:right;padding-left:4px;}'
+        && '.cols{display:flex;align-items:flex-end;height:170px;width:100%;}'
+        && '.col{flex:1;text-align:center;margin:0 2px;font-size:9px;}'
+        && '.barvwrap{height:130px;display:flex;align-items:flex-end;background:#f5f5f5;}'
+        && '.barv{width:100%;min-height:0;}'
+        && '.clbl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px;}'
+        && '.empty{padding:24px;color:#666;font-size:12px;}'
+        && '</style></head><body>'
+        && '<h3>' && lv_title_esc && '</h3>'
         && lv_body
-        && |</body></html>|.
+        && '</body></html>'.
 
       " string → w3html 테이블
       DATA(lv_rest) = lv_html.
