@@ -1,0 +1,39 @@
+---
+description: Always-on delivery preferences for ABAP work in this repo — paste-first output, declaration+implementation together, intake-before-polish.
+alwaysApply: true
+---
+
+# ABAP Delivery Preferences (always-on)
+
+Apply together with `abap-project-conventions`. These preferences come from
+real session friction (company laptop, no GitHub, SE38 paste workflow).
+
+## Delivery format
+
+- Prefer **pasteable ABAP in chat** (method / class section). Do not rely on
+  GitHub URLs or VM paths (`/opt/cursor/...`) as the only delivery channel.
+- If output may truncate: say so, then continue from the next line when the
+  user says `계속` — without re-pasting completed parts.
+- When adding controls/members: always ship **DEFINITION + IMPLEMENTATION**
+  together (e.g. `mo_stats_dlg` / `mo_stats_html` / `on_stats_close` with
+  `show_stats`). Never give a method body that references undeclared members.
+
+## Before open-ended UX work
+
+- If the request is vague (“있어보이게”, “멋지게”, “데모용”) **and** no brief
+  is attached: run skill `abap-requirement-intake` **once** (≤8 choices), then
+  build to `abap-ops-monitor-ux`.
+- If `docs/templates/ops-monitor-request-brief.md` is filled/pasted: skip
+  questions; state Build Contract; implement.
+
+## Quality defaults (when user does not specify)
+
+- Popups (STATS/HELP/KPI): HTML dialogbox, not plain `MESSAGE`.
+- Charts needing color/orientation: HTML/CSS viewer, not IGS-only.
+- ALV toolbar: Find / Sort / Filter only unless asked otherwise.
+- Read-only invariants never relaxed without an explicit exception.
+
+## Language
+
+- User-facing UI copy and intake questions: Korean.
+- Match surrounding file language for docs/commits.
