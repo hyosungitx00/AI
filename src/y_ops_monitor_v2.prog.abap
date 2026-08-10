@@ -1533,21 +1533,27 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
             lv_html  TYPE string,
             lv_lbl   TYPE string,
             lv_cnt   TYPE i,
-            lv_max   TYPE i VALUE 1,
+            lv_max   TYPE i,
             lv_pct   TYPE i,
             lv_url   TYPE c LENGTH 2048,
             lt_html  TYPE TABLE OF w3html.
 
-      CLEAR: lv_body, lt_html.
+      " LOOP 내 DATA 는 재초기화되지 않음 → 영역마다 스케일/본문 리셋
+      CLEAR: lv_body, lv_html, lv_title, lv_lbl, lv_cnt, lv_pct, lt_html.
+      lv_max = 0.
       lv_rgb = lcl_util=>chart_rgb_for_area( <cc>-area ).
 
       IF mv_persp = c_persp_topn.
         lv_title = |{ <cc>-area_txt } Top-{ ms_sel-topn }|.
+        " 이 영역 Top-N 만으로 최대값 산출 (차트별 독립 스케일)
         LOOP AT mt_chart_topn INTO DATA(ls_t) WHERE area = <cc>-area.
           IF ls_t-count > lv_max.
             lv_max = ls_t-count.
           ENDIF.
         ENDLOOP.
+        IF lv_max < 1.
+          lv_max = 1.
+        ENDIF.
         LOOP AT mt_chart_topn INTO ls_t WHERE area = <cc>-area.
           lv_lbl = escape( val = CONV string( ls_t-key ) format = cl_abap_format=>e_xml_text ).
           lv_pct = COND i( WHEN lv_max > 0 THEN ( ls_t-count * 100 ) / lv_max ELSE 0 ).
