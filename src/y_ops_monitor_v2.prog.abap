@@ -338,15 +338,16 @@ CLASS lcl_util IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD chart_rgb_for_area.
-    " IGS Color 태그용: RGB(r,g,b). ALV C400/C600/C700 계열.
+    " IGS Values/Series/Color 용. RGB(r,g,b) + 팔레트 인덱스(@n) 병행.
+    " 반환: 'RGB(...)|@n' — 호출측에서 분리해 사용.
     DATA lv_area TYPE string.
     lv_area = iv_area.
     TRANSLATE lv_area TO UPPER CASE.
     CASE lv_area.
-      WHEN 'SM37'. rv_rgb = 'RGB(198,40,40)'.    " 적 (C400)
-      WHEN 'ST22'. rv_rgb = 'RGB(249,168,37)'.   " 황 (C600)
-      WHEN 'SXI'.  rv_rgb = 'RGB(142,36,170)'.   " 보라 (C700)
-      WHEN OTHERS. rv_rgb = 'RGB(96,125,139)'.
+      WHEN 'SM37'. rv_rgb = 'RGB(198,40,40)|@5'.     " 적 (C400)
+      WHEN 'ST22'. rv_rgb = 'RGB(249,168,37)|@3'.    " 황 (C600)
+      WHEN 'SXI'.  rv_rgb = 'RGB(142,36,170)|@7'.    " 보라 (C700)
+      WHEN OTHERS. rv_rgb = 'RGB(96,125,139)|@1'.
     ENDCASE.
   ENDMETHOD.
 ENDCLASS.
@@ -1523,28 +1524,44 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD render_chart.
-    " 중간 = 영역별 개별 그래픽 차트 (CL_GUI_CHART_ENGINE, IGS).
-    " 색상: Series customizing 링크 + Color/LineColor = RGB(r,g,b) (헥스/Point RGB 는 IGS 미반영).
-    "TODO: 대상 시스템 IGS 설정 확인(SM59 IGS_RFC_DEST / GRAPHICS_IGS_ADMIN).
+    " ChartData + Series customizing 링크 (GRAPHICS_GUI_CE_DEMO / Chart Designer 방식).
+    " 색: Values/Series Color·LineColor 에 RGB(r,g,b) 와 @팔레트인덱스 동시 지정.
+    " 방향: Top-N=Bars(가로), 시간추이=Columns(세로). version=2.0 유지.
     LOOP AT mt_chart_cell ASSIGNING FIELD-SYMBOL(<cc>).
 
       DATA: lv_title TYPE string,
             lv_label TYPE string,
-            lv_cat   TYPE string,   " <Categories> 내부
-            lv_pts   TYPE string,   " 시리즈 값
+            lv_cat   TYPE string,
+            lv_pts   TYPE string,
             lv_cnt   TYPE i,
-            lv_rgb   TYPE string.
+            lv_color TYPE string,
+            lv_rgb   TYPE string,
+            lv_idx   TYPE string,
+            lv_pal   TYPE string.
       CLEAR: lv_cat, lv_pts.
-      lv_rgb   = lcl_util=>chart_rgb_for_area( <cc>-area ).
+
+      lv_color = lcl_util=>chart_rgb_for_area( <cc>-area ).
+      SPLIT lv_color AT '|' INTO lv_rgb lv_idx.
+      IF lv_idx IS INITIAL.
+        lv_idx = '@1'.
+      ENDIF.
+      " 팔레트도 영역별로 달리 해 1번째 시리즈 기본색이 갈리도록 함
+      CASE <cc>-area.
+        WHEN 'SM37'. lv_pal = 'Tradeshow'.
+        WHEN 'ST22'. lv_pal = 'Soft'.
+        WHEN 'SXI'.  lv_pal = 'Simplified'.
+        WHEN OTHERS. lv_pal = 'Default'.
+      ENDCASE.
+
       lv_label = escape( val = CONV string( <cc>-area_txt )
                          format = cl_abap_format=>e_xml_text ).
 
       IF mv_persp = c_persp_topn.
         lv_title = |{ <cc>-area_txt } Top-{ ms_sel-topn }|.
         LOOP AT mt_chart_topn INTO DATA(ls_t) WHERE area = <cc>-area.
-          lv_cat = lv_cat && |<C>{ escape( val = CONV string( ls_t-key )
-                                           format = cl_abap_format=>e_xml_text ) }</C>|.
-          lv_pts = lv_pts && |<S>{ ls_t-count }</S>|.
+          lv_cat = lv_cat && |<Category>{ escape( val = CONV string( ls_t-key )
+                                                   format = cl_abap_format=>e_xml_text ) }</Category>|.
+          lv_pts = lv_pts && |<Point><Value type="y">{ ls_t-count }</Value></Point>|.
         ENDLOOP.
       ELSE.
         lv_title = |{ <cc>-area_txt } 시간추이|.
@@ -1552,33 +1569,32 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
           lv_cnt = COND #( WHEN <cc>-area = 'SM37' THEN ls_b-sm37
                            WHEN <cc>-area = 'ST22' THEN ls_b-st22
                            ELSE ls_b-sxi ).
-          lv_cat = lv_cat && |<C>{ escape( val = CONV string( ls_b-bucket )
-                                           format = cl_abap_format=>e_xml_text ) }</C>|.
-          lv_pts = lv_pts && |<S>{ lv_cnt }</S>|.
+          lv_cat = lv_cat && |<Category>{ escape( val = CONV string( ls_b-bucket )
+                                                   format = cl_abap_format=>e_xml_text ) }</Category>|.
+          lv_pts = lv_pts && |<Point><Value type="y">{ lv_cnt }</Value></Point>|.
         ENDLOOP.
       ENDIF.
 
-      " 데이터가 없으면(권한없음/이상없음) 안내용 단일 카테고리로 대체
       IF lv_cat IS INITIAL.
         DATA(lv_note) = COND string( WHEN <cc>-skipped = abap_true THEN `권한 없음` ELSE `이상 없음` ).
-        lv_cat = |<C>{ escape( val = lv_note format = cl_abap_format=>e_xml_text ) }</C>|.
-        lv_pts = |<S>0</S>|.
+        lv_cat = |<Category>{ escape( val = lv_note format = cl_abap_format=>e_xml_text ) }</Category>|.
+        lv_pts = |<Point><Value type="y">0</Value></Point>|.
       ENDIF.
 
-      " SimpleChartData + Series customizing="Series1" 로 커스터마이징 색상 연결
+      " ChartData — Series.customizing = Customizing Values/Series.id 와 반드시 일치
       DATA(lv_data) = |<?xml version="1.0" encoding="utf-8"?>|
-        && |<SimpleChartData>|
+        && |<ChartData>|
         && |<Categories>{ lv_cat }</Categories>|
         && |<Series customizing="Series1" label="{ lv_label }">{ lv_pts }</Series>|
-        && |</SimpleChartData>|.
+        && |</ChartData>|.
 
-      " Top-N=가로막대, 시간추이=세로컬럼
       DATA(lv_ctype) = COND string(
         WHEN mv_persp = c_persp_topn THEN `Bars` ELSE `Columns` ).
 
       DATA(lv_cust) = |<?xml version="1.0" encoding="utf-8"?>|
-        && |<SAPChartCustomizing version="1.1">|
+        && |<SAPChartCustomizing version="2.0">|
         && |<GlobalSettings>|
+        && |<ColorPalette>{ lv_pal }</ColorPalette>|
         && |<Defaults><ChartType>{ lv_ctype }</ChartType></Defaults>|
         && |</GlobalSettings>|
         && |<Elements><ChartElements><Title><Caption>|
@@ -1588,12 +1604,15 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
         && |<Series id="Series1">|
         && |<Color>{ lv_rgb }</Color>|
         && |<LineColor>{ lv_rgb }</LineColor>|
+        && |<Color>{ lv_idx }</Color>|
+        && |<LineColor>{ lv_idx }</LineColor>|
         && |</Series>|
         && |</Values>|
         && |</SAPChartCustomizing>|.
 
-      <cc>-chart->set_customizing( data = lv_cust ).
+      " 데모 프로그램과 동일 순서: data → customizing → render
       <cc>-chart->set_data( data = lv_data ).
+      <cc>-chart->set_customizing( data = lv_cust ).
       <cc>-chart->render( ).
     ENDLOOP.
   ENDMETHOD.
