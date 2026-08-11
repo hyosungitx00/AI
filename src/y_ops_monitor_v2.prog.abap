@@ -576,6 +576,17 @@ CLASS lcl_dp_dump DEFINITION FINAL.
           mt_alv TYPE ty_dump_tab.
     METHODS check_auth RETURNING VALUE(rv_ok) TYPE abap_bool.
     METHODS select_dumps IMPORTING is_sel TYPE ty_sel.
+    METHODS call_st22_fm
+      IMPORTING iv_day TYPE sy-datum
+      EXPORTING et_info TYPE rsdumptab
+                ev_ok   TYPE abap_bool.
+    METHODS map_dump_row
+      IMPORTING is_info TYPE any
+      EXPORTING es_row  TYPE ty_dump.
+    METHODS select_dumps_snap IMPORTING is_sel TYPE ty_sel.
+    METHODS append_filtered
+      IMPORTING is_sel TYPE ty_sel
+                is_row TYPE ty_dump.
 ENDCLASS.
 
 CLASS lcl_dp_dump IMPLEMENTATION.
@@ -595,85 +606,210 @@ CLASS lcl_dp_dump IMPLEMENTATION.
     rv_ok = boolc( sy-subrc = 0 ).
   ENDMETHOD.
 
+  METHOD map_dump_row.
+    " RSDUMPINFO 필드명 버전 차이를 흡수
+    CLEAR es_row.
+    ASSIGN COMPONENT 'SYDATE' OF STRUCTURE is_info TO FIELD-SYMBOL(<v>).
+    IF sy-subrc = 0.
+      es_row-datum = <v>.
+    ENDIF.
+    ASSIGN COMPONENT 'SYTIME' OF STRUCTURE is_info TO <v>.
+    IF sy-subrc = 0.
+      es_row-uzeit = <v>.
+    ENDIF.
+    ASSIGN COMPONENT 'SYUSER' OF STRUCTURE is_info TO <v>.
+    IF sy-subrc = 0.
+      es_row-uname = <v>.
+    ENDIF.
+    ASSIGN COMPONENT 'SYHOST' OF STRUCTURE is_info TO <v>.
+    IF sy-subrc = 0.
+      es_row-ahost = <v>.
+    ENDIF.
+    ASSIGN COMPONENT 'DUMPID' OF STRUCTURE is_info TO <v>.
+    IF sy-subrc = 0.
+      es_row-rt_error = <v>.
+    ELSE.
+      ASSIGN COMPONENT 'ERRORID' OF STRUCTURE is_info TO <v>.
+      IF sy-subrc = 0.
+        es_row-rt_error = <v>.
+      ENDIF.
+    ENDIF.
+    ASSIGN COMPONENT 'PROGRAMNAME' OF STRUCTURE is_info TO <v>.
+    IF sy-subrc = 0.
+      es_row-progname = <v>.
+    ELSE.
+      ASSIGN COMPONENT 'PROGNAME' OF STRUCTURE is_info TO <v>.
+      IF sy-subrc = 0.
+        es_row-progname = <v>.
+      ENDIF.
+    ENDIF.
+    ASSIGN COMPONENT 'INCLUDENAME' OF STRUCTURE is_info TO <v>.
+    IF sy-subrc = 0.
+      es_row-include = <v>.
+    ENDIF.
+    ASSIGN COMPONENT 'LINENUMBER' OF STRUCTURE is_info TO <v>.
+    IF sy-subrc = 0.
+      es_row-line = <v>.
+    ENDIF.
+    es_row-line_color = c_alv_st22.
+    IF es_row-rt_error IS INITIAL.
+      es_row-rt_error = 'SHORTDUMP'.
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD append_filtered.
+    DATA ls TYPE ty_dump.
+    ls = is_row.
+    IF ls-datum < is_sel-frdat OR ls-datum > is_sel-todat.
+      RETURN.
+    ENDIF.
+    IF ls-datum = is_sel-frdat AND ls-uzeit < is_sel-frtim.
+      RETURN.
+    ENDIF.
+    IF ls-datum = is_sel-todat AND ls-uzeit > is_sel-totim.
+      RETURN.
+    ENDIF.
+    IF so_user IS NOT INITIAL AND ls-uname NOT IN so_user.
+      RETURN.
+    ENDIF.
+    APPEND ls TO mt_all.
+  ENDMETHOD.
+
+  METHOD call_st22_fm.
+    DATA lv_subrc TYPE sysubrc.
+
+    CLEAR: et_info, ev_ok.
+    " 표준(신): P_INFOTAB 은 IMPORTING (TABLES 아님)
+    TRY.
+        CALL FUNCTION 'RS_ST22_GET_DUMPS'
+          EXPORTING
+            p_day       = iv_day
+          IMPORTING
+            p_infotab   = et_info
+          EXCEPTIONS
+            no_authority = 1
+            OTHERS       = 2.
+        lv_subrc = sy-subrc.
+        IF lv_subrc = 0.
+          ev_ok = abap_true.
+          RETURN.
+        ENDIF.
+      CATCH cx_sy_dyn_call_param_not_found
+            cx_sy_dyn_call_illegal_type
+            cx_sy_dyn_call_illegal_func.
+        CLEAR et_info.
+    ENDTRY.
+
+    " 대안: datum + IMPORTING
+    TRY.
+        CALL FUNCTION 'RS_ST22_GET_DUMPS'
+          EXPORTING
+            datum       = iv_day
+          IMPORTING
+            p_infotab   = et_info
+          EXCEPTIONS
+            no_authority = 1
+            OTHERS       = 2.
+        IF sy-subrc = 0.
+          ev_ok = abap_true.
+          RETURN.
+        ENDIF.
+      CATCH cx_sy_dyn_call_param_not_found
+            cx_sy_dyn_call_illegal_type.
+        CLEAR et_info.
+    ENDTRY.
+
+    " 구형: TABLES p_infotab
+    TRY.
+        CALL FUNCTION 'RS_ST22_GET_DUMPS'
+          EXPORTING
+            p_day     = iv_day
+          TABLES
+            p_infotab = et_info
+          EXCEPTIONS
+            no_authority = 1
+            OTHERS       = 2.
+        IF sy-subrc = 0.
+          ev_ok = abap_true.
+          RETURN.
+        ENDIF.
+      CATCH cx_sy_dyn_call_param_not_found
+            cx_sy_dyn_call_illegal_type.
+        CLEAR et_info.
+    ENDTRY.
+  ENDMETHOD.
+
+  METHOD select_dumps_snap.
+    " FM 실패 시 표준 SNAP 헤더(SEQNO=000)로 기간 바운드 조회
+    TYPES: BEGIN OF ty_snap,
+             datum TYPE snap-datum,
+             uzeit TYPE snap-uzeit,
+             uname TYPE snap-uname,
+             ahost TYPE snap-ahost,
+           END OF ty_snap.
+    DATA: lt_snap TYPE STANDARD TABLE OF ty_snap,
+          ls_row  TYPE ty_dump.
+
+    CLEAR lt_snap.
+    IF is_sel-frdat = is_sel-todat.
+      SELECT datum uzeit uname ahost
+        FROM snap
+        INTO CORRESPONDING FIELDS OF TABLE lt_snap
+        WHERE seqno = '000'
+          AND datum = is_sel-frdat
+          AND uzeit BETWEEN is_sel-frtim AND is_sel-totim.
+    ELSE.
+      SELECT datum uzeit uname ahost
+        FROM snap
+        INTO CORRESPONDING FIELDS OF TABLE lt_snap
+        WHERE seqno = '000'
+          AND ( ( datum = is_sel-frdat AND uzeit >= is_sel-frtim )
+             OR ( datum > is_sel-frdat AND datum < is_sel-todat )
+             OR ( datum = is_sel-todat AND uzeit <= is_sel-totim ) ).
+    ENDIF.
+
+    LOOP AT lt_snap ASSIGNING FIELD-SYMBOL(<s>).
+      CLEAR ls_row.
+      ls_row-datum      = <s>-datum.
+      ls_row-uzeit      = <s>-uzeit.
+      ls_row-uname      = <s>-uname.
+      ls_row-ahost      = <s>-ahost.
+      ls_row-rt_error   = 'SHORTDUMP'.
+      ls_row-line_color = c_alv_st22.
+      append_filtered( is_sel = is_sel is_row = ls_row ).
+    ENDLOOP.
+  ENDMETHOD.
+
   METHOD select_dumps.
-    DATA: lv_day   TYPE sy-datum,
-          lt_info  TYPE rsdumptab,
-          ls_row   TYPE ty_dump,
-          lv_keep  TYPE abap_bool,
-          lv_subrc TYPE sysubrc.
+    DATA: lv_day  TYPE sy-datum,
+          lt_info TYPE rsdumptab,
+          ls_row  TYPE ty_dump,
+          lv_ok   TYPE abap_bool,
+          lv_fm_ok TYPE abap_bool.
 
     CLEAR: mt_all, mt_alv.
     lv_day = is_sel-frdat.
     WHILE lv_day <= is_sel-todat.
       CLEAR lt_info.
-      lv_subrc = 4.
-      " 시스템별 FM 시그니처 차이 대응 (p_day / datum / 파라미터 없음)
-      TRY.
-          CALL FUNCTION 'RS_ST22_GET_DUMPS'
-            EXPORTING
-              p_day     = lv_day
-            TABLES
-              p_infotab = lt_info
-            EXCEPTIONS
-              OTHERS    = 1.
-          lv_subrc = sy-subrc.
-        CATCH cx_sy_dyn_call_param_not_found
-              cx_sy_dyn_call_illegal_type.
-          CLEAR lt_info.
-          TRY.
-              CALL FUNCTION 'RS_ST22_GET_DUMPS'
-                EXPORTING
-                  datum     = lv_day
-                TABLES
-                  p_infotab = lt_info
-                EXCEPTIONS
-                  OTHERS    = 1.
-              lv_subrc = sy-subrc.
-            CATCH cx_sy_dyn_call_param_not_found
-                  cx_sy_dyn_call_illegal_type.
-              CLEAR lt_info.
-              CALL FUNCTION 'RS_ST22_GET_DUMPS'
-                TABLES
-                  p_infotab = lt_info
-                EXCEPTIONS
-                  OTHERS    = 1.
-              lv_subrc = sy-subrc.
-          ENDTRY.
-      ENDTRY.
-
-      IF lv_subrc = 0.
+      call_st22_fm(
+        EXPORTING iv_day = lv_day
+        IMPORTING et_info = lt_info ev_ok = lv_ok ).
+      IF lv_ok = abap_true.
+        lv_fm_ok = abap_true.
         LOOP AT lt_info ASSIGNING FIELD-SYMBOL(<d>).
-          lv_keep = abap_true.
-          IF <d>-sydate < is_sel-frdat OR <d>-sydate > is_sel-todat.
-            lv_keep = abap_false.
-          ENDIF.
-          IF <d>-sydate = is_sel-frdat AND <d>-sytime < is_sel-frtim.
-            lv_keep = abap_false.
-          ENDIF.
-          IF <d>-sydate = is_sel-todat AND <d>-sytime > is_sel-totim.
-            lv_keep = abap_false.
-          ENDIF.
-          IF so_user IS NOT INITIAL AND <d>-syuser NOT IN so_user.
-            lv_keep = abap_false.
-          ENDIF.
-          IF lv_keep = abap_false.
-            CONTINUE.
-          ENDIF.
-          CLEAR ls_row.
-          ls_row-datum      = <d>-sydate.
-          ls_row-uzeit      = <d>-sytime.
-          ls_row-uname      = <d>-syuser.
-          ls_row-ahost      = <d>-syhost.
-          ls_row-rt_error   = <d>-dumpid.
-          ls_row-progname   = <d>-programname.
-          ls_row-include    = <d>-includename.
-          ls_row-line       = <d>-linenumber.
-          ls_row-line_color = c_alv_st22.
-          APPEND ls_row TO mt_all.
+          map_dump_row(
+            EXPORTING is_info = <d>
+            IMPORTING es_row  = ls_row ).
+          append_filtered( is_sel = is_sel is_row = ls_row ).
         ENDLOOP.
       ENDIF.
       lv_day = lv_day + 1.
     ENDWHILE.
+
+    " FM이 하루도 성공하지 못하면 SNAP 폴백
+    IF lv_fm_ok = abap_false AND mt_all IS INITIAL.
+      select_dumps_snap( is_sel ).
+    ENDIF.
 
     SORT mt_all BY datum DESCENDING uzeit DESCENDING.
     mt_alv = mt_all.
@@ -702,11 +838,6 @@ CLASS lcl_dp_dump IMPLEMENTATION.
         ELSE.
           ev_message = '조회 완료'.
         ENDIF.
-      CATCH cx_sy_dyn_call_param_not_found
-            cx_sy_dyn_call_illegal_type.
-        ev_error = abap_true.
-        ev_message = 'ST22 FM 호출 실패'.
-        CLEAR: mt_all, mt_alv.
       CATCH cx_root.
         ev_error = abap_true.
         ev_message = 'ST22 조회 오류'.
