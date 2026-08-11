@@ -662,10 +662,11 @@ CLASS lcl_dp_interface IMPLEMENTATION.
     lv_from = lcl_util=>local_to_utc_tstmp( iv_date = is_sel-frdat iv_time = is_sel-frtim ).
     lv_to   = lcl_util=>local_to_utc_tstmp( iv_date = is_sel-todat iv_time = is_sel-totim ).
 
+    " P_MAND 필터: CLIENT SPECIFIED 시에만 MANDT WHERE 허용
     SELECT msgguid pid errstat exetimest
-      FROM sxmsperror
+      FROM sxmsperror CLIENT SPECIFIED
       INTO CORRESPONDING FIELDS OF TABLE lt_err
-      WHERE mandt = is_sel-mandt
+      WHERE mandt     = is_sel-mandt
         AND exetimest BETWEEN lv_from AND lv_to.
 
     IF lt_err IS INITIAL.
@@ -673,7 +674,7 @@ CLASS lcl_dp_interface IMPLEMENTATION.
     ENDIF.
 
     SELECT msgguid pid msgstate
-      FROM sxmspmast
+      FROM sxmspmast CLIENT SPECIFIED
       INTO CORRESPONDING FIELDS OF TABLE lt_mast
       FOR ALL ENTRIES IN lt_err
       WHERE mandt   = is_sel-mandt
@@ -682,7 +683,7 @@ CLASS lcl_dp_interface IMPLEMENTATION.
 
     SELECT msgguid pid ob_name ob_ns ob_operation
            ob_system ib_system ob_party ib_party
-      FROM sxmspemas
+      FROM sxmspemas CLIENT SPECIFIED
       INTO CORRESPONDING FIELDS OF TABLE lt_emas
       FOR ALL ENTRIES IN lt_err
       WHERE mandt   = is_sel-mandt
@@ -955,7 +956,7 @@ CLASS lcl_aggregator IMPLEMENTATION.
         EXPORTING iv_ts = lv_ts
         IMPORTING ev_date = lv_d ev_time = lv_t ).
       CLEAR ls_b.
-      WRITE lv_d TO lv_tmp DD/MM.
+      WRITE lv_d TO lv_tmp DD/MM/YY.
       IF lv_bucket < 86400.
         CONCATENATE lv_tmp lv_t+0(2) INTO lv_label SEPARATED BY space.
         CONCATENATE lv_label ':00' INTO lv_label.

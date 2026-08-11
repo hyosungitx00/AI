@@ -14,7 +14,7 @@
 |------|---:|
 | Q_user (사람 메시지, 첫 프롬프트 포함) | 1 |
 | Q_agent_ask (에이전트→사람 질문 횟수) | 0 |
-| E_compile (문법/활성화 오류 첨부 횟수) | 0 (실기 미실시) |
+| E_compile (문법/활성화 오류 첨부 횟수) | 1 (MANDT WHERE×3, WRITE DD/MM → 수정 반영) |
 | E_runtime (덤프/빈화면 등 첨부 횟수) | 0 (실기 미실시) |
 
 ## Build Contract (Intake 기본값 적용, 질문 생략)
