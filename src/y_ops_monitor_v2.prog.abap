@@ -10,7 +10,7 @@
 *&  2) Screen 0100: 빈 화면(요소 없음), OK 코드 필드 OK_CODE
 *&  3) GUI Status STAT0100 (Screen 0100): 기능키
 *&       REFRESH, TOGGLE, STATS, HELP, BACK, EXIT, CANCEL
-*&  4) 텍스트 심볼(권장): T01=조회 기간, T02=조회 영역, T03=표시 옵션
+*&  4) 선택화면 텍스트: INITIALIZATION 에서 프레임/라벨 변수 세팅(텍스트요소 불필요)
 *&  5) 활성화 (선언부 포함 전체 → 구현 → 활성화)
 *&---------------------------------------------------------------------*
 REPORT y_ops_monitor_v2.
@@ -18,31 +18,82 @@ REPORT y_ops_monitor_v2.
 TYPE-POOLS: icon.
 
 *----------------------------------------------------------------------*
+* Selection screen titles / labels (filled in INITIALIZATION)
+*----------------------------------------------------------------------*
+DATA: gv_t_b1 TYPE c LENGTH 40,
+      gv_t_b2 TYPE c LENGTH 40,
+      gv_t_b3 TYPE c LENGTH 40.
+
+*----------------------------------------------------------------------*
 * Selection screen
 *----------------------------------------------------------------------*
-SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE text-t01.
-PARAMETERS: p_frdat TYPE sy-datum OBLIGATORY,
-            p_frtim TYPE sy-uzeit OBLIGATORY,
-            p_todat TYPE sy-datum OBLIGATORY,
-            p_totim TYPE sy-uzeit OBLIGATORY,
-            p_hours TYPE i DEFAULT 24.
+*--- 조회 기간 --------------------------------------------------------*
+SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE gv_t_b1.
+SELECTION-SCREEN BEGIN OF LINE.
+SELECTION-SCREEN COMMENT (14) gv_l_frdat FOR FIELD p_frdat.
+PARAMETERS p_frdat TYPE sy-datum OBLIGATORY.
+SELECTION-SCREEN COMMENT 40(10) gv_l_frtim FOR FIELD p_frtim.
+PARAMETERS p_frtim TYPE sy-uzeit OBLIGATORY.
+SELECTION-SCREEN END OF LINE.
+SELECTION-SCREEN BEGIN OF LINE.
+SELECTION-SCREEN COMMENT (14) gv_l_todat FOR FIELD p_todat.
+PARAMETERS p_todat TYPE sy-datum OBLIGATORY.
+SELECTION-SCREEN COMMENT 40(10) gv_l_totim FOR FIELD p_totim.
+PARAMETERS p_totim TYPE sy-uzeit OBLIGATORY.
+SELECTION-SCREEN END OF LINE.
+SELECTION-SCREEN BEGIN OF LINE.
+SELECTION-SCREEN COMMENT (22) gv_l_hours FOR FIELD p_hours.
+PARAMETERS p_hours TYPE i DEFAULT 24.
+SELECTION-SCREEN COMMENT 45(28) gv_l_hours_h.
+SELECTION-SCREEN END OF LINE.
 SELECTION-SCREEN END OF BLOCK b1.
 
-SELECTION-SCREEN BEGIN OF BLOCK b2 WITH FRAME TITLE text-t02.
-PARAMETERS: cb_sm37 AS CHECKBOX DEFAULT 'X',
-            cb_st22 AS CHECKBOX DEFAULT 'X',
-            cb_sxi  AS CHECKBOX DEFAULT 'X'.
+*--- 조회 영역 --------------------------------------------------------*
+SELECTION-SCREEN BEGIN OF BLOCK b2 WITH FRAME TITLE gv_t_b2.
+SELECTION-SCREEN BEGIN OF LINE.
+PARAMETERS cb_sm37 AS CHECKBOX DEFAULT 'X'.
+SELECTION-SCREEN COMMENT (20) gv_l_sm37 FOR FIELD cb_sm37.
+PARAMETERS cb_st22 AS CHECKBOX DEFAULT 'X'.
+SELECTION-SCREEN COMMENT (20) gv_l_st22 FOR FIELD cb_st22.
+PARAMETERS cb_sxi AS CHECKBOX DEFAULT 'X'.
+SELECTION-SCREEN COMMENT (22) gv_l_sxi FOR FIELD cb_sxi.
+SELECTION-SCREEN END OF LINE.
 SELECTION-SCREEN END OF BLOCK b2.
 
-SELECTION-SCREEN BEGIN OF BLOCK b3 WITH FRAME TITLE text-t03.
-SELECT-OPTIONS: so_job   FOR sy-repid,
-                so_user  FOR sy-uname,
-                so_iface FOR sy-repid.
-PARAMETERS: p_mand   TYPE mandt DEFAULT sy-mandt,
-            p_maxrow TYPE i DEFAULT 250,
-            p_topn   TYPE i DEFAULT 5,
-            p_auto   AS CHECKBOX DEFAULT ' ',
-            p_sec    TYPE i DEFAULT 60.
+*--- 추가 필터 / 표시 옵션 --------------------------------------------*
+SELECTION-SCREEN BEGIN OF BLOCK b3 WITH FRAME TITLE gv_t_b3.
+SELECTION-SCREEN BEGIN OF LINE.
+SELECTION-SCREEN COMMENT (14) gv_l_job FOR FIELD so_job.
+SELECT-OPTIONS so_job FOR sy-repid NO INTERVALS.
+SELECTION-SCREEN END OF LINE.
+SELECTION-SCREEN BEGIN OF LINE.
+SELECTION-SCREEN COMMENT (14) gv_l_user FOR FIELD so_user.
+SELECT-OPTIONS so_user FOR sy-uname NO INTERVALS.
+SELECTION-SCREEN END OF LINE.
+SELECTION-SCREEN BEGIN OF LINE.
+SELECTION-SCREEN COMMENT (14) gv_l_iface FOR FIELD so_iface.
+SELECT-OPTIONS so_iface FOR sy-repid NO INTERVALS.
+SELECTION-SCREEN END OF LINE.
+SELECTION-SCREEN BEGIN OF LINE.
+SELECTION-SCREEN COMMENT (14) gv_l_mand FOR FIELD p_mand.
+PARAMETERS p_mand TYPE mandt DEFAULT sy-mandt.
+SELECTION-SCREEN END OF LINE.
+SELECTION-SCREEN SKIP 1.
+SELECTION-SCREEN BEGIN OF LINE.
+SELECTION-SCREEN COMMENT (22) gv_l_maxrow FOR FIELD p_maxrow.
+PARAMETERS p_maxrow TYPE i DEFAULT 250.
+SELECTION-SCREEN END OF LINE.
+SELECTION-SCREEN BEGIN OF LINE.
+SELECTION-SCREEN COMMENT (22) gv_l_topn FOR FIELD p_topn.
+PARAMETERS p_topn TYPE i DEFAULT 5.
+SELECTION-SCREEN END OF LINE.
+SELECTION-SCREEN BEGIN OF LINE.
+PARAMETERS p_auto AS CHECKBOX DEFAULT ' '.
+SELECTION-SCREEN COMMENT (16) gv_l_auto FOR FIELD p_auto.
+SELECTION-SCREEN COMMENT 40(12) gv_l_sec FOR FIELD p_sec.
+PARAMETERS p_sec TYPE i DEFAULT 60.
+SELECTION-SCREEN COMMENT 60(8) gv_l_sec_u.
+SELECTION-SCREEN END OF LINE.
 SELECTION-SCREEN END OF BLOCK b3.
 
 *----------------------------------------------------------------------*
@@ -2418,6 +2469,29 @@ ENDCLASS.
 DATA gv_screen_started TYPE abap_bool.
 
 INITIALIZATION.
+  " 선택화면 프레임/필드 라벨 (텍스트 요소 없이 표시)
+  gv_t_b1     = '조회 기간'.
+  gv_t_b2     = '조회 영역 선택'.
+  gv_t_b3     = '추가 필터 / 표시 옵션'.
+  gv_l_frdat  = '시작 일자'.
+  gv_l_frtim  = '시작 시간'.
+  gv_l_todat  = '종료 일자'.
+  gv_l_totim  = '종료 시간'.
+  gv_l_hours  = '조회 범위(시간)'.
+  gv_l_hours_h = '(변경 시 FROM/TO 재계산)'.
+  gv_l_sm37   = '배치 에러(SM37)'.
+  gv_l_st22   = '런타임 에러(ST22)'.
+  gv_l_sxi    = '인터페이스(SXI)'.
+  gv_l_job    = '잡명'.
+  gv_l_user   = '사용자'.
+  gv_l_iface  = '인터페이스명'.
+  gv_l_mand   = '클라이언트'.
+  gv_l_maxrow = '영역별 최대 표시행'.
+  gv_l_topn   = '차트 Top-N'.
+  gv_l_auto   = '자동 갱신'.
+  gv_l_sec    = '주기(초)'.
+  gv_l_sec_u  = '초'.
+
   lcl_util=>apply_hours_to_range(
     EXPORTING iv_hours = p_hours
     IMPORTING ev_frdat = p_frdat
