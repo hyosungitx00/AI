@@ -2908,18 +2908,49 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD show_dump_detail.
-    DATA lv_html TYPE string.
-    lv_html = lcl_navigator=>build_dump_detail_html( is_dump ).
-    show_html_dialog(
+    " ST22 트랜잭션 호출 금지 — HTML dialogbox 만 사용
+    DATA: lv_html TYPE string,
+          lv_title TYPE char40.
+
+    lv_title = 'Runtime Error Detail'.
+    lv_html  = lcl_navigator=>build_dump_detail_html( is_dump ).
+
+    IF mo_dump_html IS BOUND.
+      mo_dump_html->free( EXCEPTIONS OTHERS = 1 ).
+      CLEAR mo_dump_html.
+    ENDIF.
+    IF mo_dump_dlg IS BOUND.
+      mo_dump_dlg->free( EXCEPTIONS OTHERS = 1 ).
+      CLEAR mo_dump_dlg.
+    ENDIF.
+
+    CREATE OBJECT mo_dump_dlg
       EXPORTING
-        iv_title  = 'Runtime Error Detail'
-        iv_html   = lv_html
-        iv_width  = 920
-        iv_height = 620
-      CHANGING
-        co_dlg  = mo_dump_dlg
-        co_html = mo_dump_html ).
+        width   = 920
+        height  = 620
+        top     = 40
+        left    = 80
+        caption = lv_title
+      EXCEPTIONS
+        OTHERS  = 1.
+    IF sy-subrc <> 0 OR mo_dump_dlg IS NOT BOUND.
+      MESSAGE '덤프 상세 팝업을 열 수 없습니다' TYPE 'S' DISPLAY LIKE 'E'.
+      RETURN.
+    ENDIF.
+
     SET HANDLER on_dump_close FOR mo_dump_dlg ACTIVATION 'X'.
+
+    CREATE OBJECT mo_dump_html
+      EXPORTING
+        parent = mo_dump_dlg
+      EXCEPTIONS
+        OTHERS = 1.
+    IF sy-subrc <> 0 OR mo_dump_html IS NOT BOUND.
+      MESSAGE '덤프 상세 뷰어를 생성할 수 없습니다' TYPE 'S' DISPLAY LIKE 'E'.
+      RETURN.
+    ENDIF.
+
+    load_html( io_viewer = mo_dump_html iv_html = lv_html ).
   ENDMETHOD.
 
   METHOD on_stats_close.
