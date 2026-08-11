@@ -10,8 +10,21 @@
 *&  2) Screen 0100: 빈 화면(요소 없음), OK 코드 필드 OK_CODE
 *&  3) GUI Status STAT0100 (Screen 0100): 기능키
 *&       REFRESH, TOGGLE, STATS, HELP, BACK, EXIT, CANCEL
-*&  4) 선택화면 텍스트: SE38 텍스트요소(Selection texts / Text symbols)
-*&     → 매핑은 프로그램 헤더 주석 및 docs 가이드 참고
+*&  4) 선택화면 텍스트: SE38 → Goto → Text elements
+*&     [Text symbols] 프레임 제목
+*&       T01  조회 기간
+*&       T02  조회 영역 선택
+*&       T03  추가 필터 / 표시 옵션
+*&     [Selection texts] 파라미터/셀렉트옵션 라벨
+*&       P_FRDAT  시작 일자          P_FRTIM  시작 시간
+*&       P_TODAT  종료 일자          P_TOTIM  종료 시간
+*&       P_HOURS  조회 범위(시간)
+*&       CB_SM37  배치 에러(SM37)    CB_ST22  런타임 에러(ST22)
+*&       CB_SXI   인터페이스(SXI)
+*&       SO_JOB   잡명               SO_USER  사용자
+*&       SO_IFACE 인터페이스명       P_MAND   클라이언트
+*&       P_MAXROW 영역별 최대 표시행 P_TOPN   차트 Top-N
+*&       P_AUTO   자동 갱신          P_SEC    주기(초)
 *&  5) 활성화 (선언부 포함 전체 → 구현 → 활성화)
 *&---------------------------------------------------------------------*
 REPORT y_ops_monitor_v2.
@@ -2352,11 +2365,14 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD show_html_dialog.
+    " 기존 팝업이 있으면 컨트롤 free 후 재생성
     IF co_html IS BOUND.
-      FREE co_html.
+      co_html->free( EXCEPTIONS OTHERS = 1 ).
+      CLEAR co_html.
     ENDIF.
     IF co_dlg IS BOUND.
-      FREE co_dlg.
+      co_dlg->free( EXCEPTIONS OTHERS = 1 ).
+      CLEAR co_dlg.
     ENDIF.
 
     CREATE OBJECT co_dlg
@@ -2380,7 +2396,8 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
       CHANGING
         co_dlg  = mo_stats_dlg
         co_html = mo_stats_html ).
-    SET HANDLER on_stats_close FOR mo_stats_dlg.
+    " X(닫기) → CLOSE 이벤트: free 필수
+    SET HANDLER on_stats_close FOR mo_stats_dlg ACTIVATION 'X'.
   ENDMETHOD.
 
   METHOD show_help.
@@ -2391,25 +2408,32 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
       CHANGING
         co_dlg  = mo_help_dlg
         co_html = mo_help_html ).
-    SET HANDLER on_help_close FOR mo_help_dlg.
+    SET HANDLER on_help_close FOR mo_help_dlg ACTIVATION 'X'.
   ENDMETHOD.
 
   METHOD on_stats_close.
+    " Dialogbox X는 CLOSE만 올리고 자동 소멸하지 않음 → sender->free 필요
     IF mo_stats_html IS BOUND.
-      FREE mo_stats_html.
+      mo_stats_html->free( EXCEPTIONS OTHERS = 1 ).
+      CLEAR mo_stats_html.
     ENDIF.
-    IF mo_stats_dlg IS BOUND.
-      FREE mo_stats_dlg.
+    IF sender IS BOUND.
+      sender->free( EXCEPTIONS OTHERS = 1 ).
     ENDIF.
+    CLEAR mo_stats_dlg.
+    cl_gui_cfw=>flush( EXCEPTIONS OTHERS = 1 ).
   ENDMETHOD.
 
   METHOD on_help_close.
     IF mo_help_html IS BOUND.
-      FREE mo_help_html.
+      mo_help_html->free( EXCEPTIONS OTHERS = 1 ).
+      CLEAR mo_help_html.
     ENDIF.
-    IF mo_help_dlg IS BOUND.
-      FREE mo_help_dlg.
+    IF sender IS BOUND.
+      sender->free( EXCEPTIONS OTHERS = 1 ).
     ENDIF.
+    CLEAR mo_help_dlg.
+    cl_gui_cfw=>flush( EXCEPTIONS OTHERS = 1 ).
   ENDMETHOD.
 ENDCLASS.
 
