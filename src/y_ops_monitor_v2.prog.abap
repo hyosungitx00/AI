@@ -2297,11 +2297,11 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
       '.main{flex:1 1 auto;display:flex;min-height:0;}' &&
       '.yaxis{width:28px;display:flex;flex-direction:column;justify-content:space-between;' &&
       'font-size:9px;color:#94a3b8;padding:2px 2px 14px 0;text-align:right;}' &&
-      '.chart{flex:1;display:flex;align-items:flex-end;gap:4px;' &&
+      '.chart{flex:1;display:flex;align-items:stretch;gap:5px;' &&
       'border-bottom:1px solid #475569;border-left:1px solid #334155;padding:0 2px 0 0;min-width:0;}' &&
-      '.col{flex:1;display:flex;flex-direction:column-reverse;align-items:stretch;' &&
-      'min-width:10px;max-width:48px;margin:0 auto;}' &&
-      '.s{width:100%;border-radius:2px 2px 0 0;}' &&
+      '.col{flex:1;height:100%;display:flex;flex-direction:column-reverse;align-items:stretch;' &&
+      'justify-content:flex-start;min-width:12px;max-width:56px;margin:0 auto;}' &&
+      '.s{width:100%;border-radius:1px 1px 0 0;min-height:2px;}' &&
       '.axis{display:flex;justify-content:space-between;font-size:10px;color:#cbd5e1;' &&
       'margin-top:3px;flex:0 0 auto;padding-left:28px;}' &&
       '.axis b{color:#e2e8f0;font-weight:600;}'.
@@ -2349,19 +2349,25 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
                ' · 합 ' && |{ lv_sum }| && '">' .
       IF <b>-sxi > 0.
         lv_h = <b>-sxi * 100 / lv_max.
-        IF lv_h = 0. lv_h = 2. ENDIF.
+        IF lv_h = 0.
+          lv_h = 2.
+        ENDIF.
         lv_bar = lv_bar && '<div class="s" style="height:' && |{ lv_h }| &&
                  '%;background:#FFA726;"></div>'.
       ENDIF.
       IF <b>-st22 > 0.
         lv_h = <b>-st22 * 100 / lv_max.
-        IF lv_h = 0. lv_h = 2. ENDIF.
+        IF lv_h = 0.
+          lv_h = 2.
+        ENDIF.
         lv_bar = lv_bar && '<div class="s" style="height:' && |{ lv_h }| &&
                  '%;background:#EF5350;"></div>'.
       ENDIF.
       IF <b>-sm37 > 0.
         lv_h = <b>-sm37 * 100 / lv_max.
-        IF lv_h = 0. lv_h = 2. ENDIF.
+        IF lv_h = 0.
+          lv_h = 2.
+        ENDIF.
         lv_bar = lv_bar && '<div class="s" style="height:' && |{ lv_h }| &&
                  '%;background:#26A69A;"></div>'.
       ENDIF.
@@ -2377,6 +2383,149 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
               '<span>' && lcl_util=>html_escape( mv_unit ) && '</span>' &&
               '<span><b>종료</b> ' && lcl_util=>html_escape( lv_last ) && '</span>' &&
               '</div></div>'.
+
+    rv_html =
+      '<!DOCTYPE html><html><head><meta charset="utf-8"><style>' &&
+      lv_css && '</style></head><body>' && lv_body && '</body></html>'.
+  ENDMETHOD.
+
+  METHOD build_stats_html.
+    DATA: lv_css    TYPE string,
+          lv_body   TYPE string,
+          lv_card   TYPE string,
+          lv_health TYPE char20,
+          lv_hko    TYPE char20,
+          lv_total  TYPE i,
+          lv_hdr    TYPE string,
+          lv_badge  TYPE char10,
+          lv_share  TYPE p DECIMALS 1,
+          lv_bar    TYPE i,
+          lv_persp  TYPE string,
+          lv_auto   TYPE string,
+          lv_msg    TYPE char60.
+
+    lv_health = lcl_util=>health_label( mt_status ).
+    lv_hko = lcl_util=>health_label_ko( lv_health ).
+    LOOP AT mt_status ASSIGNING FIELD-SYMBOL(<t>).
+      lv_total = lv_total + <t>-count.
+    ENDLOOP.
+
+    CASE lv_health.
+      WHEN 'CRITICAL'.
+        lv_hdr = '#b91c1c'.
+      WHEN 'WARNING'.
+        lv_hdr = '#d97706'.
+      WHEN OTHERS.
+        lv_hdr = '#0f766e'.
+    ENDCASE.
+
+    IF mv_persp = c_persp_tim.
+      lv_persp = '시간추이'.
+    ELSE.
+      lv_persp = 'Top-N'.
+    ENDIF.
+    IF ms_sel-auto = abap_true.
+      lv_auto = |ON/{ ms_sel-sec }s|.
+    ELSE.
+      lv_auto = 'OFF'.
+    ENDIF.
+
+    lv_css =
+      'body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#0f172a;color:#e2e8f0;}' &&
+      '.hdr{padding:10px 12px;background:' && lv_hdr && ';}' &&
+      '.hl{font-size:18px;font-weight:700;}' &&
+      '.sub{font-size:12px;opacity:.95;margin-top:2px;}' &&
+      '.wrap{padding:8px 12px;}' &&
+      '.card{background:#1e293b;border-radius:6px;padding:8px 10px;margin:6px 0;' &&
+      'border-left:4px solid #64748b;}' &&
+      '.row{display:flex;justify-content:space-between;align-items:center;}' &&
+      '.num{font-size:18px;font-weight:700;}' &&
+      '.badge{font-size:10px;padding:1px 6px;border-radius:8px;}' &&
+      '.R{background:#7f1d1d;color:#fecaca;}' &&
+      '.Y{background:#78350f;color:#fde68a;}' &&
+      '.G{background:#14532d;color:#bbf7d0;}' &&
+      '.barbg{height:4px;background:#334155;border-radius:2px;margin-top:4px;}' &&
+      '.barfg{height:4px;border-radius:2px;}' &&
+      '.chips span{display:inline-block;background:#1e293b;border:1px solid #334155;' &&
+      'border-radius:8px;padding:2px 6px;margin:3px 3px 0 0;font-size:10px;}' &&
+      '.ft{margin-top:8px;font-size:11px;color:#cbd5e1;}' &&
+      '.msg{font-size:10px;color:#94a3b8;margin-top:2px;white-space:nowrap;' &&
+      'overflow:hidden;text-overflow:ellipsis;}'.
+
+    lv_body =
+      '<div class="hdr"><div class="hl">' && lcl_util=>html_escape( lv_hko ) &&
+      ' · 총 ' && |{ lv_total }| && '건</div>' &&
+      '<div class="sub">영역별 에러 요약 (읽기 전용)</div></div><div class="wrap">'.
+
+    LOOP AT mt_status ASSIGNING FIELD-SYMBOL(<s>).
+      lv_badge = lcl_util=>light_label_ko( <s>-light ).
+      lv_msg = lcl_util=>short_status(
+        iv_text    = <s>-message
+        iv_count   = <s>-count
+        iv_error   = <s>-error
+        iv_auth_ok = <s>-auth_ok ).
+      IF lv_total > 0.
+        lv_share = <s>-count * 100 / lv_total.
+        lv_bar = <s>-count * 100 / lv_total.
+      ELSE.
+        lv_share = 0.
+        lv_bar = 0.
+      ENDIF.
+      lv_card =
+        '<div class="card" style="border-left-color:' && <s>-color_hex && ';">' &&
+        '<div class="row"><div>' && lcl_util=>html_escape( <s>-title ) &&
+        '</div><span class="badge ' && <s>-light && '">' && lv_badge &&
+        '</span></div>' &&
+        '<div class="row"><div class="num">' && |{ <s>-count }| &&
+        '</div><div>' && |{ lv_share }| && '%</div></div>' &&
+        '<div class="barbg"><div class="barfg" style="width:' && |{ lv_bar }| &&
+        '%;background:' && <s>-color_hex && ';"></div></div>' &&
+        '<div class="msg">' && lcl_util=>html_escape( lv_msg ) && '</div></div>'.
+      lv_body = lv_body && lv_card.
+    ENDLOOP.
+
+    lv_body = lv_body &&
+      '<div class="chips">' &&
+      '<span>' && |{ sy-datum DATE = USER } { sy-uzeit TIME = USER }| && '</span>' &&
+      '<span>' && |{ mv_runtime }| && 'ms</span>' &&
+      '<span>' && lv_persp && '</span>' &&
+      '<span>자동 ' && lv_auto && '</span></div>' &&
+      '<div class="ft">우상단 X 로 닫기 · 읽기 전용</div></div>'.
+
+    rv_html =
+      '<!DOCTYPE html><html><head><meta charset="utf-8"><style>' &&
+      lv_css && '</style></head><body>' && lv_body && '</body></html>'.
+  ENDMETHOD.
+
+  METHOD build_help_html.
+    DATA: lv_css  TYPE string,
+          lv_body TYPE string.
+
+    lv_css =
+      'body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#0f172a;color:#e2e8f0;}' &&
+      '.hdr{padding:10px 12px;background:#0284c7;}' &&
+      '.hl{font-size:16px;font-weight:700;}' &&
+      '.wrap{padding:8px 12px;}' &&
+      '.step{background:#1e293b;border-radius:6px;padding:7px 10px;margin:5px 0;font-size:12px;}' &&
+      '.n{display:inline-block;width:18px;height:18px;border-radius:50%;' &&
+      'background:#0ea5e9;color:#0f172a;text-align:center;font-weight:700;' &&
+      'margin-right:6px;font-size:11px;line-height:18px;}' &&
+      '.cmd{display:inline-block;background:#334155;border-radius:3px;' &&
+      'padding:0 5px;font-family:Consolas,monospace;font-size:11px;margin:0 2px;}' &&
+      '.note{background:#422006;border:1px solid #b45309;border-radius:6px;' &&
+      'padding:8px;margin-top:8px;font-size:11px;color:#fde68a;}' &&
+      '.ft{margin-top:8px;font-size:11px;color:#cbd5e1;}'.
+
+    lv_body =
+      '<div class="hdr"><div class="hl">사용 안내</div></div>' &&
+      '<div class="wrap">' &&
+      '<div class="step"><span class="n">1</span>기간·영역 지정 후 F8 실행</div>' &&
+      '<div class="step"><span class="n">2</span><span class="cmd">REFRESH</span> 동일 조건 재조회</div>' &&
+      '<div class="step"><span class="n">3</span><span class="cmd">TOGGLE</span> Top-N ↔ 시간추이</div>' &&
+      '<div class="step"><span class="n">4</span><span class="cmd">STATS</span> KPI 요약 팝업</div>' &&
+      '<div class="step"><span class="n">5</span>ALV 더블클릭 → 표준 상세(표시 전용)</div>' &&
+      '<div class="note">읽기 전용: 재실행/재전송/DML/COMMIT/Enqueue 없음</div>' &&
+      '<div class="ft">우상단 X 로 닫기</div></div>'.
 
     rv_html =
       '<!DOCTYPE html><html><head><meta charset="utf-8"><style>' &&
