@@ -248,6 +248,18 @@ CLASS lcl_util DEFINITION FINAL.
     CLASS-METHODS health_label
       IMPORTING it_status TYPE ty_area_status_tab
       RETURNING VALUE(rv_label) TYPE char20.
+    CLASS-METHODS health_label_ko
+      IMPORTING iv_health TYPE clike
+      RETURNING VALUE(rv_label) TYPE char20.
+    CLASS-METHODS light_label_ko
+      IMPORTING iv_light TYPE char1
+      RETURNING VALUE(rv_label) TYPE char10.
+    CLASS-METHODS short_status
+      IMPORTING iv_text TYPE clike
+                iv_count TYPE i OPTIONAL
+                iv_error TYPE abap_bool OPTIONAL
+                iv_auth_ok TYPE abap_bool OPTIONAL
+      RETURNING VALUE(rv_text) TYPE char60.
     CLASS-METHODS icon_for_light
       IMPORTING iv_light TYPE char1
       RETURNING VALUE(rv_icon) TYPE icon_d.
@@ -347,6 +359,61 @@ CLASS lcl_util IMPLEMENTATION.
       rv_label = 'ALL CLEAR'.
     ELSE.
       rv_label = 'STABLE'.
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD health_label_ko.
+    CASE iv_health.
+      WHEN 'CRITICAL'.
+        rv_label = '위험'.
+      WHEN 'WARNING'.
+        rv_label = '주의'.
+      WHEN 'ALL CLEAR'.
+        rv_label = '정상'.
+      WHEN OTHERS.
+        rv_label = '안정'.
+    ENDCASE.
+  ENDMETHOD.
+
+  METHOD light_label_ko.
+    CASE iv_light.
+      WHEN 'R'.
+        rv_label = '위험'.
+      WHEN 'Y'.
+        rv_label = '주의'.
+      WHEN OTHERS.
+        rv_label = '정상'.
+    ENDCASE.
+  ENDMETHOD.
+
+  METHOD short_status.
+    DATA lv TYPE string.
+    IF iv_auth_ok = abap_false AND iv_auth_ok IS SUPPLIED.
+      rv_text = '권한 없음'.
+      RETURN.
+    ENDIF.
+    IF iv_error = abap_true.
+      lv = iv_text.
+      IF lv CS 'PARAM_NOT_FOUND' OR lv CS 'CX_SY_DYN_CALL'.
+        rv_text = '조회 FM 호출 실패'.
+      ELSEIF strlen( lv ) > 40.
+        rv_text = lv(40) && '...'.
+      ELSE.
+        rv_text = lv.
+      ENDIF.
+      IF rv_text IS INITIAL.
+        rv_text = '조회 오류'.
+      ENDIF.
+      RETURN.
+    ENDIF.
+    IF iv_text IS NOT INITIAL.
+      rv_text = iv_text.
+      RETURN.
+    ENDIF.
+    IF iv_count = 0.
+      rv_text = '에러 없음'.
+    ELSE.
+      rv_text = '조회 완료'.
     ENDIF.
   ENDMETHOD.
 
@@ -468,7 +535,7 @@ CLASS lcl_dp_batch IMPLEMENTATION.
     CLEAR: ev_count, ev_error, ev_message.
     ev_auth_ok = check_auth( ).
     IF ev_auth_ok = abap_false.
-      ev_message = '권한 없음 (S_BTCH_JOB SHOW)'.
+      ev_message = '권한 없음'.
       CLEAR: mt_all, mt_alv.
       RETURN.
     ENDIF.
@@ -476,12 +543,16 @@ CLASS lcl_dp_batch IMPLEMENTATION.
         select_jobs( is_sel ).
         ev_count = lines( mt_all ).
         IF is_sel-maxrow > 0 AND ev_count > is_sel-maxrow.
-          lv_msg = |상위 { is_sel-maxrow }건만 표시(전체 { ev_count }건)|.
+          lv_msg = |상위 { is_sel-maxrow }건 표시(전체 { ev_count })|.
           ev_message = lv_msg.
+        ELSEIF ev_count = 0.
+          ev_message = '에러 없음'.
+        ELSE.
+          ev_message = '조회 완료'.
         ENDIF.
-      CATCH cx_root INTO DATA(lx).
+      CATCH cx_root.
         ev_error = abap_true.
-        ev_message = lx->get_text( ).
+        ev_message = 'SM37 조회 오류'.
         CLEAR: mt_all, mt_alv.
     ENDTRY.
   ENDMETHOD.
@@ -525,29 +596,61 @@ CLASS lcl_dp_dump IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD select_dumps.
-    DATA: lv_day  TYPE sy-datum,
-          lt_info TYPE rsdumptab,
-          ls_row  TYPE ty_dump,
-          lv_keep TYPE abap_bool.
+    DATA: lv_day   TYPE sy-datum,
+          lt_info  TYPE rsdumptab,
+          ls_row   TYPE ty_dump,
+          lv_keep  TYPE abap_bool,
+          lv_subrc TYPE sysubrc.
 
     CLEAR: mt_all, mt_alv.
     lv_day = is_sel-frdat.
     WHILE lv_day <= is_sel-todat.
       CLEAR lt_info.
-      CALL FUNCTION 'RS_ST22_GET_DUMPS'
-        EXPORTING
-          p_day     = lv_day
-        TABLES
-          p_infotab = lt_info
-        EXCEPTIONS
-          OTHERS    = 1.
-      IF sy-subrc = 0.
+      lv_subrc = 4.
+      " 시스템별 FM 시그니처 차이 대응 (p_day / datum / 파라미터 없음)
+      TRY.
+          CALL FUNCTION 'RS_ST22_GET_DUMPS'
+            EXPORTING
+              p_day     = lv_day
+            TABLES
+              p_infotab = lt_info
+            EXCEPTIONS
+              OTHERS    = 1.
+          lv_subrc = sy-subrc.
+        CATCH cx_sy_dyn_call_param_not_found
+              cx_sy_dyn_call_illegal_type.
+          CLEAR lt_info.
+          TRY.
+              CALL FUNCTION 'RS_ST22_GET_DUMPS'
+                EXPORTING
+                  datum     = lv_day
+                TABLES
+                  p_infotab = lt_info
+                EXCEPTIONS
+                  OTHERS    = 1.
+              lv_subrc = sy-subrc.
+            CATCH cx_sy_dyn_call_param_not_found
+                  cx_sy_dyn_call_illegal_type.
+              CLEAR lt_info.
+              CALL FUNCTION 'RS_ST22_GET_DUMPS'
+                TABLES
+                  p_infotab = lt_info
+                EXCEPTIONS
+                  OTHERS    = 1.
+              lv_subrc = sy-subrc.
+          ENDTRY.
+      ENDTRY.
+
+      IF lv_subrc = 0.
         LOOP AT lt_info ASSIGNING FIELD-SYMBOL(<d>).
           lv_keep = abap_true.
-          IF lv_day = is_sel-frdat AND <d>-sytime < is_sel-frtim.
+          IF <d>-sydate < is_sel-frdat OR <d>-sydate > is_sel-todat.
             lv_keep = abap_false.
           ENDIF.
-          IF lv_day = is_sel-todat AND <d>-sytime > is_sel-totim.
+          IF <d>-sydate = is_sel-frdat AND <d>-sytime < is_sel-frtim.
+            lv_keep = abap_false.
+          ENDIF.
+          IF <d>-sydate = is_sel-todat AND <d>-sytime > is_sel-totim.
             lv_keep = abap_false.
           ENDIF.
           IF so_user IS NOT INITIAL AND <d>-syuser NOT IN so_user.
@@ -584,7 +687,7 @@ CLASS lcl_dp_dump IMPLEMENTATION.
     CLEAR: ev_count, ev_error, ev_message.
     ev_auth_ok = check_auth( ).
     IF ev_auth_ok = abap_false.
-      ev_message = '권한 없음 (S_ABAPDUMP 03)'.
+      ev_message = '권한 없음'.
       CLEAR: mt_all, mt_alv.
       RETURN.
     ENDIF.
@@ -592,12 +695,21 @@ CLASS lcl_dp_dump IMPLEMENTATION.
         select_dumps( is_sel ).
         ev_count = lines( mt_all ).
         IF is_sel-maxrow > 0 AND ev_count > is_sel-maxrow.
-          lv_msg = |상위 { is_sel-maxrow }건만 표시(전체 { ev_count }건)|.
+          lv_msg = |상위 { is_sel-maxrow }건 표시(전체 { ev_count })|.
           ev_message = lv_msg.
+        ELSEIF ev_count = 0.
+          ev_message = '에러 없음'.
+        ELSE.
+          ev_message = '조회 완료'.
         ENDIF.
-      CATCH cx_root INTO DATA(lx).
+      CATCH cx_sy_dyn_call_param_not_found
+            cx_sy_dyn_call_illegal_type.
         ev_error = abap_true.
-        ev_message = lx->get_text( ).
+        ev_message = 'ST22 FM 호출 실패'.
+        CLEAR: mt_all, mt_alv.
+      CATCH cx_root.
+        ev_error = abap_true.
+        ev_message = 'ST22 조회 오류'.
         CLEAR: mt_all, mt_alv.
     ENDTRY.
   ENDMETHOD.
@@ -739,6 +851,16 @@ CLASS lcl_dp_interface IMPLEMENTATION.
         ls_row-sender   = lv_send.
         ls_row-receiver = lv_recv.
       ENDIF.
+      " Top-N/ALV 가독성: 인터페이스명 비어 있으면 대체 키
+      IF ls_row-if_name IS INITIAL.
+        IF ls_row-operation IS NOT INITIAL.
+          ls_row-if_name = ls_row-operation.
+        ELSEIF lv_send IS NOT INITIAL OR lv_recv IS NOT INITIAL.
+          CONCATENATE lv_send '→' lv_recv INTO ls_row-if_name.
+        ELSE.
+          ls_row-if_name = '(이름없음)'.
+        ENDIF.
+      ENDIF.
       IF so_iface IS NOT INITIAL AND ls_row-if_name NOT IN so_iface.
         CONTINUE.
       ENDIF.
@@ -758,7 +880,7 @@ CLASS lcl_dp_interface IMPLEMENTATION.
     CLEAR: ev_count, ev_error, ev_message.
     ev_auth_ok = check_auth( ).
     IF ev_auth_ok = abap_false.
-      ev_message = '권한 없음 (S_XMB_MONI 03)'.
+      ev_message = '권한 없음'.
       CLEAR: mt_all, mt_alv.
       RETURN.
     ENDIF.
@@ -766,12 +888,16 @@ CLASS lcl_dp_interface IMPLEMENTATION.
         select_iface( is_sel ).
         ev_count = lines( mt_all ).
         IF is_sel-maxrow > 0 AND ev_count > is_sel-maxrow.
-          lv_msg = |상위 { is_sel-maxrow }건만 표시(전체 { ev_count }건)|.
+          lv_msg = |상위 { is_sel-maxrow }건 표시(전체 { ev_count })|.
           ev_message = lv_msg.
+        ELSEIF ev_count = 0.
+          ev_message = '에러 없음'.
+        ELSE.
+          ev_message = '조회 완료'.
         ENDIF.
-      CATCH cx_root INTO DATA(lx).
+      CATCH cx_root.
         ev_error = abap_true.
-        ev_message = lx->get_text( ).
+        ev_message = 'SXI 조회 오류'.
         CLEAR: mt_all, mt_alv.
     ENDTRY.
   ENDMETHOD.
@@ -842,7 +968,7 @@ CLASS lcl_aggregator IMPLEMENTATION.
     LOOP AT it_keys ASSIGNING FIELD-SYMBOL(<k>).
       ls_cnt-key = <k>.
       IF ls_cnt-key IS INITIAL.
-        ls_cnt-key = '(empty)'.
+        ls_cnt-key = '(이름없음)'.
       ENDIF.
       READ TABLE lt_cnt ASSIGNING FIELD-SYMBOL(<c>) WITH KEY key = ls_cnt-key.
       IF sy-subrc = 0.
@@ -1290,7 +1416,7 @@ CLASS lcl_controller IMPLEMENTATION.
                       ev_error = lv_err ev_message = lv_msg ).
         CATCH cx_root INTO DATA(lx1).
           lv_err = abap_true.
-          lv_msg = lx1->get_text( ).
+          lv_msg = 'SM37 조회 오류'.
       ENDTRY.
       ls_st-area = lv_area.
       ls_st-title = lv_title.
@@ -1321,7 +1447,7 @@ CLASS lcl_controller IMPLEMENTATION.
                       ev_error = lv_err ev_message = lv_msg ).
         CATCH cx_root INTO DATA(lx2).
           lv_err = abap_true.
-          lv_msg = lx2->get_text( ).
+          lv_msg = 'ST22 조회 오류'.
       ENDTRY.
       ls_st-area = lv_area.
       ls_st-title = lv_title.
@@ -1352,7 +1478,7 @@ CLASS lcl_controller IMPLEMENTATION.
                       ev_error = lv_err ev_message = lv_msg ).
         CATCH cx_root INTO DATA(lx3).
           lv_err = abap_true.
-          lv_msg = lx3->get_text( ).
+          lv_msg = 'SXI 조회 오류'.
       ENDTRY.
       ls_st-area = lv_area.
       ls_st-title = lv_title.
@@ -1538,9 +1664,10 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
         parent  = cl_gui_container=>default_screen
         rows    = 3
         columns = 1.
-    mo_splitter->set_row_height( id = 1 height = 18 ).
-    mo_splitter->set_row_height( id = 2 height = 32 ).
-    mo_splitter->set_row_height( id = 3 height = 50 ).
+    " KPI 얇게 · 차트 중간 · ALV 넓게 (한눈에 목록 우선)
+    mo_splitter->set_row_height( id = 1 height = 14 ).
+    mo_splitter->set_row_height( id = 2 height = 26 ).
+    mo_splitter->set_row_height( id = 3 height = 60 ).
     mo_top    = mo_splitter->get_container( row = 1 column = 1 ).
     mo_chart  = mo_splitter->get_container( row = 2 column = 1 ).
     mo_bottom = mo_splitter->get_container( row = 3 column = 1 ).
@@ -1947,43 +2074,48 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD build_kpi_html.
-    DATA: lv_css    TYPE string,
-          lv_body   TYPE string,
-          lv_card   TYPE string,
-          lv_health TYPE char20,
-          lv_total  TYPE i,
-          lv_auto   TYPE string,
-          lv_ts     TYPE string,
-          lv_light  TYPE string,
-          lv_badge  TYPE string,
-          lv_share  TYPE p DECIMALS 1,
-          lv_bar    TYPE i,
-          lv_acol   TYPE char7.
+    DATA: lv_css     TYPE string,
+          lv_body    TYPE string,
+          lv_card    TYPE string,
+          lv_health  TYPE char20,
+          lv_hko     TYPE char20,
+          lv_total   TYPE i,
+          lv_auto    TYPE string,
+          lv_ts      TYPE string,
+          lv_light   TYPE string,
+          lv_badge   TYPE char10,
+          lv_share   TYPE p DECIMALS 1,
+          lv_bar     TYPE i,
+          lv_acol    TYPE char7,
+          lv_msg     TYPE char60,
+          lv_area_ko TYPE char20.
 
     lv_health = lcl_util=>health_label( mt_status ).
+    lv_hko = lcl_util=>health_label_ko( lv_health ).
     LOOP AT mt_status ASSIGNING FIELD-SYMBOL(<t>).
       lv_total = lv_total + <t>-count.
     ENDLOOP.
 
     lv_css =
-      'body{margin:0;font-family:Arial,sans-serif;background:#0f172a;color:#e2e8f0;}' &&
-      '.wrap{padding:8px 12px;}' &&
-      '.head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}' &&
-      '.hlabel{font-size:18px;font-weight:700;letter-spacing:1px;}' &&
-      '.meta{font-size:11px;color:#94a3b8;}' &&
+      'body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#0f172a;color:#e2e8f0;}' &&
+      '.wrap{padding:6px 10px;}' &&
+      '.head{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;}' &&
+      '.hlabel{font-size:16px;font-weight:700;}' &&
+      '.meta{font-size:10px;color:#94a3b8;}' &&
       '.chip{display:inline-block;background:#1e293b;border:1px solid #334155;' &&
-      'border-radius:10px;padding:2px 8px;margin-left:6px;}' &&
-      '.row{display:flex;gap:8px;}' &&
-      '.card{flex:1;background:#1e293b;border-radius:8px;padding:8px 10px;' &&
-      'border-left:5px solid #64748b;}' &&
-      '.ttl{font-size:12px;color:#94a3b8;}' &&
-      '.num{font-size:22px;font-weight:700;margin:2px 0;}' &&
-      '.badge{font-size:10px;padding:1px 6px;border-radius:8px;}' &&
+      'border-radius:8px;padding:1px 6px;margin-left:4px;}' &&
+      '.row{display:flex;gap:6px;}' &&
+      '.card{flex:1;background:#1e293b;border-radius:6px;padding:6px 8px;' &&
+      'border-left:4px solid #64748b;min-width:0;}' &&
+      '.ttl{font-size:11px;color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}' &&
+      '.num{font-size:20px;font-weight:700;line-height:1.1;margin:2px 0;}' &&
+      '.badge{font-size:10px;padding:1px 6px;border-radius:8px;margin-left:4px;}' &&
       '.R{background:#7f1d1d;color:#fecaca;}' &&
       '.Y{background:#78350f;color:#fde68a;}' &&
       '.G{background:#14532d;color:#bbf7d0;}' &&
-      '.barbg{height:4px;background:#334155;border-radius:2px;margin-top:4px;}' &&
-      '.barfg{height:4px;border-radius:2px;}'.
+      '.sub{font-size:10px;color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}' &&
+      '.barbg{height:3px;background:#334155;border-radius:2px;margin-top:3px;}' &&
+      '.barfg{height:3px;border-radius:2px;}'.
 
     CASE lv_health.
       WHEN 'CRITICAL'.
@@ -2004,23 +2136,29 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
     lv_body =
       '<div class="wrap"><div class="head">' &&
       '<div class="hlabel" style="color:' && lv_light && ';">' &&
-      lcl_util=>html_escape( lv_health ) &&
-      ' <span style="font-size:14px;color:#cbd5e1;">총 ' &&
+      lcl_util=>html_escape( lv_hko ) &&
+      ' <span style="font-size:13px;color:#cbd5e1;">총 ' &&
       |{ lv_total }| && '건</span></div>' &&
       '<div class="meta">' &&
-      '<span class="chip">조회 ' && lcl_util=>html_escape( lv_ts ) && '</span>' &&
-      '<span class="chip">소요 ' && |{ mv_runtime }| && 'ms</span>' &&
-      '<span class="chip">자동갱신 ' && lv_auto && '</span>' &&
+      '<span class="chip">' && lcl_util=>html_escape( lv_ts ) && '</span>' &&
+      '<span class="chip">' && |{ mv_runtime }| && 'ms</span>' &&
+      '<span class="chip">자동 ' && lv_auto && '</span>' &&
       '</div></div><div class="row">'.
 
     LOOP AT mt_status ASSIGNING FIELD-SYMBOL(<s>).
-      CASE <s>-light.
-        WHEN 'R'.
-          lv_badge = 'R'.
-        WHEN 'Y'.
-          lv_badge = 'Y'.
+      lv_badge = lcl_util=>light_label_ko( <s>-light ).
+      lv_msg = lcl_util=>short_status(
+        iv_text = <s>-message
+        iv_count = <s>-count
+        iv_error = <s>-error
+        iv_auth_ok = <s>-auth_ok ).
+      CASE <s>-area.
+        WHEN c_area_sm37.
+          lv_area_ko = 'SM37 배치'.
+        WHEN c_area_st22.
+          lv_area_ko = 'ST22 덤프'.
         WHEN OTHERS.
-          lv_badge = 'G'.
+          lv_area_ko = 'SXI 인터페이스'.
       ENDCASE.
       IF lv_total > 0.
         lv_share = <s>-count * 100 / lv_total.
@@ -2032,11 +2170,13 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
       lv_acol = <s>-color_hex.
       lv_card =
         '<div class="card" style="border-left-color:' && lv_acol && ';">' &&
-        '<div class="ttl">' && lcl_util=>html_escape( <s>-title ) &&
-        ' <span class="badge ' && lv_badge && '">' && <s>-light && '</span></div>' &&
-        '<div class="num">' && |{ <s>-count }| && '</div>' &&
-        '<div class="meta">' && |{ lv_share }| && '% · ' &&
-        lcl_util=>html_escape( <s>-message ) && '</div>' &&
+        '<div class="ttl">' && lv_area_ko &&
+        ' <span class="badge ' && <s>-light && '">' && lv_badge && '</span></div>' &&
+        '<div class="num">' && |{ <s>-count }| &&
+        '<span style="font-size:11px;color:#94a3b8;font-weight:400;"> 건 · ' &&
+        |{ lv_share }| && '%</span></div>' &&
+        '<div class="sub" title="' && lcl_util=>html_escape( lv_msg ) && '">' &&
+        lcl_util=>html_escape( lv_msg ) && '</div>' &&
         '<div class="barbg"><div class="barfg" style="width:' &&
         |{ lv_bar }| && '%;background:' && lv_acol && ';"></div></div>' &&
         '</div>'.
@@ -2050,33 +2190,34 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD build_topn_html.
-    DATA: lv_css   TYPE string,
-          lv_body  TYPE string,
-          lv_row   TYPE string,
-          lv_pct   TYPE i,
-          lv_max   TYPE i,
-          lv_key   TYPE string,
-          lv_col   TYPE char7,
-          lv_empty TYPE abap_bool.
+    DATA: lv_css     TYPE string,
+          lv_body    TYPE string,
+          lv_row     TYPE string,
+          lv_pct     TYPE i,
+          lv_max     TYPE i,
+          lv_key     TYPE string,
+          lv_col     TYPE char7,
+          lv_empty   TYPE abap_bool,
+          lv_area_ko TYPE char20.
 
     lv_css =
-      'body{margin:0;font-family:Arial,sans-serif;background:#0b1220;color:#e2e8f0;}' &&
-      '.wrap{padding:8px 12px;}' &&
-      '.head{display:flex;justify-content:space-between;margin-bottom:6px;}' &&
-      'h3{margin:0;font-size:14px;}' &&
-      '.hint{font-size:11px;color:#94a3b8;}' &&
-      '.area{margin-bottom:8px;}' &&
-      '.at{font-size:12px;font-weight:700;margin-bottom:4px;}' &&
+      'body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#0b1220;color:#e2e8f0;}' &&
+      '.wrap{padding:6px 10px;height:100%;box-sizing:border-box;}' &&
+      '.head{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;}' &&
+      'h3{margin:0;font-size:13px;}' &&
+      '.hint{font-size:10px;color:#94a3b8;}' &&
+      '.areas{display:flex;gap:8px;height:calc(100% - 22px);}' &&
+      '.area{flex:1;min-width:0;background:#111827;border-radius:6px;padding:6px 8px;}' &&
+      '.at{font-size:11px;font-weight:700;margin-bottom:4px;}' &&
       '.row{display:flex;align-items:center;margin:2px 0;}' &&
-      '.lab{width:180px;font-size:11px;overflow:hidden;text-overflow:ellipsis;' &&
-      'white-space:nowrap;}' &&
-      '.track{flex:1;height:12px;background:#1e293b;border-radius:3px;margin:0 8px;}' &&
-      '.fill{height:12px;border-radius:3px;}' &&
-      '.cnt{width:40px;text-align:right;font-size:11px;}'.
+      '.lab{width:42%;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}' &&
+      '.track{flex:1;height:10px;background:#1e293b;border-radius:3px;margin:0 6px;}' &&
+      '.fill{height:10px;border-radius:3px;}' &&
+      '.cnt{width:28px;text-align:right;font-size:10px;}'.
 
     lv_body =
-      '<div class="wrap"><div class="head"><h3>영역별 Top-N 집중도</h3>' &&
-      '<div class="hint">TOGGLE=시간추이 · 영역별 독립 스케일</div></div>'.
+      '<div class="wrap"><div class="head"><h3>영역별 Top-N (반복 원인)</h3>' &&
+      '<div class="hint">TOGGLE → 시간추이 · 영역별 독립 스케일</div></div><div class="areas">'.
 
     lv_empty = abap_true.
     LOOP AT mt_groups ASSIGNING FIELD-SYMBOL(<g>).
@@ -2084,17 +2225,20 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
       CASE <g>-area.
         WHEN c_area_sm37.
           lv_col = c_col_sm37.
+          lv_area_ko = 'SM37 잡명'.
         WHEN c_area_st22.
           lv_col = c_col_st22.
+          lv_area_ko = 'ST22 에러유형'.
         WHEN OTHERS.
           lv_col = c_col_sxi.
+          lv_area_ko = 'SXI 인터페이스'.
       ENDCASE.
       lv_max = <g>-maxc.
       IF lv_max <= 0.
         lv_max = 1.
       ENDIF.
       lv_body = lv_body && '<div class="area"><div class="at" style="color:' &&
-                lv_col && ';">' && <g>-area && '</div>'.
+                lv_col && ';">' && lv_area_ko && '</div>'.
       IF <g>-items IS INITIAL.
         lv_body = lv_body && '<div class="hint">에러 없음</div>'.
       ENDIF.
@@ -2118,7 +2262,7 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
     IF lv_empty = abap_true.
       lv_body = lv_body && '<div class="hint">표시할 차트 데이터가 없습니다.</div>'.
     ENDIF.
-    lv_body = lv_body && '</div>'.
+    lv_body = lv_body && '</div></div>'.
     rv_html =
       '<!DOCTYPE html><html><head><meta charset="utf-8"><style>' &&
       lv_css && '</style></head><body>' && lv_body && '</body></html>'.
@@ -2133,23 +2277,22 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
           lv_h     TYPE i,
           lv_first TYPE char20,
           lv_last  TYPE char20,
-          lv_n     TYPE i,
-          lv_title TYPE string.
+          lv_n     TYPE i.
 
     lv_css =
-      'body{margin:0;font-family:Arial,sans-serif;background:#0b1220;color:#e2e8f0;}' &&
-      '.wrap{padding:8px 12px;}' &&
-      '.head{display:flex;justify-content:space-between;margin-bottom:6px;}' &&
-      'h3{margin:0;font-size:14px;}' &&
-      '.hint{font-size:11px;color:#94a3b8;}' &&
-      '.chart{display:flex;align-items:flex-end;height:140px;gap:3px;' &&
-      'border-bottom:1px solid #334155;padding-bottom:4px;}' &&
-      '.col{flex:1;display:flex;flex-direction:column-reverse;align-items:stretch;}' &&
+      'body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#0b1220;color:#e2e8f0;}' &&
+      '.wrap{padding:6px 10px;}' &&
+      '.head{display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;}' &&
+      'h3{margin:0;font-size:13px;}' &&
+      '.hint{font-size:10px;color:#94a3b8;}' &&
+      '.chart{display:flex;align-items:flex-end;height:110px;gap:2px;' &&
+      'border-bottom:1px solid #334155;padding-bottom:2px;}' &&
+      '.col{flex:1;display:flex;flex-direction:column-reverse;align-items:stretch;min-width:2px;}' &&
       '.s{width:100%;}' &&
-      '.axis{display:flex;justify-content:space-between;font-size:10px;' &&
-      'color:#94a3b8;margin-top:4px;}' &&
-      '.leg span{margin-right:10px;font-size:11px;}' &&
-      '.dot{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:3px;}'.
+      '.axis{display:flex;justify-content:space-between;font-size:10px;color:#94a3b8;margin-top:2px;}' &&
+      '.leg{margin-bottom:2px;}' &&
+      '.leg span{margin-right:8px;font-size:10px;}' &&
+      '.dot{display:inline-block;width:7px;height:7px;border-radius:2px;margin-right:3px;}'.
 
     lv_n = lines( mt_buckets ).
     IF lv_n > 0.
@@ -2169,10 +2312,9 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
       lv_max = 1.
     ENDIF.
 
-    lv_title = '시간대별 추이'.
     lv_body =
-      '<div class="wrap"><div class="head"><h3>' && lv_title && '</h3>' &&
-      '<div class="hint">TOGGLE=Top-N · ' && lcl_util=>html_escape( mv_unit ) &&
+      '<div class="wrap"><div class="head"><h3>시간대별 추이</h3>' &&
+      '<div class="hint">TOGGLE → Top-N · ' && lcl_util=>html_escape( mv_unit ) &&
       '</div></div><div class="leg">' &&
       '<span><i class="dot" style="background:#26A69A;"></i>SM37</span>' &&
       '<span><i class="dot" style="background:#EF5350;"></i>ST22</span>' &&
@@ -2186,7 +2328,7 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
                ' ST22=' && |{ <b>-st22 }| &&
                ' SXI=' && |{ <b>-sxi }| && '">'.
       IF <b>-sxi > 0.
-        lv_h = <b>-sxi * 120 / lv_max.
+        lv_h = <b>-sxi * 100 / lv_max.
         IF lv_h = 0.
           lv_h = 1.
         ENDIF.
@@ -2194,7 +2336,7 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
                  'px;background:#FFA726;"></div>'.
       ENDIF.
       IF <b>-st22 > 0.
-        lv_h = <b>-st22 * 120 / lv_max.
+        lv_h = <b>-st22 * 100 / lv_max.
         IF lv_h = 0.
           lv_h = 1.
         ENDIF.
@@ -2202,7 +2344,7 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
                  'px;background:#EF5350;"></div>'.
       ENDIF.
       IF <b>-sm37 > 0.
-        lv_h = <b>-sm37 * 120 / lv_max.
+        lv_h = <b>-sm37 * 100 / lv_max.
         IF lv_h = 0.
           lv_h = 1.
         ENDIF.
@@ -2228,26 +2370,29 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
           lv_body   TYPE string,
           lv_card   TYPE string,
           lv_health TYPE char20,
+          lv_hko    TYPE char20,
           lv_total  TYPE i,
           lv_hdr    TYPE string,
-          lv_badge  TYPE string,
+          lv_badge  TYPE char10,
           lv_share  TYPE p DECIMALS 1,
           lv_bar    TYPE i,
           lv_persp  TYPE string,
-          lv_auto   TYPE string.
+          lv_auto   TYPE string,
+          lv_msg    TYPE char60.
 
     lv_health = lcl_util=>health_label( mt_status ).
+    lv_hko = lcl_util=>health_label_ko( lv_health ).
     LOOP AT mt_status ASSIGNING FIELD-SYMBOL(<t>).
       lv_total = lv_total + <t>-count.
     ENDLOOP.
 
     CASE lv_health.
       WHEN 'CRITICAL'.
-        lv_hdr = 'linear-gradient(90deg,#7f1d1d,#b91c1c)'.
+        lv_hdr = '#b91c1c'.
       WHEN 'WARNING'.
-        lv_hdr = 'linear-gradient(90deg,#78350f,#d97706)'.
+        lv_hdr = '#d97706'.
       WHEN OTHERS.
-        lv_hdr = 'linear-gradient(90deg,#064e3b,#0f766e)'.
+        lv_hdr = '#0f766e'.
     ENDCASE.
 
     IF mv_persp = c_persp_tim.
@@ -2262,39 +2407,39 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
     ENDIF.
 
     lv_css =
-      'body{margin:0;font-family:Arial,sans-serif;background:#0f172a;color:#e2e8f0;}' &&
-      '.hdr{padding:14px 16px;background:' && lv_hdr && ';}' &&
-      '.hl{font-size:20px;font-weight:700;}' &&
-      '.sub{font-size:12px;opacity:.9;margin-top:4px;}' &&
-      '.wrap{padding:12px 16px;}' &&
-      '.card{background:#1e293b;border-radius:8px;padding:10px 12px;margin:8px 0;' &&
-      'border-left:5px solid #64748b;}' &&
+      'body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#0f172a;color:#e2e8f0;}' &&
+      '.hdr{padding:10px 12px;background:' && lv_hdr && ';}' &&
+      '.hl{font-size:18px;font-weight:700;}' &&
+      '.sub{font-size:12px;opacity:.95;margin-top:2px;}' &&
+      '.wrap{padding:8px 12px;}' &&
+      '.card{background:#1e293b;border-radius:6px;padding:8px 10px;margin:6px 0;' &&
+      'border-left:4px solid #64748b;}' &&
       '.row{display:flex;justify-content:space-between;align-items:center;}' &&
-      '.num{font-size:20px;font-weight:700;}' &&
-      '.badge{font-size:10px;padding:2px 8px;border-radius:8px;}' &&
+      '.num{font-size:18px;font-weight:700;}' &&
+      '.badge{font-size:10px;padding:1px 6px;border-radius:8px;}' &&
       '.R{background:#7f1d1d;color:#fecaca;}' &&
       '.Y{background:#78350f;color:#fde68a;}' &&
       '.G{background:#14532d;color:#bbf7d0;}' &&
-      '.barbg{height:6px;background:#334155;border-radius:3px;margin-top:6px;}' &&
-      '.barfg{height:6px;border-radius:3px;}' &&
+      '.barbg{height:4px;background:#334155;border-radius:2px;margin-top:4px;}' &&
+      '.barfg{height:4px;border-radius:2px;}' &&
       '.chips span{display:inline-block;background:#1e293b;border:1px solid #334155;' &&
-      'border-radius:10px;padding:2px 8px;margin:4px 4px 0 0;font-size:11px;}' &&
-      '.ft{margin-top:12px;font-size:11px;color:#94a3b8;}'.
+      'border-radius:8px;padding:2px 6px;margin:3px 3px 0 0;font-size:10px;}' &&
+      '.ft{margin-top:8px;font-size:11px;color:#cbd5e1;}' &&
+      '.msg{font-size:10px;color:#94a3b8;margin-top:2px;white-space:nowrap;' &&
+      'overflow:hidden;text-overflow:ellipsis;}'.
 
     lv_body =
-      '<div class="hdr"><div class="hl">' && lcl_util=>html_escape( lv_health ) &&
-      '</div><div class="sub">총 에러 ' && |{ lv_total }| && '건</div></div>' &&
-      '<div class="wrap">'.
+      '<div class="hdr"><div class="hl">' && lcl_util=>html_escape( lv_hko ) &&
+      ' · 총 ' && |{ lv_total }| && '건</div>' &&
+      '<div class="sub">영역별 에러 요약 (읽기 전용)</div></div><div class="wrap">'.
 
     LOOP AT mt_status ASSIGNING FIELD-SYMBOL(<s>).
-      CASE <s>-light.
-        WHEN 'R'.
-          lv_badge = 'R'.
-        WHEN 'Y'.
-          lv_badge = 'Y'.
-        WHEN OTHERS.
-          lv_badge = 'G'.
-      ENDCASE.
+      lv_badge = lcl_util=>light_label_ko( <s>-light ).
+      lv_msg = lcl_util=>short_status(
+        iv_text = <s>-message
+        iv_count = <s>-count
+        iv_error = <s>-error
+        iv_auth_ok = <s>-auth_ok ).
       IF lv_total > 0.
         lv_share = <s>-count * 100 / lv_total.
         lv_bar = <s>-count * 100 / lv_total.
@@ -2305,24 +2450,23 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
       lv_card =
         '<div class="card" style="border-left-color:' && <s>-color_hex && ';">' &&
         '<div class="row"><div>' && lcl_util=>html_escape( <s>-title ) &&
-        '</div><span class="badge ' && lv_badge && '">' && <s>-light &&
+        '</div><span class="badge ' && <s>-light && '">' && lv_badge &&
         '</span></div>' &&
         '<div class="row"><div class="num">' && |{ <s>-count }| &&
         '</div><div>' && |{ lv_share }| && '%</div></div>' &&
         '<div class="barbg"><div class="barfg" style="width:' && |{ lv_bar }| &&
         '%;background:' && <s>-color_hex && ';"></div></div>' &&
-        '<div style="font-size:11px;color:#94a3b8;margin-top:4px;">' &&
-        lcl_util=>html_escape( <s>-message ) && '</div></div>'.
+        '<div class="msg">' && lcl_util=>html_escape( lv_msg ) && '</div></div>'.
       lv_body = lv_body && lv_card.
     ENDLOOP.
 
     lv_body = lv_body &&
       '<div class="chips">' &&
-      '<span>조회시각 ' && |{ sy-datum DATE = USER } { sy-uzeit TIME = USER }| && '</span>' &&
-      '<span>소요 ' && |{ mv_runtime }| && 'ms</span>' &&
-      '<span>관점 ' && lv_persp && '</span>' &&
-      '<span>자동갱신 ' && lv_auto && '</span></div>' &&
-      '<div class="ft">읽기 전용 · 창 닫기(X)</div></div>'.
+      '<span>' && |{ sy-datum DATE = USER } { sy-uzeit TIME = USER }| && '</span>' &&
+      '<span>' && |{ mv_runtime }| && 'ms</span>' &&
+      '<span>' && lv_persp && '</span>' &&
+      '<span>자동 ' && lv_auto && '</span></div>' &&
+      '<div class="ft">우상단 X 로 닫기 · 읽기 전용</div></div>'.
 
     rv_html =
       '<!DOCTYPE html><html><head><meta charset="utf-8"><style>' &&
@@ -2334,30 +2478,30 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
           lv_body TYPE string.
 
     lv_css =
-      'body{margin:0;font-family:Arial,sans-serif;background:#0f172a;color:#e2e8f0;}' &&
-      '.hdr{padding:14px 16px;background:linear-gradient(90deg,#1e3a5f,#0ea5e9);}' &&
-      '.hl{font-size:18px;font-weight:700;}' &&
-      '.wrap{padding:12px 16px;}' &&
-      '.step{background:#1e293b;border-radius:8px;padding:10px 12px;margin:8px 0;}' &&
-      '.n{display:inline-block;width:22px;height:22px;border-radius:50%;' &&
+      'body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#0f172a;color:#e2e8f0;}' &&
+      '.hdr{padding:10px 12px;background:#0284c7;}' &&
+      '.hl{font-size:16px;font-weight:700;}' &&
+      '.wrap{padding:8px 12px;}' &&
+      '.step{background:#1e293b;border-radius:6px;padding:7px 10px;margin:5px 0;font-size:12px;}' &&
+      '.n{display:inline-block;width:18px;height:18px;border-radius:50%;' &&
       'background:#0ea5e9;color:#0f172a;text-align:center;font-weight:700;' &&
-      'margin-right:8px;}' &&
-      '.cmd{display:inline-block;background:#334155;border-radius:4px;' &&
-      'padding:1px 6px;font-family:Consolas,monospace;font-size:11px;margin:0 2px;}' &&
-      '.note{background:#422006;border:1px solid #b45309;border-radius:8px;' &&
-      'padding:10px;margin-top:12px;font-size:12px;color:#fde68a;}' &&
-      '.ft{margin-top:12px;font-size:11px;color:#94a3b8;}'.
+      'margin-right:6px;font-size:11px;line-height:18px;}' &&
+      '.cmd{display:inline-block;background:#334155;border-radius:3px;' &&
+      'padding:0 5px;font-family:Consolas,monospace;font-size:11px;margin:0 2px;}' &&
+      '.note{background:#422006;border:1px solid #b45309;border-radius:6px;' &&
+      'padding:8px;margin-top:8px;font-size:11px;color:#fde68a;}' &&
+      '.ft{margin-top:8px;font-size:11px;color:#cbd5e1;}'.
 
     lv_body =
-      '<div class="hdr"><div class="hl">운영 모니터 도움말</div></div>' &&
+      '<div class="hdr"><div class="hl">사용 안내</div></div>' &&
       '<div class="wrap">' &&
-      '<div class="step"><span class="n">1</span>선택화면에서 기간/영역을 지정한 뒤 실행(F8)합니다.</div>' &&
-      '<div class="step"><span class="n">2</span><span class="cmd">REFRESH</span>로 동일 조건 재조회합니다.</div>' &&
-      '<div class="step"><span class="n">3</span><span class="cmd">TOGGLE</span>로 Top-N ↔ 시간추이 차트를 전환합니다.</div>' &&
-      '<div class="step"><span class="n">4</span><span class="cmd">STATS</span>로 KPI 요약 카드를 팝업합니다.</div>' &&
-      '<div class="step"><span class="n">5</span>ALV 행 더블클릭/핫스팟으로 표준 상세(표시 전용)로 이동합니다.</div>' &&
-      '<div class="note">본 프로그램은 읽기 전용입니다. 잡 재실행·메시지 재전송·DML/COMMIT/Enqueue는 제공하지 않습니다.</div>' &&
-      '<div class="ft">읽기 전용 · 창 닫기(X)</div></div>'.
+      '<div class="step"><span class="n">1</span>기간·영역 지정 후 F8 실행</div>' &&
+      '<div class="step"><span class="n">2</span><span class="cmd">REFRESH</span> 동일 조건 재조회</div>' &&
+      '<div class="step"><span class="n">3</span><span class="cmd">TOGGLE</span> Top-N ↔ 시간추이</div>' &&
+      '<div class="step"><span class="n">4</span><span class="cmd">STATS</span> KPI 요약 팝업</div>' &&
+      '<div class="step"><span class="n">5</span>ALV 더블클릭 → 표준 상세(표시 전용)</div>' &&
+      '<div class="note">읽기 전용: 재실행/재전송/DML/COMMIT/Enqueue 없음</div>' &&
+      '<div class="ft">우상단 X 로 닫기</div></div>'.
 
     rv_html =
       '<!DOCTYPE html><html><head><meta charset="utf-8"><style>' &&
@@ -2377,10 +2521,10 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
 
     CREATE OBJECT co_dlg
       EXPORTING
-        width   = 520
-        height  = 420
-        top     = 40
-        left    = 40
+        width   = 460
+        height  = 340
+        top     = 60
+        left    = 80
         caption = iv_title.
     CREATE OBJECT co_html
       EXPORTING
