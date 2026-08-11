@@ -103,6 +103,8 @@ TYPES: BEGIN OF ty_dump,
          uzeit      TYPE sy-uzeit,
          uname      TYPE sy-uname,
          ahost      TYPE snap_beg-ahost,
+         modno      TYPE snap-modno,
+         mandt      TYPE snap-mandt,
          rt_error   TYPE char30,
          progname   TYPE programm,
          include    TYPE programm,
@@ -651,6 +653,27 @@ CLASS lcl_dp_dump IMPLEMENTATION.
     IF sy-subrc = 0.
       es_row-line = <v>.
     ENDIF.
+    ASSIGN COMPONENT 'MODNO' OF STRUCTURE is_info TO <v>.
+    IF sy-subrc = 0.
+      es_row-modno = <v>.
+    ELSE.
+      ASSIGN COMPONENT 'SYMODNO' OF STRUCTURE is_info TO <v>.
+      IF sy-subrc = 0.
+        es_row-modno = <v>.
+      ENDIF.
+    ENDIF.
+    ASSIGN COMPONENT 'MANDT' OF STRUCTURE is_info TO <v>.
+    IF sy-subrc = 0.
+      es_row-mandt = <v>.
+    ELSE.
+      ASSIGN COMPONENT 'SYMANDT' OF STRUCTURE is_info TO <v>.
+      IF sy-subrc = 0.
+        es_row-mandt = <v>.
+      ENDIF.
+    ENDIF.
+    IF es_row-mandt IS INITIAL.
+      es_row-mandt = sy-mandt.
+    ENDIF.
     es_row-line_color = c_alv_st22.
     IF es_row-rt_error IS INITIAL.
       es_row-rt_error = 'SHORTDUMP'.
@@ -746,20 +769,22 @@ CLASS lcl_dp_dump IMPLEMENTATION.
              uzeit TYPE snap-uzeit,
              uname TYPE snap-uname,
              ahost TYPE snap-ahost,
+             modno TYPE snap-modno,
+             mandt TYPE snap-mandt,
            END OF ty_snap.
     DATA: lt_snap TYPE STANDARD TABLE OF ty_snap,
           ls_row  TYPE ty_dump.
 
     CLEAR lt_snap.
     IF is_sel-frdat = is_sel-todat.
-      SELECT datum uzeit uname ahost
+      SELECT datum uzeit uname ahost modno mandt
         FROM snap
         INTO CORRESPONDING FIELDS OF TABLE lt_snap
         WHERE seqno = '000'
           AND datum = is_sel-frdat
           AND uzeit BETWEEN is_sel-frtim AND is_sel-totim.
     ELSE.
-      SELECT datum uzeit uname ahost
+      SELECT datum uzeit uname ahost modno mandt
         FROM snap
         INTO CORRESPONDING FIELDS OF TABLE lt_snap
         WHERE seqno = '000'
@@ -774,6 +799,11 @@ CLASS lcl_dp_dump IMPLEMENTATION.
       ls_row-uzeit      = <s>-uzeit.
       ls_row-uname      = <s>-uname.
       ls_row-ahost      = <s>-ahost.
+      ls_row-modno      = <s>-modno.
+      ls_row-mandt      = <s>-mandt.
+      IF ls_row-mandt IS INITIAL.
+        ls_row-mandt = sy-mandt.
+      ENDIF.
       ls_row-rt_error   = 'SHORTDUMP'.
       ls_row-line_color = c_alv_st22.
       append_filtered( is_sel = is_sel is_row = ls_row ).
@@ -1311,8 +1341,9 @@ CLASS lcl_navigator DEFINITION FINAL.
   PUBLIC SECTION.
     CLASS-METHODS to_batch
       IMPORTING is_row TYPE ty_batch.
-    CLASS-METHODS to_dump
-      IMPORTING is_row TYPE ty_dump.
+    CLASS-METHODS build_dump_detail_html
+      IMPORTING is_row TYPE ty_dump
+      RETURNING VALUE(rv_html) TYPE string.
     CLASS-METHODS to_iface
       IMPORTING is_row TYPE ty_iface.
 ENDCLASS.
@@ -1341,9 +1372,161 @@ CLASS lcl_navigator IMPLEMENTATION.
     ENDIF.
   ENDMETHOD.
 
-  METHOD to_dump.
-    SET PARAMETER ID 'BDC' FIELD space.
-    CALL TRANSACTION 'ST22' AND SKIP FIRST SCREEN. "#EC CI_CALLTA
+  METHOD build_dump_detail_html.
+    DATA: lt_ft    TYPE rsdump_ft_it,
+          lv_modno TYPE snap-modno,
+          lv_mandt TYPE snap-mandt,
+          lv_css   TYPE string,
+          lv_body  TYPE string,
+          lv_pre   TYPE string,
+          lv_line  TYPE string,
+          lv_id    TYPE string,
+          lv_val   TYPE string,
+          lv_cnt   TYPE i,
+          lv_ok    TYPE abap_bool,
+          lv_ts    TYPE string.
+
+    lv_modno = is_row-modno.
+    IF lv_modno IS INITIAL.
+      lv_modno = '00'.
+    ENDIF.
+    lv_mandt = is_row-mandt.
+    IF lv_mandt IS INITIAL.
+      lv_mandt = sy-mandt.
+    ENDIF.
+
+    " 표준 읽기 FM — 덤프 상세(Free Text) 조회
+    TRY.
+        CALL FUNCTION 'RS_ST22_GET_FT'
+          EXPORTING
+            datum = is_row-datum
+            uzeit = is_row-uzeit
+            uname = is_row-uname
+            ahost = is_row-ahost
+            modno = lv_modno
+            mandt = lv_mandt
+          IMPORTING
+            ft    = lt_ft
+          EXCEPTIONS
+            OTHERS = 1.
+        IF sy-subrc = 0 AND lt_ft IS NOT INITIAL.
+          lv_ok = abap_true.
+        ENDIF.
+      CATCH cx_sy_dyn_call_param_not_found
+            cx_sy_dyn_call_illegal_type
+            cx_sy_dyn_call_illegal_func.
+        CLEAR lt_ft.
+    ENDTRY.
+
+    " 일부 시스템: FT 가 TABLES
+    IF lv_ok = abap_false.
+      TRY.
+          CALL FUNCTION 'RS_ST22_GET_FT'
+            EXPORTING
+              datum = is_row-datum
+              uzeit = is_row-uzeit
+              uname = is_row-uname
+              ahost = is_row-ahost
+              modno = lv_modno
+              mandt = lv_mandt
+            TABLES
+              ft    = lt_ft
+            EXCEPTIONS
+              OTHERS = 1.
+          IF sy-subrc = 0 AND lt_ft IS NOT INITIAL.
+            lv_ok = abap_true.
+          ENDIF.
+        CATCH cx_sy_dyn_call_param_not_found
+              cx_sy_dyn_call_illegal_type.
+          CLEAR lt_ft.
+      ENDTRY.
+    ENDIF.
+
+    LOOP AT lt_ft ASSIGNING FIELD-SYMBOL(<ft>).
+      lv_cnt = lv_cnt + 1.
+      IF lv_cnt > 800.
+        lv_pre = lv_pre && '... (이하 생략)' && cl_abap_char_utilities=>cr_lf.
+        EXIT.
+      ENDIF.
+      CLEAR: lv_id, lv_val.
+      ASSIGN COMPONENT 'ID' OF STRUCTURE <ft> TO FIELD-SYMBOL(<c>).
+      IF sy-subrc = 0.
+        lv_id = <c>.
+      ELSE.
+        ASSIGN COMPONENT 'FTID' OF STRUCTURE <ft> TO <c>.
+        IF sy-subrc = 0.
+          lv_id = <c>.
+        ENDIF.
+      ENDIF.
+      ASSIGN COMPONENT 'VALUE' OF STRUCTURE <ft> TO <c>.
+      IF sy-subrc = 0.
+        lv_val = <c>.
+      ELSE.
+        ASSIGN COMPONENT 'FTVALUE' OF STRUCTURE <ft> TO <c>.
+        IF sy-subrc = 0.
+          lv_val = <c>.
+        ELSE.
+          ASSIGN COMPONENT 'CONT' OF STRUCTURE <ft> TO <c>.
+          IF sy-subrc = 0.
+            lv_val = <c>.
+          ENDIF.
+        ENDIF.
+      ENDIF.
+      lv_line = lcl_util=>html_escape( lv_id ).
+      IF lv_val IS NOT INITIAL.
+        IF lv_line IS NOT INITIAL.
+          lv_line = lv_line && '  '.
+        ENDIF.
+        lv_line = lv_line && lcl_util=>html_escape( lv_val ).
+      ENDIF.
+      IF lv_line IS NOT INITIAL.
+        lv_pre = lv_pre && lv_line && cl_abap_char_utilities=>cr_lf.
+      ENDIF.
+    ENDLOOP.
+
+    lv_ts = |{ is_row-datum DATE = USER } { is_row-uzeit TIME = USER }|.
+
+    lv_css =
+      'body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#fafafa;color:#212121;}' &&
+      '.hdr{padding:10px 12px;background:#c62828;color:#fff;}' &&
+      '.hl{font-size:16px;font-weight:700;}' &&
+      '.sub{font-size:12px;opacity:.95;margin-top:3px;}' &&
+      '.meta{padding:8px 12px;background:#eeeeee;font-size:12px;}' &&
+      '.meta b{display:inline-block;min-width:70px;color:#616161;}' &&
+      '.wrap{padding:8px 12px;}' &&
+      'pre{margin:0;padding:10px;background:#fff;border:1px solid #bdbdbd;' &&
+      'border-radius:4px;font-family:Consolas,monospace;font-size:11px;' &&
+      'white-space:pre-wrap;word-break:break-all;max-height:360px;overflow:auto;}' &&
+      '.ft{margin-top:8px;font-size:11px;color:#757575;}' &&
+      '.warn{padding:10px;background:#fff3e0;border:1px solid #ffb74d;border-radius:4px;}'.
+
+    lv_body =
+      '<div class="hdr"><div class="hl">' &&
+      lcl_util=>html_escape( is_row-rt_error ) &&
+      '</div><div class="sub">Runtime Error 상세 (읽기 전용)</div></div>' &&
+      '<div class="meta">' &&
+      '<div><b>일시</b> ' && lcl_util=>html_escape( lv_ts ) && '</div>' &&
+      '<div><b>사용자</b> ' && lcl_util=>html_escape( is_row-uname ) && '</div>' &&
+      '<div><b>서버</b> ' && lcl_util=>html_escape( is_row-ahost ) && '</div>' &&
+      '<div><b>프로그램</b> ' && lcl_util=>html_escape( is_row-progname ) && '</div>' &&
+      '<div><b>Include</b> ' && lcl_util=>html_escape( is_row-include ) &&
+      ' / Line ' && |{ is_row-line }| && '</div></div><div class="wrap">'.
+
+    IF lv_ok = abap_true AND lv_pre IS NOT INITIAL.
+      lv_body = lv_body && '<pre>' && lv_pre && '</pre>'.
+    ELSE.
+      lv_body = lv_body &&
+        '<div class="warn">상세 텍스트(RS_ST22_GET_FT)를 읽지 못했습니다. ' &&
+        '키: ' && lcl_util=>html_escape( lv_ts ) && ' / ' &&
+        lcl_util=>html_escape( is_row-uname ) && ' / ' &&
+        lcl_util=>html_escape( is_row-ahost ) && '</div>'.
+    ENDIF.
+    lv_body = lv_body &&
+      '<div class="ft">우상단 X 로 닫기 · 읽기 전용 (ST22 트랜잭션 미호출)</div></div>'.
+
+    rv_html =
+      '<!DOCTYPE html><html><head><meta charset="utf-8"><style>' &&
+      lv_css && '</style></head><body>' && lv_body && '</body></html>'.
   ENDMETHOD.
 
   METHOD to_iface.
@@ -1374,11 +1557,14 @@ CLASS lcl_ui_dashboard DEFINITION FINAL.
     METHODS toggle_perspective.
     METHODS show_stats.
     METHODS show_help.
+    METHODS show_dump_detail IMPORTING is_dump TYPE ty_dump.
     METHODS handle_user_command IMPORTING iv_ucomm TYPE sy-ucomm.
     METHODS free.
     METHODS on_stats_close FOR EVENT close OF cl_gui_dialogbox_container
       IMPORTING sender.
     METHODS on_help_close FOR EVENT close OF cl_gui_dialogbox_container
+      IMPORTING sender.
+    METHODS on_dump_close FOR EVENT close OF cl_gui_dialogbox_container
       IMPORTING sender.
     METHODS on_double_click_batch FOR EVENT double_click OF cl_gui_alv_grid
       IMPORTING e_row e_column.
@@ -1412,6 +1598,8 @@ CLASS lcl_ui_dashboard DEFINITION FINAL.
           mo_stats_html TYPE REF TO cl_gui_html_viewer,
           mo_help_dlg   TYPE REF TO cl_gui_dialogbox_container,
           mo_help_html  TYPE REF TO cl_gui_html_viewer,
+          mo_dump_dlg   TYPE REF TO cl_gui_dialogbox_container,
+          mo_dump_html  TYPE REF TO cl_gui_html_viewer,
           mo_timer      TYPE REF TO cl_gui_timer,
           ms_sel        TYPE ty_sel,
           mt_status     TYPE ty_area_status_tab,
@@ -1448,8 +1636,10 @@ CLASS lcl_ui_dashboard DEFINITION FINAL.
         iv_html   TYPE string.
     METHODS show_html_dialog
       IMPORTING
-        iv_title TYPE char40
-        iv_html  TYPE string
+        iv_title  TYPE char40
+        iv_html   TYPE string
+        iv_width  TYPE i DEFAULT 460
+        iv_height TYPE i DEFAULT 340
       CHANGING
         co_dlg   TYPE REF TO cl_gui_dialogbox_container
         co_html  TYPE REF TO cl_gui_html_viewer.
@@ -1690,6 +1880,12 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
     ENDIF.
     IF mo_help_dlg IS BOUND.
       FREE mo_help_dlg.
+    ENDIF.
+    IF mo_dump_html IS BOUND.
+      FREE mo_dump_html.
+    ENDIF.
+    IF mo_dump_dlg IS BOUND.
+      FREE mo_dump_dlg.
     ENDIF.
   ENDMETHOD.
 
@@ -2123,7 +2319,7 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
     CHECK lv_idx > 0.
     READ TABLE mt_dump INTO ls_row INDEX lv_idx.
     CHECK sy-subrc = 0.
-    lcl_navigator=>to_dump( ls_row ).
+    show_dump_detail( ls_row ).
   ENDMETHOD.
 
   METHOD on_hotspot_dump.
@@ -2133,7 +2329,7 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
     CHECK lv_idx > 0.
     READ TABLE mt_dump INTO ls_row INDEX lv_idx.
     CHECK sy-subrc = 0.
-    lcl_navigator=>to_dump( ls_row ).
+    show_dump_detail( ls_row ).
   ENDMETHOD.
 
   METHOD on_double_click_iface.
@@ -2654,7 +2850,8 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
       '<div class="step"><span class="n">2</span><span class="cmd">REFRESH</span> 동일 조건 재조회</div>' &&
       '<div class="step"><span class="n">3</span><span class="cmd">TOGGLE</span> Top-N ↔ 시간추이</div>' &&
       '<div class="step"><span class="n">4</span><span class="cmd">STATS</span> KPI 요약 팝업</div>' &&
-      '<div class="step"><span class="n">5</span>ALV 더블클릭 → 표준 상세(표시 전용)</div>' &&
+      '<div class="step"><span class="n">5</span>SM37/SXI 더블클릭 → 표준 상세(표시 전용)</div>' &&
+      '<div class="step"><span class="n">6</span>ST22 더블클릭 → 런타임 에러 상세 팝업(ST22 미호출)</div>' &&
       '<div class="note">읽기 전용: 재실행/재전송/DML/COMMIT/Enqueue 없음</div>' &&
       '<div class="ft">우상단 X 로 닫기</div></div>'.
 
@@ -2676,9 +2873,9 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
 
     CREATE OBJECT co_dlg
       EXPORTING
-        width   = 460
-        height  = 340
-        top     = 60
+        width   = iv_width
+        height  = iv_height
+        top     = 40
         left    = 80
         caption = iv_title.
     CREATE OBJECT co_html
@@ -2710,6 +2907,21 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
     SET HANDLER on_help_close FOR mo_help_dlg ACTIVATION 'X'.
   ENDMETHOD.
 
+  METHOD show_dump_detail.
+    DATA lv_html TYPE string.
+    lv_html = lcl_navigator=>build_dump_detail_html( is_dump ).
+    show_html_dialog(
+      EXPORTING
+        iv_title  = 'Runtime Error Detail'
+        iv_html   = lv_html
+        iv_width  = 920
+        iv_height = 620
+      CHANGING
+        co_dlg  = mo_dump_dlg
+        co_html = mo_dump_html ).
+    SET HANDLER on_dump_close FOR mo_dump_dlg ACTIVATION 'X'.
+  ENDMETHOD.
+
   METHOD on_stats_close.
     " Dialogbox X는 CLOSE만 올리고 자동 소멸하지 않음 → sender->free 필요
     IF mo_stats_html IS BOUND.
@@ -2732,6 +2944,18 @@ CLASS lcl_ui_dashboard IMPLEMENTATION.
       sender->free( EXCEPTIONS OTHERS = 1 ).
     ENDIF.
     CLEAR mo_help_dlg.
+    cl_gui_cfw=>flush( EXCEPTIONS OTHERS = 1 ).
+  ENDMETHOD.
+
+  METHOD on_dump_close.
+    IF mo_dump_html IS BOUND.
+      mo_dump_html->free( EXCEPTIONS OTHERS = 1 ).
+      CLEAR mo_dump_html.
+    ENDIF.
+    IF sender IS BOUND.
+      sender->free( EXCEPTIONS OTHERS = 1 ).
+    ENDIF.
+    CLEAR mo_dump_dlg.
     cl_gui_cfw=>flush( EXCEPTIONS OTHERS = 1 ).
   ENDMETHOD.
 ENDCLASS.
