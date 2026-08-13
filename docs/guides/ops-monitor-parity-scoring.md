@@ -152,3 +152,6 @@ L2는 설계서 FR-08(ALV 전체 표준기능)과 **의도적으로 다를 수 �
 8. “사용자가 그만둔 시점”은 기록하되 점수에 반영하지 않는다.
 
 템플릿: [`docs/templates/ops-monitor-parity-scorecard.md`](../templates/ops-monitor-parity-scorecard.md)
+
+질문 수에 따른 향상 곡선 예시:
+[`docs/report/parity-score-evolution-vs-Q-2026-08.md`](../report/parity-score-evolution-vs-Q-2026-08.md)
