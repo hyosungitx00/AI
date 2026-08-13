@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<title>논의 정리 — Cursor × ABAP</title>
+<style>
+  :root { --navy:#0B1F3A; --muted:#5a5a5a; --bg:#f2f5f8; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:"Malgun Gothic","Apple SD Gothic Neo",sans-serif; background:#1a1a1a; color:#1a1a1a; }
+  .deck { max-width:1100px; margin:0 auto; padding:24px; }
+  .slide { background:var(--bg); border-radius:10px; padding:36px 40px; margin:0 0 20px; min-height:420px; page-break-after:always; }
+  .slide.cover { background:var(--navy); color:#fff; display:flex; flex-direction:column; justify-content:center; }
+  h1 { font-size:28px; margin:0 0 12px; color:var(--navy); }
+  .cover h1 { color:#fff; font-size:32px; }
+  .sub { color:#b8c8d8; font-size:16px; line-height:1.5; }
+  h2 { font-size:22px; margin:0 0 16px; color:var(--navy); border-bottom:2px solid #1f6f8b; padding-bottom:8px; }
+  ul { margin:0; padding-left:1.2em; line-height:1.55; font-size:16px; }
+  li { margin:6px 0; }
+  table { width:100%; border-collapse:collapse; margin-top:8px; font-size:14px; }
+  th, td { border:1px solid #c5d0da; padding:8px 10px; text-align:left; }
+  th { background:var(--navy); color:#fff; }
+  tr:nth-child(even) td { background:#e8eef3; }
+  .note { margin-top:14px; font-size:13px; color:var(--muted); }
+  .pager { color:var(--muted); font-size:12px; margin-top:18px; }
+  @media print { body{background:#fff;} .slide{box-shadow:none; margin:0; border-radius:0;} }
+</style>
+</head>
+<body>
+<div class="deck">
+
+<section class="slide cover">
+  <h1>지금까지 논의한 내용 정리</h1>
+  <p class="sub">질문 집계 → A/B 세션 비교 → 채점 방식 → Hard Gate 보정<br/>(기승전결보다, 대화가 진행된 순서대로)</p>
+</section>
+
+<section class="slide">
+  <h2>오늘 정리하는 흐름</h2>
+  <ul>
+    <li>① 이 AI 폴더에서 무엇을 물었나</li>
+    <li>② 집계 범위 — 어떤 세션까지 셀 수 있었나</li>
+    <li>③ Session A와 B의 관계 (Skills → 재현)</li>
+    <li>④ ‘만족할 때까지 질문 수’ / DoD의 한계</li>
+    <li>⑤ Parity 채점표로 품질을 다시 잼</li>
+    <li>⑥ 질문 수에 따른 점수 향상</li>
+    <li>⑦ Hard Gate — 에러·미동작이면 PASS 불가</li>
+    <li>⑧ 일반화 추정과 한계</li>
+  </ul>
+  <p class="pager">2</p>
+</section>
+
+<section class="slide">
+  <h2>① 주로 한 질문 유형</h2>
+  <ul>
+    <li>SE38 붙여넣기용 전체/부분 소스</li>
+    <li>컴파일·활성화 오류 수정</li>
+    <li>UX·차트·레이아웃 다듬기</li>
+    <li>실기 증상 (빈화면, 팝업 X, ST22, 더블클릭)</li>
+    <li>Selection Screen / Dynpro 가이드</li>
+    <li>후반: 질문 집계·A/B 비교·채점 논의</li>
+  </ul>
+  <p class="pager">3</p>
+</section>
+
+<section class="slide">
+  <h2>① 질문 개수 (접근 가능 2세션)</h2>
+  <table>
+    <tr><th>항목</th><th>개수</th><th>비고</th></tr>
+    <tr><td>총 질문 (메타 제외)</td><td>약 124~126</td><td>요약/집계 질문 제외</td></tr>
+    <tr><td>오류 관련 (중복 제거)</td><td>23</td><td>같은 오류 재보고=1</td></tr>
+    <tr><td>단순 기능 수정 (중복 제거)</td><td>13~15</td><td>UX·컬럼·색·팝업 등</td></tr>
+  </table>
+  <p class="note">통짜 소스 / 계속 / 발표자료는 총질문에는 포함, 오류·기능수정 버킷에는 제외</p>
+  <p class="pager">4</p>
+</section>
+
+<section class="slide">
+  <h2>② 집계 범위</h2>
+  <ul>
+    <li>포함: Awesome skills automation + 통합 운영 모니터링 대시보드</li>
+    <li>UI에 ~5개 세션이 보여도, 전사가 열린 것은 위 2개</li>
+    <li>SELECT-OPTIONS 세션 등은 관련 있으나 접근 불가로 미포함</li>
+    <li>→ “폴더 전체 과거”가 아니라 “지금 읽을 수 있는 대화” 기준</li>
+  </ul>
+  <p class="pager">5</p>
+</section>
+
+<section class="slide">
+  <h2>③ A → Skills → B</h2>
+  <table>
+    <tr><th></th><th>A Awesome skills</th><th>B 통합 운영 모니터</th></tr>
+    <tr><td>한 일</td><td>장기 구현 + 오류/UX 루프</td><td>설계서+Skills Greenfield 재구현</td></tr>
+    <tr><td>끝에</td><td>Preflight·UX·Intake·Delivery</td><td>같은 규칙으로 재현</td></tr>
+    <tr><td>공정 Q</td><td>≈63</td><td>≈16</td></tr>
+    <tr><td>E_compile</td><td>~18+</td><td>2</td></tr>
+  </table>
+  <p class="note">A에서 겪은 오류·취향을 Skill로 고착 → B에서 적용</p>
+  <p class="pager">6</p>
+</section>
+
+<section class="slide">
+  <h2>③ 추가된 Skills (요약)</h2>
+  <ul>
+    <li>Rules: 읽기전용 · SE38 붙여넣기 · 선언+구현 동시</li>
+    <li>Preflight P1~P10: 선언누락, ECC fcode, CSS {}, 타입…</li>
+    <li>Ops Monitor UX: HTML 차트/팝업, 영역색, ALV 최소 툴바</li>
+    <li>Intake: 모호 UX를 ≤8 선택지로 한 번 계약</li>
+    <li>B에 남은 마찰: MANDT/WRITE, 부분붙여넣기, Dynpro, 팝업X, ST22 공백…</li>
+  </ul>
+  <p class="pager">7</p>
+</section>
+
+<section class="slide">
+  <h2>④ 객관성 문제</h2>
+  <ul>
+    <li>기존: 만족하면 중단 + 질문 개수 → 주관적</li>
+    <li>DoD도 내부 체크리스트이지 외부 공인 지표 아님</li>
+    <li>품질(Parity)과 과정(질문·오류 수)을 분리</li>
+    <li>품질 = 동일 설계서 대비 채점표 점수</li>
+    <li>과정 = 그 점수에 도달하는 데 든 Q / 오류 횟수</li>
+  </ul>
+  <p class="pager">8</p>
+</section>
+
+<section class="slide">
+  <h2>⑤ Parity 채점 · 최종 점수</h2>
+  <table>
+    <tr><th>섹션</th><th>만점</th></tr>
+    <tr><td>S1 기능</td><td>20</td></tr>
+    <tr><td>S2 안전·활성화</td><td>12</td></tr>
+    <tr><td>S3 UX</td><td>16</td></tr>
+    <tr><td>S4 전달</td><td>8</td></tr>
+    <tr><td>합계</td><td>56</td></tr>
+  </table>
+  <ul>
+    <li>최종: <b>A=54 / B=55</b> (Δ=1) → 품질 동등</li>
+    <li>질문 수는 품질 점수에 넣지 않음</li>
+  </ul>
+  <p class="pager">9</p>
+</section>
+
+<section class="slide">
+  <h2>⑥~⑦ Q별 향상 + Hard Gate</h2>
+  <ul>
+    <li>A: 천천히 상승 → 첫 PASS ≈ Q57 → 최종 54</li>
+    <li>B: 소스 먼저 → 실기에서 막힘 → 첫 PASS ≈ Q12 → 최종 55</li>
+    <li>잘못: “코드에 HTML 있음”만으로 B를 조기 PASS처럼 채점</li>
+    <li>Hard Gate: 활성화 실패·팝업X·ST22 버그·빈화면이면 PASS 불가</li>
+    <li>미실기(코드만) → 점수 상한 40 / ‘Q=3 PASS’ 서술은 철회</li>
+  </ul>
+  <p class="pager">10</p>
+</section>
+
+<section class="slide">
+  <h2>⑧ 일반화 + 한 장 요약</h2>
+  <ul>
+    <li>큰 효과 ≈ 동일 프로그램 유형 오류 목록화</li>
+    <li>Preflight ~70% 전이 가능 / UX·도메인 ~80%+ 특화</li>
+    <li>다른 유형이면 오류·Q가 다시 늘 수 있음 (실험 n=1)</li>
+  </ul>
+  <table>
+    <tr><th>말하고자 하는 것</th><th>판정</th></tr>
+    <tr><td>최종 품질</td><td>A54 ≈ B55 동등</td></tr>
+    <tr><td>과정</td><td>공정 Q 63→16, 첫 PASS 57→12</td></tr>
+    <tr><td>방법</td><td>실패 → Skill 고착 → 재현</td></tr>
+    <tr><td>주의</td><td>코드만으로 PASS 금지</td></tr>
+  </table>
+  <p class="pager">11</p>
+</section>
+
+</div>
+</body>
+</html>
