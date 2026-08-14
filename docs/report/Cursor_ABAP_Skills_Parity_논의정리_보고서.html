@@ -147,14 +147,41 @@
 </header>
 
 <section>
-  <h2>1. 핵심 수치</h2>
-  <div class="kpi">
-    <div class="item"><div class="v">105</div><div class="l">총 질문<br/>(메타·복붙 제외)</div></div>
-    <div class="item"><div class="v">23</div><div class="l">오류 관련<br/>(중복 제거)</div></div>
-    <div class="item"><div class="v">13–15</div><div class="l">기능 수정<br/>(중복 제거)</div></div>
-    <div class="item"><div class="v">54 / 55</div><div class="l">최종 Parity<br/>A / B (만점 56)</div></div>
-  </div>
-  <p class="note">집계 세션: A Awesome skills automation + B 통합 운영 모니터링 대시보드. 전사가 열리지 않은 세션(SELECT-OPTIONS 등)은 미포함.</p>
+  <h2>1. 핵심 수치 (Session A vs B)</h2>
+  <p>각 지표의 <strong>세션별 값만</strong> 비교합니다. 합산 수치는 사용하지 않습니다.</p>
+  <table>
+    <tr>
+      <th>지표</th>
+      <th>의미</th>
+      <th class="num">A<br/><span style="font-weight:400">Awesome skills<br/>(장기 구현→Skills)</span></th>
+      <th class="num">B<br/><span style="font-weight:400">통합 운영 모니터<br/>(Greenfield 재현)</span></th>
+    </tr>
+    <tr>
+      <td>공정 질문 수<br/><code>cum_Q_program</code></td>
+      <td>프로그램 구현·오류·UX 관련 누적 질문<br/>(소스복붙·PPT·메타 제외)</td>
+      <td class="num"><strong>63</strong></td>
+      <td class="num"><strong>16</strong></td>
+    </tr>
+    <tr>
+      <td>첫 PASS까지 Q</td>
+      <td>Hard Gate 통과(실기 동작 OK)까지<br/>든 공정 질문 수</td>
+      <td class="num"><strong>57</strong></td>
+      <td class="num"><strong>12</strong></td>
+    </tr>
+    <tr>
+      <td>최종 Parity</td>
+      <td>설계·UX 바 대비 품질 점수<br/>(만점 56, PASS ≥ 50)</td>
+      <td class="num"><strong>54</strong> <span class="tag pass">PASS</span></td>
+      <td class="num"><strong>55</strong> <span class="tag pass">PASS</span></td>
+    </tr>
+    <tr>
+      <td>E_compile</td>
+      <td>사용자가 활성화·문법 오류를<br/>첨부한 횟수</td>
+      <td class="num"><strong>~18+</strong></td>
+      <td class="num"><strong>2</strong></td>
+    </tr>
+  </table>
+  <p class="note">품질(54 vs 55)은 거의 같고, PASS 도달(57→12)·컴파일 오류 왕복(~18+→2)은 B가 적음. 전사가 열리지 않은 세션은 비교에 미포함.</p>
 </section>
 
 <section>
