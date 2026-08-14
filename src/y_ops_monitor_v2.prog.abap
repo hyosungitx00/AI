@@ -525,18 +525,42 @@ CLASS lcl_mon_dp_interface IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD lif_mon_data_provider~get_data.
+    " SXI 대량 건수 대응:
+    " 1) COUNT(*) 로 전체 건수만 집계 (전건 버퍼링 금지)
+    " 2) 상세/마스터 조인/차트 소스는 P_MAXROW 최신건만 UP TO 로 로드
     TYPES: BEGIN OF ty_err,
              msgguid   TYPE sxmsmgguid,
              pid       TYPE sxmspid,
              errstat   TYPE char3,
              exetimest TYPE timestampl,
            END OF ty_err.
-    DATA: lt_err  TYPE STANDARD TABLE OF ty_err,
-          ls_err  TYPE ty_err,
-          lv_fr   TYPE timestampl,
-          lv_to   TYPE timestampl,
-          ls_out  TYPE ty_iface,
-          lv_mand TYPE mandt.
+    TYPES: BEGIN OF ty_mas,
+             msgguid  TYPE sxmsmgguid,
+             pid      TYPE sxmspid,
+             msgstate TYPE char3,
+           END OF ty_mas.
+    TYPES: BEGIN OF ty_ema,
+             msgguid      TYPE sxmsmgguid,
+             pid          TYPE sxmspid,
+             ob_name      TYPE char40,
+             ob_system    TYPE char40,
+             ib_system    TYPE char40,
+             ob_operation TYPE char40,
+           END OF ty_ema.
+    DATA: lt_err   TYPE STANDARD TABLE OF ty_err,
+          ls_err   TYPE ty_err,
+          lt_mas   TYPE STANDARD TABLE OF ty_mas,
+          lt_ema   TYPE STANDARD TABLE OF ty_ema,
+          ls_mas   TYPE ty_mas,
+          ls_ema   TYPE ty_ema,
+          lv_fr    TYPE timestampl,
+          lv_to    TYPE timestampl,
+          ls_out   TYPE ty_iface,
+          lv_mand  TYPE mandt,
+          lv_max   TYPE i,
+          lv_total TYPE i,
+          lv_date  TYPE sy-datum,
+          lv_time  TYPE sy-uzeit.
 
     CLEAR: et_batch, et_dump, et_iface, ev_count, ev_msg.
     ev_ok = abap_false.
@@ -551,57 +575,89 @@ CLASS lcl_mon_dp_interface IMPLEMENTATION.
       lv_mand = sy-mandt.
     ENDIF.
 
+    lv_max = is_sel-maxrow.
+    IF lv_max <= 0.
+      lv_max = 250.
+    ENDIF.
+
     lv_fr = lcl_util=>local_to_utc_tstmp( iv_date = is_sel-frdat iv_time = is_sel-frtim ).
     lv_to = lcl_util=>local_to_utc_tstmp( iv_date = is_sel-todat iv_time = is_sel-totim ).
 
-    SELECT msgguid pid errstat exetimest
-      FROM sxmsperror CLIENT SPECIFIED
-      INTO CORRESPONDING FIELDS OF TABLE lt_err
-      WHERE mandt = lv_mand
-        AND exetimest >= lv_fr
-        AND exetimest <= lv_to.
-    IF sy-subrc <> 0.
+    " --- 전체 건수: 행 전송 없이 DB 집계 ---
+    IF so_iface IS INITIAL.
+      SELECT COUNT(*) FROM sxmsperror CLIENT SPECIFIED
+        INTO lv_total
+        WHERE mandt     = lv_mand
+          AND exetimest >= lv_fr
+          AND exetimest <= lv_to.
+    ELSE.
+      " 인터페이스명 필터 시 조인 COUNT (행 미전송)
+      SELECT COUNT(*) FROM sxmsperror AS e
+        INNER JOIN sxmspemas AS m
+          ON  m~mandt   = e~mandt
+          AND m~msgguid = e~msgguid
+          AND m~pid     = e~pid
+        CLIENT SPECIFIED
+        INTO lv_total
+        WHERE e~mandt     = lv_mand
+          AND e~exetimest >= lv_fr
+          AND e~exetimest <= lv_to
+          AND m~ob_name   IN so_iface.
+    ENDIF.
+    IF sy-subrc <> 0 OR lv_total = 0.
+      ev_count = 0.
       ev_ok = abap_true.
       ev_msg = 'SXI 에러 없음'.
       RETURN.
     ENDIF.
+    ev_count = lv_total.
 
-    TYPES: BEGIN OF ty_mas,
-             msgguid  TYPE sxmsmgguid,
-             pid      TYPE sxmspid,
-             msgstate TYPE char3,
-           END OF ty_mas.
-    TYPES: BEGIN OF ty_ema,
-             msgguid      TYPE sxmsmgguid,
-             pid          TYPE sxmspid,
-             ob_name      TYPE char40,
-             ob_system    TYPE char40,
-             ib_system    TYPE char40,
-             ob_operation TYPE char40,
-           END OF ty_ema.
-    DATA: lt_mas TYPE STANDARD TABLE OF ty_mas,
-          lt_ema TYPE STANDARD TABLE OF ty_ema,
-          ls_mas TYPE ty_mas,
-          ls_ema TYPE ty_ema,
-          lv_date TYPE sy-datum,
-          lv_time TYPE sy-uzeit.
-
-    IF lt_err IS NOT INITIAL.
-      SELECT msgguid pid msgstate
-        FROM sxmspmast CLIENT SPECIFIED
-        INTO CORRESPONDING FIELDS OF TABLE lt_mas
-        FOR ALL ENTRIES IN lt_err
-        WHERE mandt   = lv_mand
-          AND msgguid = lt_err-msgguid
-          AND pid     = lt_err-pid.
-      SELECT msgguid pid ob_name ob_system ib_system ob_operation
-        FROM sxmspemas CLIENT SPECIFIED
-        INTO CORRESPONDING FIELDS OF TABLE lt_ema
-        FOR ALL ENTRIES IN lt_err
-        WHERE mandt   = lv_mand
-          AND msgguid = lt_err-msgguid
-          AND pid     = lt_err-pid.
+    " --- 상세: 최신 P_MAXROW 건만 (마스터 FAE 대상 축소) ---
+    IF so_iface IS INITIAL.
+      SELECT msgguid pid errstat exetimest
+        FROM sxmsperror CLIENT SPECIFIED
+        UP TO lv_max ROWS
+        INTO CORRESPONDING FIELDS OF TABLE lt_err
+        WHERE mandt     = lv_mand
+          AND exetimest >= lv_fr
+          AND exetimest <= lv_to
+        ORDER BY exetimest DESCENDING.
+    ELSE.
+      SELECT e~msgguid e~pid e~errstat e~exetimest
+        FROM sxmsperror AS e
+        INNER JOIN sxmspemas AS m
+          ON  m~mandt   = e~mandt
+          AND m~msgguid = e~msgguid
+          AND m~pid     = e~pid
+        CLIENT SPECIFIED
+        UP TO lv_max ROWS
+        INTO CORRESPONDING FIELDS OF TABLE lt_err
+        WHERE e~mandt     = lv_mand
+          AND e~exetimest >= lv_fr
+          AND e~exetimest <= lv_to
+          AND m~ob_name   IN so_iface
+        ORDER BY e~exetimest DESCENDING.
     ENDIF.
+    IF lt_err IS INITIAL.
+      ev_ok = abap_true.
+      ev_msg = |전체 { lv_total }건 (상세 0건)|.
+      RETURN.
+    ENDIF.
+
+    SELECT msgguid pid msgstate
+      FROM sxmspmast CLIENT SPECIFIED
+      INTO CORRESPONDING FIELDS OF TABLE lt_mas
+      FOR ALL ENTRIES IN lt_err
+      WHERE mandt   = lv_mand
+        AND msgguid = lt_err-msgguid
+        AND pid     = lt_err-pid.
+    SELECT msgguid pid ob_name ob_system ib_system ob_operation
+      FROM sxmspemas CLIENT SPECIFIED
+      INTO CORRESPONDING FIELDS OF TABLE lt_ema
+      FOR ALL ENTRIES IN lt_err
+      WHERE mandt   = lv_mand
+        AND msgguid = lt_err-msgguid
+        AND pid     = lt_err-pid.
     SORT lt_mas BY msgguid pid.
     SORT lt_ema BY msgguid pid.
 
@@ -627,24 +683,24 @@ CLASS lcl_mon_dp_interface IMPLEMENTATION.
         ls_out-sender   = ls_ema-ob_system.
         ls_out-receiver = ls_ema-ib_system.
       ENDIF.
-      IF so_iface IS NOT INITIAL AND ls_out-if_name NOT IN so_iface.
-        CONTINUE.
-      ENDIF.
       ls_out-line_color = lcl_util=>area_alv_color( c_area_sxi ).
       APPEND ls_out TO et_iface.
     ENDLOOP.
 
     SORT et_iface BY exe_date DESCENDING exe_time DESCENDING.
-    ev_count = lines( et_iface ).
     ev_ok = abap_true.
-    IF ev_count = 0.
-      ev_msg = 'SXI 에러 없음'.
+    IF lv_total > lines( et_iface ).
+      ev_msg = |전체 { lv_total }건 · 최근 { lines( et_iface ) }건만 로드(차트/ALV)|.
+    ELSE.
+      CLEAR ev_msg.
     ENDIF.
   ENDMETHOD.
 ENDCLASS.
 
 *----------------------------------------------------------------------*
-* Aggregator — Top-N / time buckets (full count, independent scale)
+* Aggregator — Top-N / time buckets
+* SXI는 프로바이더가 이미 P_MAXROW 최신건만 반환 → 차트도 동일 샘플 기준
+* (전체 건수는 COUNT(*) KPI, O-8 성능 예외)
 *----------------------------------------------------------------------*
 CLASS lcl_mon_aggregator DEFINITION FINAL.
   PUBLIC SECTION.
@@ -1664,7 +1720,9 @@ CLASS lcl_mon_ui_dashboard IMPLEMENTATION.
           lv_icon_x TYPE string,
           lv_css TYPE string,
           lv_body TYPE string,
-          lv_view TYPE string.
+          lv_view TYPE string,
+          lv_sxi_sub TYPE string,
+          lv_max TYPE i.
 
     CASE ms_sm37-light.
       WHEN 'R'. lv_icon_s = '🔴'.
@@ -1687,6 +1745,15 @@ CLASS lcl_mon_ui_dashboard IMPLEMENTATION.
       lv_view = '시간추이'.
     ENDIF.
 
+    lv_max = ms_sel-maxrow.
+    IF lv_max <= 0.
+      lv_max = 250.
+    ENDIF.
+    CLEAR lv_sxi_sub.
+    IF ms_sxi-count_all > ms_sxi-count_alv AND ms_sxi-count_alv > 0.
+      lv_sxi_sub = |<div class="t">표시 { ms_sxi-count_alv } / 전체 { ms_sxi-count_all }</div>|.
+    ENDIF.
+
     lv_css =
       'body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#0f172a;color:#e2e8f0;}' &&
       '.wrap{display:flex;gap:12px;padding:8px 12px;align-items:center;}' &&
@@ -1703,9 +1770,10 @@ CLASS lcl_mon_ui_dashboard IMPLEMENTATION.
       '<div class="kpi st22"><div class="t">' && lv_icon_d && ' ST22 덤프</div>' &&
       '<div class="n">' && |{ ms_st22-count_all }| && '건</div></div>' &&
       '<div class="kpi sxi"><div class="t">' && lv_icon_x && ' SXI 인터페이스</div>' &&
-      '<div class="n">' && |{ ms_sxi-count_all }| && '건</div></div>' &&
+      '<div class="n">' && |{ ms_sxi-count_all }| && '건</div>' && lv_sxi_sub && '</div>' &&
       '<div class="meta">조회 ' && |{ ms_sel-hours }| && 'H · ' &&
       |{ mv_elapsed }| && 'ms · 관점 ' && lv_view &&
+      ' · SXI상세/차트=최근' && |{ lv_max }| && '건' &&
       ' · REFRESH/TOGGLE/STATS/HELP</div></div>'.
 
     rv_html = '<html><head><meta charset="utf-8"><style>' && lv_css &&
