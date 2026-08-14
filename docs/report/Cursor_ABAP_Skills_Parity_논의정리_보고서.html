@@ -26,7 +26,7 @@
     line-height: 1.55;
     font-size: 15px;
   }
-  .wrap { max-width: 920px; margin: 0 auto; padding: 32px 20px 64px; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 32px 20px 64px; }
   header.hero {
     background: linear-gradient(135deg, #0b1f3a 0%, #1f4e79 55%, #1f6f8b 100%);
     color: #fff;
@@ -136,85 +136,113 @@
     color: var(--muted);
     font-size: 12px;
   }
-  .shot {
+  .compare-block {
     background: var(--card);
     border: 1px solid var(--line);
     border-radius: 12px;
-    padding: 12px;
-    margin: 12px 0;
+    padding: 12px 14px 14px;
+    margin: 14px 0;
   }
+  .compare-block > h3 {
+    margin: 0 0 10px;
+    font-size: 15px;
+    color: var(--nav);
+  }
+  .compare-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    align-items: start;
+  }
+  @media (max-width: 800px) { .compare-row { grid-template-columns: 1fr; } }
+  .shot {
+    background: #f4f7fa;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 8px;
+    margin: 0;
+    min-width: 0;
+  }
+  .shot .badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 999px;
+    margin-bottom: 6px;
+  }
+  .shot .badge.a { background: #e5f3f8; color: var(--a); }
+  .shot .badge.b { background: #fceee6; color: var(--b); }
   .shot h4 {
-    margin: 0 0 8px;
-    font-size: 14px;
+    margin: 0 0 6px;
+    font-size: 13px;
     color: var(--nav);
   }
   .shot img {
     display: block;
     width: 100%;
+    max-height: 240px;
     height: auto;
+    object-fit: contain;
+    object-position: top center;
     border: 1px solid var(--line);
     border-radius: 6px;
     background: #111;
-  }
-  .shot .cap {
-    margin: 8px 0 0;
-    font-size: 12.5px;
-    color: var(--muted);
-  }
-  .shot img {
-    max-height: 720px;
-    object-fit: contain;
+    cursor: zoom-in;
   }
   .shot img.is-empty { display: none; }
+  .shot .cap {
+    margin: 6px 0 0;
+    font-size: 11.5px;
+    color: var(--muted);
+    line-height: 1.4;
+  }
   .shot .missing {
     border: 1px dashed #9aa8b5;
     color: var(--muted);
     text-align: center;
-    padding: 28px 12px;
+    padding: 18px 8px;
     border-radius: 8px;
-    font-size: 13px;
-    background: #f0f3f6;
+    font-size: 12px;
+    background: #eef2f5;
   }
   .shot .missing[hidden] { display: none !important; }
-  .shot-pending {
-    border: 1px dashed #9aa8b5;
-    color: var(--muted);
-    text-align: center;
-    padding: 28px 12px;
-    border-radius: 8px;
-    font-size: 13px;
-  }
-  .img-alert {
-    background: #fff4e5;
-    border: 1px solid #f0c36d;
-    border-radius: 10px;
-    padding: 12px 14px;
-    margin: 10px 0 16px;
-    font-size: 13.5px;
-    line-height: 1.55;
-  }
-  .img-alert strong { color: #8a5a00; }
   .img-toolbar {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
     align-items: center;
-    margin: 8px 0 14px;
+    margin: 8px 0 10px;
   }
-  .img-toolbar label.btn,
-  .shot label.btn {
+  .img-toolbar label.btn {
     display: inline-block;
     background: var(--nav);
     color: #fff;
-    padding: 7px 12px;
+    padding: 6px 11px;
     border-radius: 8px;
-    font-size: 13px;
+    font-size: 12.5px;
     cursor: pointer;
   }
-  .img-toolbar input[type=file],
-  .shot input[type=file] { display: none; }
-  .img-status { font-size: 12.5px; color: var(--muted); }
-  .shot .pick-row { margin: 6px 0 8px; }
+  .img-toolbar input[type=file] { display: none; }
+  .img-status { font-size: 12px; color: var(--muted); }
+  .lightbox {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 18, 28, .88);
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .lightbox.open { display: flex; }
+  .lightbox img {
+    max-width: min(96vw, 1200px);
+    max-height: 92vh;
+    object-fit: contain;
+    border-radius: 6px;
+    background: #000;
+  }
 </style>
 </head>
 <body>
@@ -263,8 +291,98 @@
   <p class="note">품질(60 vs 61, 만점 62)은 거의 같고, PASS 도달(57→12)·컴파일 오류 왕복(~18+→2)은 B가 적음. 전사가 열리지 않은 세션은 비교에 미포함.</p>
 </section>
 
+<section id="shots-section">
+  <h2>2. 화면 비교 (Session A | B)</h2>
+  <p>동일 조회 조건(총 438건: SM37 355 / ST22 11 / SXI 72). 왼쪽 A · 오른쪽 B. 사진을 클릭하면 확대됩니다.</p>
+  <div class="img-toolbar">
+    <label class="btn" for="shot-bulk">사진 8장 불러오기</label>
+    <input id="shot-bulk" type="file" accept="image/*" multiple/>
+    <span class="img-status" id="shot-status">0 / 8 표시 · 권장: make_report_html.py로 축소·포함</span>
+  </div>
+
+  <div class="compare-block">
+    <h3>대시보드 · Top-N</h3>
+    <div class="compare-row">
+      <div class="shot" data-shot="session-a-01-dashboard">
+        <span class="badge a">Session A</span>
+        <h4>초기 전체 화면</h4>
+        <img class="is-empty" src="images/session-a-01-dashboard.png" alt="Session A 대시보드" data-img/>
+        <div class="missing" data-miss>이미지 없음</div>
+        <p class="cap">KPI/TOGGLE/REFRESH/HELP · 주의 배너 · 3분할 ALV + Top-N</p>
+      </div>
+      <div class="shot" data-shot="session-b-01-dashboard">
+        <span class="badge b">Session B</span>
+        <h4>초기 전체 화면</h4>
+        <img class="is-empty" src="images/session-b-01-dashboard.png" alt="Session B 대시보드" data-img/>
+        <div class="missing" data-miss>이미지 없음</div>
+        <p class="cap">위험 438건 헤더 · 영역별 Top-N · 3분할 ALV</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="compare-block">
+    <h3>KPI → STATS 팝업</h3>
+    <div class="compare-row">
+      <div class="shot" data-shot="session-a-02-kpi">
+        <span class="badge a">Session A</span>
+        <h4>STATS</h4>
+        <img class="is-empty" src="images/session-a-02-kpi.png" alt="Session A KPI" data-img/>
+        <div class="missing" data-miss>이미지 없음</div>
+        <p class="cap">CRITICAL · 영역별 건수/비중/신호등 · HTML dialog</p>
+      </div>
+      <div class="shot" data-shot="session-b-02-kpi">
+        <span class="badge b">Session B</span>
+        <h4>STATS</h4>
+        <img class="is-empty" src="images/session-b-02-kpi.png" alt="Session B KPI" data-img/>
+        <div class="missing" data-miss>이미지 없음</div>
+        <p class="cap">다크 테마 · SM37/ST22/SXI 카드+비중 바</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="compare-block">
+    <h3>TOGGLE → 시간추이</h3>
+    <div class="compare-row">
+      <div class="shot" data-shot="session-a-03-toggle">
+        <span class="badge a">Session A</span>
+        <h4>시간추이</h4>
+        <img class="is-empty" src="images/session-a-03-toggle.png" alt="Session A TOGGLE" data-img/>
+        <div class="missing" data-miss>이미지 없음</div>
+        <p class="cap">영역별 세로 막대(1칸=1시간) · ALV 유지</p>
+      </div>
+      <div class="shot" data-shot="session-b-03-toggle">
+        <span class="badge b">Session B</span>
+        <h4>시간대별 추이</h4>
+        <img class="is-empty" src="images/session-b-03-toggle.png" alt="Session B TOGGLE" data-img/>
+        <div class="missing" data-miss>이미지 없음</div>
+        <p class="cap">통합 스택 막대(SM37/ST22/SXI)</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="compare-block">
+    <h3>HELP → 사용 안내</h3>
+    <div class="compare-row">
+      <div class="shot" data-shot="session-a-04-help">
+        <span class="badge a">Session A</span>
+        <h4>HELP</h4>
+        <img class="is-empty" src="images/session-a-04-help.png" alt="Session A HELP" data-img/>
+        <div class="missing" data-miss>이미지 없음</div>
+        <p class="cap">상세조회 / REFRESH / TOGGLE / STATS / P_AUTORF</p>
+      </div>
+      <div class="shot" data-shot="session-b-04-help">
+        <span class="badge b">Session B</span>
+        <h4>HELP</h4>
+        <img class="is-empty" src="images/session-b-04-help.png" alt="Session B HELP" data-img/>
+        <div class="missing" data-miss>이미지 없음</div>
+        <p class="cap">F8/REFRESH/TOGGLE/STATS · 읽기전용 경고</p>
+      </div>
+    </div>
+  </div>
+</section>
+
 <section>
-  <h2>2. 질문 유형</h2>
+  <h2>3. 질문 유형</h2>
   <div class="card">
     <ul>
       <li>컴파일·활성화·타입 오류 (선언 누락, ECC fcode, IGS API, DATUM, 문자열 템플릿, Open SQL 등)</li>
@@ -278,7 +396,7 @@
 </section>
 
 <section>
-  <h2>3. Session A → Skills → Session B</h2>
+  <h2>4. Session A → Skills → Session B</h2>
   <div class="grid2">
     <div class="card">
       <h3>A · Awesome skills automation</h3>
@@ -307,7 +425,7 @@
 </section>
 
 <section>
-  <h2>4. Skills / Rules 요약</h2>
+  <h2>5. Skills / Rules 요약</h2>
   <table>
     <tr><th>항목</th><th>내용</th></tr>
     <tr><td>Always-on</td><td>읽기전용 · 채팅 전달 · 선언+구현 동시 · Preflight 강제</td></tr>
@@ -319,7 +437,7 @@
 </section>
 
 <section>
-  <h2>5. Parity 채점 기준 · 최종</h2>
+  <h2>6. Parity 채점 기준 · 최종</h2>
   <div class="card">
     <p><strong>만점 62</strong> = S1 기능 20 + S2 안전·기동 18 + S3 UX 16 + S4 전달 8. 항목마다 0/1/2.</p>
     <p><strong>v1.1:</strong> 활성화·실행 비중을 키움. 기동 클러스터(S2-06~09) = <strong>8/62≈13%</strong> + Hard Gate(미충족 시 PASS 불가).</p>
@@ -390,7 +508,7 @@
 </section>
 
 <section>
-  <h2>6. 질문 수별 품질 추이</h2>
+  <h2>7. 질문 수별 품질 추이</h2>
   <p>가로축: 공정 누적 질문 <code>cum_Q_program</code> (PPT·소스복붙·메타 제외). 세로축: Parity Total (그래프는 v1.0 /56 마일스톤 추정치). 최종 공식 점수는 v1.1 /62.</p>
 
   <div class="legend">
@@ -525,7 +643,7 @@
 </section>
 
 <section>
-  <h2>7. 효율</h2>
+  <h2>8. 효율</h2>
   <table>
     <tr><th>지표</th><th class="num">A</th><th class="num">B</th></tr>
     <tr><td>첫 PASS까지 Q</td><td class="num">57</td><td class="num">12</td></tr>
@@ -537,99 +655,13 @@
 </section>
 
 <section>
-  <h2>8. 일반화 · 한계</h2>
+  <h2>9. 일반화 · 한계</h2>
   <div class="card">
     <ul>
       <li>효과의 상당 부분 = <strong>동일 Ops Monitor 오류·UX 목록화</strong>. 다른 도메인이면 특화 층 효과↓, Preflight 일반 층은 일부 유지.</li>
       <li>시나리오(추정): 다른 도메인 + 현 Skills → 공정 Q ~30–45 / 같은 Ops 계열 → ~12–20(B 실측).</li>
       <li>한계: 전사 접근 2세션만 · 중간 곡선 보간(±2) · 프로그램 유형 n=1.</li>
     </ul>
-  </div>
-</section>
-
-<section>
-  <h2>9. 화면 캡처 (Session A → B)</h2>
-  <div class="img-alert">
-    <strong>사진이 안 보이는 이유:</strong> HTML만 열어 두었고, 실제 PNG/JPG는 아직 이 PC의 HTML 옆
-    <code>images/</code> 폴더에 없습니다. (채팅에 올린 이미지는 보고서 파일로 자동 저장되지 않습니다.)
-    <br/>아래 <strong>사진 불러오기</strong>로 PC에 있는 캡처 8장을 선택하면 바로 표시됩니다.
-  </div>
-  <div class="img-toolbar">
-    <label class="btn" for="shot-bulk">사진 8장 한 번에 불러오기</label>
-    <input id="shot-bulk" type="file" accept="image/*" multiple/>
-    <span class="img-status" id="shot-status">0 / 8 표시됨</span>
-  </div>
-  <p class="note">파일명이 <code>session-a-01-dashboard.png</code> … <code>session-b-04-help.png</code> 이면 자동 매칭.
-  이름이 달라도 A1→A4→B1→B4 순으로 8장을 고르면 순서대로 들어갑니다.</p>
-
-  <h3>9.1 Session A — Awesome skills automation</h3>
-  <p class="note">인식 완료 4장 · 동일 기간 데이터(총 438건: SM37 355 / ST22 11 / SXI 72)</p>
-
-  <div class="shot" data-shot="session-a-01-dashboard">
-    <h4>A-1. 초기 전체 화면 (대시보드 · Top-N)</h4>
-    <div class="pick-row"><label class="btn">이 칸에 사진 선택<input type="file" accept="image/*" data-pick/></label></div>
-    <img class="is-empty" src="images/session-a-01-dashboard.png" alt="Session A 초기 전체 화면 Top-N" data-img/>
-    <div class="missing" data-miss>이미지 없음 — 위 버튼으로 선택하거나 <code>images/session-a-01-dashboard.png</code> 배치</div>
-    <p class="cap">상단 KPI/TOGGLE/REFRESH/HELP · 장애 주의 배너 · 3분할 ALV + Top-N 가로 막대(영역별 색)</p>
-  </div>
-
-  <div class="shot" data-shot="session-a-02-kpi">
-    <h4>A-2. KPI → STATS 팝업</h4>
-    <div class="pick-row"><label class="btn">이 칸에 사진 선택<input type="file" accept="image/*" data-pick/></label></div>
-    <img class="is-empty" src="images/session-a-02-kpi.png" alt="Session A KPI 팝업" data-img/>
-    <div class="missing" data-miss>이미지 없음 — 위 버튼으로 선택하거나 <code>images/session-a-02-kpi.png</code> 배치</div>
-    <p class="cap">Ops Monitor · KPI 요약 · CRITICAL · 영역별 건수/비중/신호등 카드 · HTML dialog</p>
-  </div>
-
-  <div class="shot" data-shot="session-a-03-toggle">
-    <h4>A-3. TOGGLE → 시간추이</h4>
-    <div class="pick-row"><label class="btn">이 칸에 사진 선택<input type="file" accept="image/*" data-pick/></label></div>
-    <img class="is-empty" src="images/session-a-03-toggle.png" alt="Session A TOGGLE 시간추이" data-img/>
-    <div class="missing" data-miss>이미지 없음 — 위 버튼으로 선택하거나 <code>images/session-a-03-toggle.png</code> 배치</div>
-    <p class="cap">영역별 시간추이(1칸=1시간) 세로 막대 · ALV 유지</p>
-  </div>
-
-  <div class="shot" data-shot="session-a-04-help">
-    <h4>A-4. HELP → 사용 가이드</h4>
-    <div class="pick-row"><label class="btn">이 칸에 사진 선택<input type="file" accept="image/*" data-pick/></label></div>
-    <img class="is-empty" src="images/session-a-04-help.png" alt="Session A HELP 팝업" data-img/>
-    <div class="missing" data-miss>이미지 없음 — 위 버튼으로 선택하거나 <code>images/session-a-04-help.png</code> 배치</div>
-    <p class="cap">상세조회 / REFRESH / TOGGLE / STATS / P_AUTORF / ALV 툴바 안내</p>
-  </div>
-
-  <h3>9.2 Session B — 통합 운영 모니터링 대시보드</h3>
-  <p class="note">인식 완료 4장 · 동일 438건 · 다크 톤 KPI/HELP · TOGGLE 시 통합 시간대별 추이(스택 막대)</p>
-
-  <div class="shot" data-shot="session-b-01-dashboard">
-    <h4>B-1. 초기 전체 화면 (대시보드 · Top-N)</h4>
-    <div class="pick-row"><label class="btn">이 칸에 사진 선택<input type="file" accept="image/*" data-pick/></label></div>
-    <img class="is-empty" src="images/session-b-01-dashboard.png" alt="Session B 초기 전체 화면 Top-N" data-img/>
-    <div class="missing" data-miss>이미지 없음 — 위 버튼으로 선택하거나 <code>images/session-b-01-dashboard.png</code> 배치</div>
-    <p class="cap">위험 총 438건 헤더(비중%) · 영역별 Top-N · 3분할 ALV(영역 행색) · TOGGLE=시간추이 안내</p>
-  </div>
-
-  <div class="shot" data-shot="session-b-02-kpi">
-    <h4>B-2. KPI → STATS 팝업</h4>
-    <div class="pick-row"><label class="btn">이 칸에 사진 선택<input type="file" accept="image/*" data-pick/></label></div>
-    <img class="is-empty" src="images/session-b-02-kpi.png" alt="Session B KPI 팝업" data-img/>
-    <div class="missing" data-miss>이미지 없음 — 위 버튼으로 선택하거나 <code>images/session-b-02-kpi.png</code> 배치</div>
-    <p class="cap">다크 테마 · 위험·총438건 · SM37/ST22/SXI 카드+비중 바 · 우상단 X 닫기</p>
-  </div>
-
-  <div class="shot" data-shot="session-b-03-toggle">
-    <h4>B-3. TOGGLE → 시간대별 추이</h4>
-    <div class="pick-row"><label class="btn">이 칸에 사진 선택<input type="file" accept="image/*" data-pick/></label></div>
-    <img class="is-empty" src="images/session-b-03-toggle.png" alt="Session B TOGGLE 시간추이" data-img/>
-    <div class="missing" data-miss>이미지 없음 — 위 버튼으로 선택하거나 <code>images/session-b-03-toggle.png</code> 배치</div>
-    <p class="cap">통합 스택 막대(SM37/ST22/SXI) · 시작~종료 시간축 · TOGGLE=Top-N 복귀</p>
-  </div>
-
-  <div class="shot" data-shot="session-b-04-help">
-    <h4>B-4. HELP → 사용 안내</h4>
-    <div class="pick-row"><label class="btn">이 칸에 사진 선택<input type="file" accept="image/*" data-pick/></label></div>
-    <img class="is-empty" src="images/session-b-04-help.png" alt="Session B HELP 팝업" data-img/>
-    <div class="missing" data-miss>이미지 없음 — 위 버튼으로 선택하거나 <code>images/session-b-04-help.png</code> 배치</div>
-    <p class="cap">F8/REFRESH/TOGGLE/STATS/더블클릭 · 읽기전용 경고(DML/COMMIT/Enqueue 없음)</p>
   </div>
 </section>
 
@@ -650,6 +682,7 @@
 </footer>
 
 </div>
+<div class="lightbox" id="lightbox" title="클릭하면 닫기"><img alt="확대"/></div>
 <script>
 (function () {
   var ORDER = [
@@ -693,7 +726,7 @@
       if (img && !img.classList.contains("is-empty") && img.naturalWidth > 0) n += 1;
     });
     var el = document.getElementById("shot-status");
-    if (el) el.textContent = n + " / 8 표시됨";
+    if (el) el.textContent = n + " / 8 표시 · 클릭 시 확대";
   }
 
   function readFile(file, id) {
@@ -721,14 +754,6 @@
     });
   }
 
-  document.querySelectorAll(".shot [data-pick]").forEach(function (inp) {
-    inp.addEventListener("change", function () {
-      var box = inp.closest(".shot");
-      if (!box || !inp.files || !inp.files[0]) return;
-      readFile(inp.files[0], box.getAttribute("data-shot"));
-    });
-  });
-
   var bulk = document.getElementById("shot-bulk");
   if (bulk) {
     bulk.addEventListener("change", function () {
@@ -736,7 +761,14 @@
     });
   }
 
-  // Try relative images/ paths; keep missing box if 404
+  var lb = document.getElementById("lightbox");
+  if (lb) {
+    lb.addEventListener("click", function () { lb.classList.remove("open"); });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") lb.classList.remove("open");
+    });
+  }
+
   ORDER.forEach(function (id) {
     var img = document.querySelector('.shot[data-shot="' + id + '"] [data-img]');
     var miss = document.querySelector('.shot[data-shot="' + id + '"] [data-miss]');
@@ -751,7 +783,12 @@
       if (miss) miss.hidden = false;
       updateStatus();
     };
-    // re-trigger if browser cached broken state
+    img.addEventListener("click", function () {
+      if (img.classList.contains("is-empty") || !img.src) return;
+      if (!lb) return;
+      lb.querySelector("img").src = img.src;
+      lb.classList.add("open");
+    });
     var src = img.getAttribute("src");
     if (src) img.src = src;
   });
