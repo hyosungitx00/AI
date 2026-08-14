@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""논의 정리 HTML — A|B 비교 사진(축소)을 개요 다음에 넣고 base64 포함.
+"""논의 정리 HTML — 개요 → A|B 화면 비교(축소) → 핵심 수치·본문.
 
 폴더:
   make_report_html.py
@@ -218,20 +218,25 @@ def strip_old_shots(html: str) -> str:
 
 
 def insert_after_overview(html: str, section: str) -> str:
-    """1. 핵심 수치 섹션 직후에 비교 섹션 삽입."""
+    """1. 개요 섹션 직후에 화면 비교 삽입 (핵심 수치 앞)."""
     m = re.search(
-        r'(<h2[^>]*>\s*1\.\s*핵심\s*수치[\s\S]*?</section\s*>)',
+        r'(<section\b[^>]*\bid=["\']overview["\'][^>]*>[\s\S]*?</section\s*>)',
         html,
         flags=re.IGNORECASE,
     )
+    if not m:
+        m = re.search(
+            r'(<h2[^>]*>\s*1\.\s*개요[\s\S]*?</section\s*>)',
+            html,
+            flags=re.IGNORECASE,
+        )
     if m:
         i = m.end()
         return html[:i] + "\n\n" + section + html[i:]
-    # fallback: 첫 번째 </section> 뒤
-    m = re.search(r"</section\s*>", html, flags=re.IGNORECASE)
+    # fallback: hero 뒤
+    m = re.search(r"</header\s*>", html, flags=re.IGNORECASE)
     if m:
-        i = m.end()
-        return html[:i] + "\n\n" + section + html[i:]
+        return html[: m.end()] + "\n\n" + section + html[m.end() :]
     m = re.search(r"</body\s*>", html, flags=re.IGNORECASE)
     if m:
         return html[: m.start()] + section + html[m.start() :]
@@ -239,6 +244,7 @@ def insert_after_overview(html: str, section: str) -> str:
 
 
 def ensure_compare_layout(html: str) -> str:
+    html = ensure_overview(html)
     html = strip_old_shots(html)
     return insert_after_overview(html, build_shots_section())
 
@@ -332,7 +338,7 @@ def main() -> None:
     html = html_path.read_text(encoding="utf-8")
     html = ensure_compare_css(html)
     html = ensure_compare_layout(html)
-    print("HTML: 개요(§1) 다음에 A|B 비교(§2) 배치")
+    print("HTML: 개요(§1) → 화면 비교(§2) → 핵심 수치·본문")
 
     if not args.no_embed:
         if found == 0:
