@@ -597,7 +597,7 @@ P_TODAT = SY-DATUM. P_TOTIM = SY-UZEIT.
   - `SXMSPERROR`: `EXETIMEST`(UTC) 범위로 먼저 SELECT 후 `MSGGUID`(+`PID`)로 조인 → 에러 메시지만 정밀 조회.
 - **필요 컬럼만 SELECT**(`SELECT` 필드 명시), 불필요한 `SELECT *` 지양.
 - **영역별 독립 조회**: 한 영역이 느려도 다른 영역 표시에 영향 최소화(개별 예외 처리).
-- **결과 상한(O-8)**: 조회는 전건, **ALV 표시는 `P_MAXROW`(기본 250) 최신순 제한**. 차트 집계는 전체 기준.
+- **결과 상한(O-8)**: SXI는 `COUNT(*)`+`UP TO P_MAXROW` 로드(전건 버퍼 금지). SM37/ST22는 ALV `P_MAXROW` 표시 제한. SXI 차트는 로드 샘플 기준.
 
 ---
 
@@ -686,7 +686,7 @@ P_TODAT = SY-DATUM. P_TOTIM = SY-UZEIT.
 | ✅ O-9 | IGS/차트 렌더링 | **IGS 가용 확인** → `CL_GUI_CHART_ENGINE` 사용 |
 | ✅ O-6 | 신호등 임계치 | **3단계, 영역별 건수 기반**(SM37: 0/–/≥1, ST22: 0/1–30/≥31, SXI: 0/1–50/≥51), 클래스 상수 관리 |
 | ✅ O-7 | 권한 체크 | 방식=**영역별 체크 후 없으면 스킵(A)**. 객체/필드=**STAUTHTRACE 검증 확정** — SM37 `S_BTCH_JOB`(`JOBGROUP='*'`/`JOBACTION='SHOW'`), ST22 `S_ABAPDUMP`(`ACTVT=03`/`DUMP_INFO=FULL`/`DUMP_CCLNT=ALL`/`DUMP_CUSER=ALL`, `S_ADMI_FCD`→`S_ABAPDUMP` 정정), SXI `S_XMB_MONI`(`ACTVT=03`, `S_XMB_ADM` 미요구) |
-| ✅ O-8 | 결과 건수 상한 | **`P_MAXROW` 기본 250, 최신순 표시 제한 + 초과 안내. 차트 집계는 전체 기준. 영역별 스케일 차이 유의** |
+| ✅ O-8 | 결과 건수 상한 | **`P_MAXROW` 기본 250**. SXI=COUNT(*)+DB `UP TO` 최신건(상세/조인/차트). SM37/ST22=표시 제한. KPI `표시 N/전체 X` |
 | ✅ O-10 | `SXMSPEMAS` 필드 | 송신=`OB_SYSTEM`, 수신=`IB_SYSTEM`, IF명=`OB_NAME`(+`OB_OPERATION`), 방향 컬럼 생략(송신→수신). SXI Top-N 키=`OB_NAME` |
 | ✅ O-11 | ST22 조회/유형 | 조회=**`RS_ST22_GET_DUMPS`**(`RSDUMPTAB`), 에러유형=**`DUMPID`**(Top-N 키), 날짜별 호출+시간 ABAP 필터, `MANDT` 컬럼 제외 |
 
@@ -708,3 +708,4 @@ P_TODAT = SY-DATUM. P_TOTIM = SY-UZEIT.
 | v0.4 | 2026-07-03 | **O-7 권한 객체 STAUTHTRACE 검증 완료·확정** — SM37 `S_BTCH_JOB`(`JOBGROUP='*'`/`JOBACTION='SHOW'`), ST22 **`S_ADMI_FCD`→`S_ABAPDUMP` 정정**(`ACTVT=03`/`DUMP_INFO=FULL`/`DUMP_CCLNT=ALL`/`DUMP_CUSER=ALL`), SXI `S_XMB_MONI`(`ACTVT=03`, `S_XMB_ADM` 미요구). 잔여 Open Issue 없음(전건 확정) |
 | v0.5 | 2026-08-03 | **6.4 ALV 표시 열 축소** — SM37(잡명/프로그램/사용자/시작·종료 일시), ST22(프로그램/에러유형/사용자/발생 일시), SXI(인터페이스/상태/발생 일시). 드릴다운 키는 내부 보관·미표시 |
 | v0.6 | 2026-08-04 | **데모 UX 강화** — KPI 헬스 배너·조회소요·자동갱신 표시, ALV 핫스팟/툴바/zebra, STATS/HELP 커맨드, 선택영역 동적 스플리터, Top-N↔시간추이 차트타입 전환, P_HOURS 자동 기간 재계산 |
+| v0.7 | 2026-08-14 | **O-8 SXI 성능 예외** — 전건 버퍼링 제거. 전체 건수=`COUNT(*)`, 상세·마스터 FAE·차트=`UP TO P_MAXROW` 최신건만. KPI에 표시/전체 안내 |
