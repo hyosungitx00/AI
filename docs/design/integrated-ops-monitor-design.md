@@ -5,7 +5,7 @@
 | 문서명 | 통합 운영 모니터링 프로그램 (SM37 / ST22 / SXI_MONITOR) 상세 설계서 |
 | 대상 시스템 | SAP S/4HANA (ABAP Integration Engine 사용) |
 | 화면 환경 | SAP GUI (Classic Dynpro + OO ALV) |
-| 문서 버전 | v0.6 (Draft) |
+| 문서 버전 | v0.7 (Draft) |
 | 작성 목적 | ABAP 개발 착수 전 기능/데이터/화면/로직 확정을 위한 기술 설계 |
 | 상태 | 검토 대기 (Review) |
 
@@ -354,7 +354,9 @@ flowchart TB
 | `P_MAXROW` | I | 250 | 영역별 ALV 최대 표시 행수(O-8). 최신순 제한, 초과 시 안내 |
 
 > **월요일/명절 대응**: 기본 24H로 두되, `P_HOURS`를 72 등으로 늘리거나 `P_FRDAT/P_FRTIM`을 직접 수정하여 조회 범위를 확장할 수 있다.
-> **결과 건수 상한(O-8)**: 조회는 기간 내 **전건** 수행하되 ALV 표시는 영역별 `P_MAXROW`(기본 250)건으로 **최신순 제한**하고 "상위 N건만 표시(전체 X건)" 안내를 표시한다. **차트 집계(Top-N/추이)는 표시 제한과 무관하게 전체 건수 기준**으로 산출한다.
+> **결과 건수 상한(O-8)**:
+> - **SM37/ST22**: 기간 조회 후 ALV는 `P_MAXROW` 최신순 표시 제한. 차트는 프로바이더 반환 행 기준.
+> - **SXI (대량 예외)**: 전체 건수는 `SELECT COUNT(*)`(행 미전송). 상세·마스터 조인·차트는 DB에서 **`UP TO P_MAXROW` 최신건만** 로드. KPI에 `표시 N / 전체 X` 안내. (전건 버퍼링 후 자르기 금지 — FAE/메모리 과부하 방지)
 
 **화면 목업 (선택 화면)**
 
@@ -414,7 +416,7 @@ flowchart TB
 | SXI | `OB_NAME`(송신 인터페이스명) |
 
 - **집계 단위 = 영역별 독립 Top-N**(O-8): 각 영역이 **자기 Top-N**을 가지므로, 영역 간 **에러 건수 스케일 차이가 커도**(예: SXI 수백 vs SM37 수 건) 작은 영역이 묻히지 않는다.
-- **집계 기준 = 전체 건수**(O-8): ALV 표시 상한(`P_MAXROW`)과 **무관하게 기간 내 전건**으로 집계한다.
+- **집계 기준**: SM37/ST22는 프로바이더 반환 행 기준. **SXI는 O-8 성능 예외**로 `P_MAXROW` 최신 샘플 기준(전체 건수는 COUNT(*) KPI만).
 - **N 값**: 기본 **5**, 선택화면 파라미터 `P_TOPN`으로 변경 가능.
 - **적응형 버킷(시간대별 추이)**: 조회 범위에 따라 버킷 크기 자동 결정 — 예) ≤ 24H → 1시간, ≤ 7일 → 1일, 그 이상 → 적절 단위. (가변 조회기간 대응)
 - **스케일 유의(시간대별 추이)**: 한 영역이 절대 건수로 압도할 수 있으므로 **영역 고정 색상 + 범례**로 명확히 구분하고, 절대 막대 높이만으로 오인하지 않도록 한다. (필요 시 "특정 영역만 보기" 토글은 확장 옵션)
@@ -595,7 +597,7 @@ P_TODAT = SY-DATUM. P_TOTIM = SY-UZEIT.
   - `SXMSPERROR`: `EXETIMEST`(UTC) 범위로 먼저 SELECT 후 `MSGGUID`(+`PID`)로 조인 → 에러 메시지만 정밀 조회.
 - **필요 컬럼만 SELECT**(`SELECT` 필드 명시), 불필요한 `SELECT *` 지양.
 - **영역별 독립 조회**: 한 영역이 느려도 다른 영역 표시에 영향 최소화(개별 예외 처리).
-- **결과 상한(O-8)**: 조회는 전건, **ALV 표시는 `P_MAXROW`(기본 250) 최신순 제한**. 차트 집계는 전체 기준.
+- **결과 상한(O-8)**: SXI는 `COUNT(*)`+`UP TO P_MAXROW` 로드(전건 버퍼 금지). SM37/ST22는 ALV `P_MAXROW` 표시 제한. SXI 차트는 로드 샘플 기준.
 
 ---
 
@@ -684,7 +686,7 @@ P_TODAT = SY-DATUM. P_TOTIM = SY-UZEIT.
 | ✅ O-9 | IGS/차트 렌더링 | **IGS 가용 확인** → `CL_GUI_CHART_ENGINE` 사용 |
 | ✅ O-6 | 신호등 임계치 | **3단계, 영역별 건수 기반**(SM37: 0/–/≥1, ST22: 0/1–30/≥31, SXI: 0/1–50/≥51), 클래스 상수 관리 |
 | ✅ O-7 | 권한 체크 | 방식=**영역별 체크 후 없으면 스킵(A)**. 객체/필드=**STAUTHTRACE 검증 확정** — SM37 `S_BTCH_JOB`(`JOBGROUP='*'`/`JOBACTION='SHOW'`), ST22 `S_ABAPDUMP`(`ACTVT=03`/`DUMP_INFO=FULL`/`DUMP_CCLNT=ALL`/`DUMP_CUSER=ALL`, `S_ADMI_FCD`→`S_ABAPDUMP` 정정), SXI `S_XMB_MONI`(`ACTVT=03`, `S_XMB_ADM` 미요구) |
-| ✅ O-8 | 결과 건수 상한 | **`P_MAXROW` 기본 250, 최신순 표시 제한 + 초과 안내. 차트 집계는 전체 기준. 영역별 스케일 차이 유의** |
+| ✅ O-8 | 결과 건수 상한 | **`P_MAXROW` 기본 250**. SXI=COUNT(*)+DB `UP TO` 최신건(상세/조인/차트). SM37/ST22=표시 제한. KPI `표시 N/전체 X` |
 | ✅ O-10 | `SXMSPEMAS` 필드 | 송신=`OB_SYSTEM`, 수신=`IB_SYSTEM`, IF명=`OB_NAME`(+`OB_OPERATION`), 방향 컬럼 생략(송신→수신). SXI Top-N 키=`OB_NAME` |
 | ✅ O-11 | ST22 조회/유형 | 조회=**`RS_ST22_GET_DUMPS`**(`RSDUMPTAB`), 에러유형=**`DUMPID`**(Top-N 키), 날짜별 호출+시간 ABAP 필터, `MANDT` 컬럼 제외 |
 
@@ -706,3 +708,4 @@ P_TODAT = SY-DATUM. P_TOTIM = SY-UZEIT.
 | v0.4 | 2026-07-03 | **O-7 권한 객체 STAUTHTRACE 검증 완료·확정** — SM37 `S_BTCH_JOB`(`JOBGROUP='*'`/`JOBACTION='SHOW'`), ST22 **`S_ADMI_FCD`→`S_ABAPDUMP` 정정**(`ACTVT=03`/`DUMP_INFO=FULL`/`DUMP_CCLNT=ALL`/`DUMP_CUSER=ALL`), SXI `S_XMB_MONI`(`ACTVT=03`, `S_XMB_ADM` 미요구). 잔여 Open Issue 없음(전건 확정) |
 | v0.5 | 2026-08-03 | **6.4 ALV 표시 열 축소** — SM37(잡명/프로그램/사용자/시작·종료 일시), ST22(프로그램/에러유형/사용자/발생 일시), SXI(인터페이스/상태/발생 일시). 드릴다운 키는 내부 보관·미표시 |
 | v0.6 | 2026-08-04 | **데모 UX 강화** — KPI 헬스 배너·조회소요·자동갱신 표시, ALV 핫스팟/툴바/zebra, STATS/HELP 커맨드, 선택영역 동적 스플리터, Top-N↔시간추이 차트타입 전환, P_HOURS 자동 기간 재계산 |
+| v0.7 | 2026-08-14 | **O-8 SXI 성능 예외** — 전건 버퍼링 제거. 전체 건수=`COUNT(*)`, 상세·마스터 FAE·차트=`UP TO P_MAXROW` 최신건만. KPI에 표시/전체 안내 |
