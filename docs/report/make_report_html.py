@@ -2,14 +2,12 @@
 """논의 정리 HTML 보고서 생성 (+ 화면 캡처 포함).
 
 사용:
-  1) 이 스크립트와 같은 폴더에 HTML 템플릿이 있거나,
-     아래 TEMPLATE_NAME 파일을 둡니다.
-  2) images/ 에 캡처 8장을 저장 (파일명은 SHOTS 참고)
-  3) 실행:
-       python make_report_html.py
-         -> 상대경로 이미지 HTML 생성
+  1) images/ 에 캡처 8장을 저장 (파일명은 SHOTS 참고)
+  2) 실행:
        python make_report_html.py --embed
-         -> 이미지를 base64로 넣어 단일 HTML 생성 (권장, 오프라인)
+         -> 이미지를 base64로 넣어 단일 HTML 생성 (권장)
+  이미지 파일이 아직 없으면 HTML §9의 「사진 불러오기」로
+  PC에서 직접 선택해도 됩니다 (채팅 첨부만으로는 images/에 저장되지 않음).
 
 결과: Cursor_ABAP_Skills_Parity_논의정리_보고서.html
 """
