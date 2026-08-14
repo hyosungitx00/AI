@@ -136,6 +136,39 @@
     color: var(--muted);
     font-size: 12px;
   }
+  .shot {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 12px;
+    margin: 12px 0;
+  }
+  .shot h4 {
+    margin: 0 0 8px;
+    font-size: 14px;
+    color: var(--nav);
+  }
+  .shot img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: #111;
+  }
+  .shot .cap {
+    margin: 8px 0 0;
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+  .shot-pending {
+    border: 1px dashed #9aa8b5;
+    color: var(--muted);
+    text-align: center;
+    padding: 28px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+  }
 </style>
 </head>
 <body>
@@ -469,7 +502,22 @@
 </section>
 
 <section>
-  <h2>9. 결론</h2>
+  <h2>9. 화면 캡처 (Session A → B)</h2>
+  <p>실기 화면을 <strong>A → B 순</strong>으로 배치합니다. (오프라인용: 이미지는 HTML에 직접 포함)</p>
+
+  <h3>9.1 Session A — Awesome skills automation</h3>
+  <div class="shot" id="shot-a-pending">
+    <div class="shot-pending">Session A 캡처 수신 대기 중…</div>
+  </div>
+
+  <h3>9.2 Session B — 통합 운영 모니터링 대시보드</h3>
+  <div class="shot" id="shot-b-pending">
+    <div class="shot-pending">Session B 캡처 수신 대기 중… (A 수신 후)</div>
+  </div>
+</section>
+
+<section>
+  <h2>10. 결론</h2>
   <div class="card">
     <ol>
       <li><strong>품질:</strong> A=60, B=61 (/62, Δ=1) - Hard Gate 적용 기준 동등.</li>
