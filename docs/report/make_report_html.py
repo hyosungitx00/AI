@@ -1,3 +1,12 @@
+# -*- coding: utf-8 -*-
+"""논의 정리 HTML 보고서 생성.
+
+실행: python make_report_html.py
+결과: 같은 폴더에 Cursor_ABAP_Skills_Parity_논의정리_보고서.html
+"""
+from pathlib import Path
+
+HTML = r"""
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -405,4 +414,12 @@
 </div>
 </body>
 </html>
+"""
 
+def main():
+    out = Path(__file__).resolve().parent / "Cursor_ABAP_Skills_Parity_논의정리_보고서.html"
+    out.write_text(HTML.lstrip("\n") + "\n", encoding="utf-8")
+    print("생성 완료:", out)
+
+if __name__ == "__main__":
+    main()
