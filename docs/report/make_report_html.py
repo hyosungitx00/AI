@@ -1,507 +1,122 @@
 # -*- coding: utf-8 -*-
-"""논의 정리 HTML 보고서 생성.
+"""논의 정리 HTML 보고서 생성 (+ 화면 캡처 포함).
 
-실행: python make_report_html.py
-결과: 같은 폴더에 Cursor_ABAP_Skills_Parity_논의정리_보고서.html
+사용:
+  1) 이 스크립트와 같은 폴더에 HTML 템플릿이 있거나,
+     아래 TEMPLATE_NAME 파일을 둡니다.
+  2) images/ 에 캡처 8장을 저장 (파일명은 SHOTS 참고)
+  3) 실행:
+       python make_report_html.py
+         -> 상대경로 이미지 HTML 생성
+       python make_report_html.py --embed
+         -> 이미지를 base64로 넣어 단일 HTML 생성 (권장, 오프라인)
+
+결과: Cursor_ABAP_Skills_Parity_논의정리_보고서.html
 """
+from __future__ import annotations
+
+import argparse
+import base64
+import mimetypes
+import re
 from pathlib import Path
 
-HTML = r"""
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Cursor x ABAP Ops Monitor - 논의 정리 보고서</title>
-<style>
-  :root {
-    --ink: #1a2332;
-    --muted: #5c6b7a;
-    --line: #d5dee7;
-    --bg: #f7f9fb;
-    --card: #ffffff;
-    --a: #1f6f8b;
-    --b: #c45c26;
-    --pass: #1b7f4e;
-    --fail: #b42318;
-    --nav: #0b1f3a;
-  }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0;
-    font-family: "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
-    color: var(--ink);
-    background: var(--bg);
-    line-height: 1.55;
-    font-size: 15px;
-  }
-  .wrap { max-width: 920px; margin: 0 auto; padding: 32px 20px 64px; }
-  header.hero {
-    background: linear-gradient(135deg, #0b1f3a 0%, #1f4e79 55%, #1f6f8b 100%);
-    color: #fff;
-    border-radius: 14px;
-    padding: 28px 32px;
-    margin-bottom: 28px;
-  }
-  header.hero h1 { margin: 0 0 8px; font-size: 26px; font-weight: 700; }
-  header.hero .meta { margin: 0; opacity: .9; font-size: 14px; }
-  h2 {
-    margin: 36px 0 12px;
-    font-size: 20px;
-    color: var(--nav);
-    border-bottom: 2px solid var(--a);
-    padding-bottom: 6px;
-  }
-  h3 { margin: 20px 0 8px; font-size: 16px; color: var(--nav); }
-  p { margin: 8px 0; }
-  ul { margin: 8px 0; padding-left: 1.25em; }
-  li { margin: 4px 0; }
-  .card {
-    background: var(--card);
-    border: 1px solid var(--line);
-    border-radius: 12px;
-    padding: 16px 18px;
-    margin: 12px 0;
-  }
-  .grid2 {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-  }
-  @media (max-width: 720px) { .grid2 { grid-template-columns: 1fr; } }
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 13.5px;
-    background: var(--card);
-  }
-  th, td {
-    border: 1px solid var(--line);
-    padding: 8px 10px;
-    text-align: left;
-    vertical-align: top;
-  }
-  th { background: var(--nav); color: #fff; font-weight: 600; }
-  tr:nth-child(even) td { background: #eef3f7; }
-  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
-  .tag {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 999px;
-    font-size: 12px;
-    font-weight: 700;
-  }
-  .tag.pass { background: #e6f6ee; color: var(--pass); }
-  .tag.fail { background: #fdeceb; color: var(--fail); }
-  .tag.partial { background: #fff4e5; color: #9a6700; }
-  .kpi {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 10px;
-    margin: 12px 0 4px;
-  }
-  @media (max-width: 720px) { .kpi { grid-template-columns: 1fr 1fr; } }
-  .kpi .item {
-    background: var(--card);
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    padding: 12px;
-    text-align: center;
-  }
-  .kpi .v { font-size: 22px; font-weight: 800; color: var(--nav); }
-  .kpi .l { font-size: 12px; color: var(--muted); margin-top: 4px; }
-  .legend {
-    display: flex;
-    gap: 16px;
-    align-items: center;
-    font-size: 13px;
-    color: var(--muted);
-    margin: 8px 0 4px;
-  }
-  .legend i {
-    display: inline-block;
-    width: 14px;
-    height: 3px;
-    border-radius: 2px;
-    margin-right: 6px;
-    vertical-align: middle;
-  }
-  .legend .a i { background: var(--a); }
-  .legend .b i { background: var(--b); }
-  .chart-wrap {
-    background: var(--card);
-    border: 1px solid var(--line);
-    border-radius: 12px;
-    padding: 12px 8px 8px;
-    overflow-x: auto;
-  }
-  .chart-wrap svg { display: block; width: 100%; min-width: 640px; height: auto; }
-  .note { font-size: 12.5px; color: var(--muted); margin-top: 8px; }
-  .passline { stroke: var(--pass); stroke-dasharray: 5 4; stroke-width: 1.5; }
-  footer {
-    margin-top: 40px;
-    padding-top: 12px;
-    border-top: 1px solid var(--line);
-    color: var(--muted);
-    font-size: 12px;
-  }
-</style>
-</head>
-<body>
-<div class="wrap">
+HERE = Path(__file__).resolve().parent
+OUT_NAME = "Cursor_ABAP_Skills_Parity_논의정리_보고서.html"
+TEMPLATE_CANDIDATES = [
+    HERE / OUT_NAME,
+    HERE / "Cursor_ABAP_Skills_Parity_논의정리_보고서.template.html",
+]
+IMG_DIR = HERE / "images"
 
-<header class="hero">
-  <h1>Cursor x ABAP Ops Monitor - 논의 정리 보고서</h1>
-  <p class="meta">대상: Y_OPS_MONITOR_V2 (SM37 / ST22 / SXI) · Session A vs B · 2026-08-13 · 소스복붙/`계속` 제외 집계</p>
-</header>
+SHOTS = [
+    "session-a-01-dashboard",
+    "session-a-02-kpi",
+    "session-a-03-toggle",
+    "session-a-04-help",
+    "session-b-01-dashboard",
+    "session-b-02-kpi",
+    "session-b-03-toggle",
+    "session-b-04-help",
+]
+EXTS = (".png", ".jpg", ".jpeg", ".webp", ".gif")
 
-<section>
-  <h2>1. 핵심 수치 (Session A vs B)</h2>
-  <p>각 지표의 <strong>세션별 값만</strong> 비교합니다. 합산 수치는 사용하지 않습니다.</p>
-  <table>
-    <tr>
-      <th>지표</th>
-      <th>의미</th>
-      <th class="num">A<br/><span style="font-weight:400">Awesome skills<br/>(장기 구현→Skills)</span></th>
-      <th class="num">B<br/><span style="font-weight:400">통합 운영 모니터<br/>(Greenfield 재현)</span></th>
-    </tr>
-    <tr>
-      <td>공정 질문 수<br/><code>cum_Q_program</code></td>
-      <td>프로그램 구현·오류·UX 관련 누적 질문<br/>(소스복붙·PPT·메타 제외)</td>
-      <td class="num"><strong>63</strong></td>
-      <td class="num"><strong>16</strong></td>
-    </tr>
-    <tr>
-      <td>첫 PASS까지 Q</td>
-      <td>Hard Gate 통과(실기 동작 OK)까지<br/>든 공정 질문 수</td>
-      <td class="num"><strong>57</strong></td>
-      <td class="num"><strong>12</strong></td>
-    </tr>
-    <tr>
-      <td>최종 Parity</td>
-      <td>설계·UX·기동 바 대비 품질 점수<br/>(만점 62, PASS ≥ 55)</td>
-      <td class="num"><strong>60</strong> <span class="tag pass">PASS</span></td>
-      <td class="num"><strong>61</strong> <span class="tag pass">PASS</span></td>
-    </tr>
-    <tr>
-      <td>E_compile</td>
-      <td>사용자가 활성화·문법 오류를<br/>첨부한 횟수</td>
-      <td class="num"><strong>~18+</strong></td>
-      <td class="num"><strong>2</strong></td>
-    </tr>
-  </table>
-  <p class="note">품질(60 vs 61, 만점 62)은 거의 같고, PASS 도달(57→12)·컴파일 오류 왕복(~18+→2)은 B가 적음. 전사가 열리지 않은 세션은 비교에 미포함.</p>
-</section>
 
-<section>
-  <h2>2. 질문 유형</h2>
-  <div class="card">
-    <ul>
-      <li>컴파일·활성화·타입 오류 (선언 누락, ECC fcode, IGS API, DATUM, 문자열 템플릿, Open SQL 등)</li>
-      <li>UX·차트·레이아웃 (비율, Top-N/시간축, 영역색, ALV 툴바, STATS/HELP HTML 팝업)</li>
-      <li>실기 증상 (빈 화면, 팝업 X, ST22 0건, 더블클릭 상세)</li>
-      <li>Selection Screen / Dynpro / 텍스트심볼 가이드</li>
-      <li>후반: 집계·A/B 비교·Parity 채점</li>
-    </ul>
-    <p class="note">제외: 통짜/전체 로직·채팅 원문 요청, 잘린 출력 <code>계속</code>, 경로 대신 붙여 달라는 전달 전용 턴.</p>
-  </div>
-</section>
+def find_image(stem: str) -> Path | None:
+    for ext in EXTS:
+        p = IMG_DIR / f"{stem}{ext}"
+        if p.is_file():
+            return p
+    return None
 
-<section>
-  <h2>3. Session A → Skills → Session B</h2>
-  <div class="grid2">
-    <div class="card">
-      <h3>A · Awesome skills automation</h3>
-      <ul>
-        <li>장기 구현 + 오류/UX 왕복</li>
-        <li>후반 Skills/Rules 정착</li>
-        <li>공정 Q ≈ <strong>63</strong></li>
-        <li>E_compile ≈ 18+</li>
-        <li>최종 Parity <strong>60</strong> /62</li>
-        <li>첫 PASS ≈ Q <strong>57</strong></li>
-      </ul>
-    </div>
-    <div class="card">
-      <h3>B · 통합 운영 모니터링 대시보드</h3>
-      <ul>
-        <li>설계서 + Skills Greenfield 재현</li>
-        <li>동일 UX 바 선반영 시도</li>
-        <li>공정 Q ≈ <strong>16</strong></li>
-        <li>E_compile = 2</li>
-        <li>최종 Parity <strong>61</strong> /62</li>
-        <li>첫 PASS ≈ Q <strong>12</strong></li>
-      </ul>
-    </div>
-  </div>
-  <p>A에서 겪은 실패·합의 UX를 Skill로 고착한 뒤, B에서 같은 설계서로 재구현. 최종 품질은 동등(Δ=1), PASS 도달은 B가 빠름.</p>
-</section>
 
-<section>
-  <h2>4. Skills / Rules 요약</h2>
-  <table>
-    <tr><th>항목</th><th>내용</th></tr>
-    <tr><td>Always-on</td><td>읽기전용 · 채팅 전달 · 선언+구현 동시 · Preflight 강제</td></tr>
-    <tr><td>activation-preflight</td><td>P1–P10: 선언 누락, ECC fcode, IGS, CSS {}, 타입, private 호출 등</td></tr>
-    <tr><td>ops-monitor-ux</td><td>HTML 차트/팝업, 영역색, 독립 스케일, ALV 최소 툴바</td></tr>
-    <tr><td>requirement-intake</td><td>모호 UX ≤8 선택지 1회 계약 (Brief 있으면 생략)</td></tr>
-  </table>
-  <p class="note">전이성(추정): Preflight·Delivery ~70% 일반 / Ops UX·도메인 ~80%+ 특화.</p>
-</section>
+def to_data_uri(path: Path) -> str:
+    mime = mimetypes.guess_type(path.name)[0] or "image/png"
+    b64 = base64.b64encode(path.read_bytes()).decode("ascii")
+    return f"data:{mime};base64,{b64}"
 
-<section>
-  <h2>5. Parity 채점 기준 · 최종</h2>
-  <div class="card">
-    <p><strong>만점 62</strong> = S1 기능 20 + S2 안전·기동 18 + S3 UX 16 + S4 전달 8. 항목마다 0/1/2.</p>
-    <p><strong>v1.1:</strong> 활성화·실행 비중을 키움. 기동 클러스터(S2-06~09) = <strong>8/62≈13%</strong> + Hard Gate(미충족 시 PASS 불가).</p>
-    <p><strong>Hard Gate:</strong> 활성화 실패 · 빈 화면 · 팝업 미동작 · 필수 조회 버그 · 드릴다운 불능 → 총점과 무관하게 PASS 불가. 코드만·미실기면 상한 44.</p>
-  </div>
 
-  <h3>S1 기능 (/20) — 설계서 FR: “무엇을 하는가”</h3>
-  <table>
-    <tr><th>ID</th><th>항목</th><th>2점 기준</th></tr>
-    <tr><td>S1-01</td><td>3영역 조회</td><td>SM37 / ST22 / SXI 데이터 경로</td></tr>
-    <tr><td>S1-02</td><td>3분할 대시보드</td><td>0100 + splitter로 영역 ALV 동시 표시</td></tr>
-    <tr><td>S1-03</td><td>상단 요약</td><td>영역별 건수(+신호등/헬스)</td></tr>
-    <tr><td>S1-04</td><td>기간</td><td>기본 −24H, FROM/TO 변경</td></tr>
-    <tr><td>S1-05</td><td>영역 On/Off</td><td>해제 시 미조회·레이아웃 반영</td></tr>
-    <tr><td>S1-06</td><td>드릴다운</td><td>행 선택 → 표시 전용 상세</td></tr>
-    <tr><td>S1-07</td><td>기간 바운드</td><td>풀스캔 없이 선택기간 제한</td></tr>
-    <tr><td>S1-08</td><td>MaxRow / Top-N</td><td>표시 상한 + 차트 집계</td></tr>
-    <tr><td>S1-09</td><td>데이터 소스</td><td>TBTCO / RS_ST22_GET_DUMPS / SXMSPERROR</td></tr>
-    <tr><td>S1-10</td><td>권한 스킵</td><td>한 영역 실패해도 타 영역 유지</td></tr>
-  </table>
+def load_template() -> str:
+    for p in TEMPLATE_CANDIDATES:
+        if p.is_file():
+            return p.read_text(encoding="utf-8")
+    raise SystemExit("HTML 템플릿을 찾을 수 없습니다: " + OUT_NAME)
 
-  <h3>S2 안전·기동 (/18) — NFR + 실기 (비중 확대)</h3>
-  <table>
-    <tr><th>ID</th><th>항목</th><th>2점 기준</th></tr>
-    <tr><td>S2-01</td><td>읽기전용</td><td>DML / COMMIT / Enqueue / 재처리 없음</td></tr>
-    <tr><td>S2-02</td><td>표준 오브젝트</td><td>Z테이블·외부 직접 접근 없음</td></tr>
-    <tr><td>S2-03</td><td>모듈화</td><td>Provider / UI / Navigator 분리</td></tr>
-    <tr><td>S2-04</td><td>권한</td><td>영역별 AUTHORITY-CHECK</td></tr>
-    <tr><td>S2-05</td><td>드릴다운 표시모드</td><td>display 경로만</td></tr>
-    <tr><td>S2-06</td><td><strong>SE38 활성화</strong></td><td>Activate 성공</td></tr>
-    <tr><td>S2-07</td><td><strong>메인 화면 기동</strong></td><td>0100 표시, 빈화면 없음</td></tr>
-    <tr><td>S2-08</td><td><strong>필수 조회 실실행</strong></td><td>버그성 0건/덤프 없음</td></tr>
-    <tr><td>S2-09</td><td><strong>필수 상호작용 실실행</strong></td><td>필수 팝업 또는 드릴다운 실기 OK</td></tr>
-  </table>
 
-  <h3>S3 UX (/16) — 합의된 화면 품질 바</h3>
-  <table>
-    <tr><th>ID</th><th>항목</th><th>2점 기준</th></tr>
-    <tr><td>S3-01</td><td>HTML/CSS 차트</td><td>IGS-only 아님</td></tr>
-    <tr><td>S3-02</td><td>영역색</td><td>SM37/ST22/SXI 서로 다른 색</td></tr>
-    <tr><td>S3-03</td><td>독립 스케일</td><td>영역별 max</td></tr>
-    <tr><td>S3-04</td><td>Top-N / 시간추이</td><td>가로 Top-N + 시간축</td></tr>
-    <tr><td>S3-05</td><td>STATS HTML</td><td>dialog (MESSAGE 아님)</td></tr>
-    <tr><td>S3-06</td><td>HELP HTML</td><td>동일</td></tr>
-    <tr><td>S3-07</td><td>ALV 툴바</td><td>찾기·정렬·필터 중심</td></tr>
-    <tr><td>S3-08</td><td>ALV 가독성</td><td>zebra + 영역색 + 핵심 컬럼</td></tr>
-  </table>
+def embed_images(html: str) -> str:
+    """src=\"images/<stem>.ext\" 를 data URI 로 치환."""
+    missing = []
 
-  <h3>S4 전달 (/8) — SE38 재현 가능성</h3>
-  <table>
-    <tr><th>ID</th><th>항목</th><th>2점 기준</th></tr>
-    <tr><td>S4-01</td><td>단일 소스</td><td>SE38용 완결 리포트</td></tr>
-    <tr><td>S4-02</td><td>Dynpro 가이드</td><td>0100·PF-STATUS 생성 방법</td></tr>
-    <tr><td>S4-03</td><td>선언+구현</td><td>사용 멤버가 DEFINITION에 존재</td></tr>
-    <tr><td>S4-04</td><td>Selection texts</td><td>텍스트 매핑 가능</td></tr>
-  </table>
+    def repl(m: re.Match) -> str:
+        rel = m.group(1)
+        stem = Path(rel).stem
+        # stem may already include session-a-01-dashboard
+        img = find_image(stem)
+        if not img:
+            missing.append(rel)
+            return m.group(0)
+        return f'src="{to_data_uri(img)}"'
 
-  <h3>최종 점수 (v1.1)</h3>
-  <table>
-    <tr><th>섹션</th><th class="num">만점</th><th class="num">A</th><th class="num">B</th></tr>
-    <tr><td>S1 기능</td><td class="num">20</td><td class="num">20</td><td class="num">20</td></tr>
-    <tr><td>S2 안전·기동</td><td class="num">18</td><td class="num">18</td><td class="num">18</td></tr>
-    <tr><td>S3 UX</td><td class="num">16</td><td class="num">16</td><td class="num">15</td></tr>
-    <tr><td>S4 전달</td><td class="num">8</td><td class="num">6</td><td class="num">8</td></tr>
-    <tr><td><strong>총점</strong></td><td class="num"><strong>62</strong></td><td class="num"><strong>60</strong> <span class="tag pass">PASS</span></td><td class="num"><strong>61</strong> <span class="tag pass">PASS</span></td></tr>
-  </table>
-  <p class="note">v1.0(만점 56) 환산 시 A=54 / B=55. 기동·실행 +6이 양쪽에 동등 반영되어 Δ=1·동등 결론은 동일.</p>
-</section>
+    out = re.sub(
+        r'src="(images/session-[ab]-\d{2}-[a-z0-9.-]+\.(?:png|jpg|jpeg|webp|gif))"',
+        repl,
+        html,
+        flags=re.IGNORECASE,
+    )
+    if missing:
+        print("경고: 이미지 없음 (상대경로 유지):")
+        for x in missing:
+            print("  -", x)
+    else:
+        print("이미지 8장 base64 포함 완료")
+    return out
 
-<section>
-  <h2>6. 질문 수별 품질 추이</h2>
-  <p>가로축: 공정 누적 질문 <code>cum_Q_program</code> (PPT·소스복붙·메타 제외). 세로축: Parity Total (그래프는 v1.0 /56 마일스톤 추정치). 최종 공식 점수는 v1.1 /62.</p>
 
-  <div class="legend">
-    <span class="a"><i></i>Session A</span>
-    <span class="b"><i></i>Session B</span>
-    <span>점선 = PASS 기준선 (50)</span>
-  </div>
+def main() -> None:
+    ap = argparse.ArgumentParser()
+    ap.add_argument(
+        "--embed",
+        action="store_true",
+        help="images/ 파일을 HTML에 base64로 넣어 단일 파일 생성",
+    )
+    args = ap.parse_args()
 
-  <div class="chart-wrap" aria-label="Parity vs cum_Q chart">
-    <!--
-      Data (Hard Gate):
-      A: (1,0) (9,24) (15,31) (23,34) (29,39) (37,41) (47,44) (51,46) (57,51) (63,54)
-      B: (1,30) (2,33) (3,38) (5,40) (6,37) (7,39) (7.5,45) (9,47) (11,42) (12,53) (14,53) (16,55)
-      Chart box: x 1..63, y 0..56
-      Plot area: left=56, right=860, top=28, bottom=280  (viewBox 0 0 900 320)
-    -->
-    <svg viewBox="0 0 900 320" role="img" aria-labelledby="chartTitle">
-      <title id="chartTitle">Parity Total vs cum_Q_program</title>
-      <rect x="0" y="0" width="900" height="320" fill="#fff"/>
-      <!-- grid -->
-      <g stroke="#e6edf3" stroke-width="1">
-        <line x1="56" y1="28" x2="56" y2="280"/>
-        <line x1="56" y1="280" x2="860" y2="280"/>
-        <line x1="56" y1="217.1" x2="860" y2="217.1"/>
-        <line x1="56" y1="154.3" x2="860" y2="154.3"/>
-        <line x1="56" y1="91.4" x2="860" y2="91.4"/>
-        <line x1="56" y1="28" x2="860" y2="28"/>
-      </g>
-      <!-- PASS line y=50 → svgY = 280 - 50*(252/56) = 280 - 225 = 55 -->
-      <line class="passline" x1="56" y1="55" x2="860" y2="55"/>
-      <text x="866" y="59" font-size="11" fill="#1b7f4e">PASS 50</text>
+    html = load_template()
+    if args.embed:
+        html = embed_images(html)
 
-      <!-- y labels -->
-      <g fill="#5c6b7a" font-size="11" text-anchor="end">
-        <text x="50" y="284">0</text>
-        <text x="50" y="221">14</text>
-        <text x="50" y="158">28</text>
-        <text x="50" y="95">42</text>
-        <text x="50" y="32">56</text>
-      </g>
-      <!-- x labels -->
-      <g fill="#5c6b7a" font-size="11" text-anchor="middle">
-        <text x="56" y="298">1</text>
-        <text x="185" y="298">10</text>
-        <text x="314" y="298">20</text>
-        <text x="443" y="298">30</text>
-        <text x="572" y="298">40</text>
-        <text x="701" y="298">50</text>
-        <text x="830" y="298">60</text>
-        <text x="458" y="316">cum_Q_program</text>
-      </g>
-      <text x="18" y="160" font-size="11" fill="#5c6b7a" transform="rotate(-90 18 160)">Parity /56</text>
-
-      <!--
-        mapX(q) = 56 + (q-1)/(63-1)*804
-        mapY(t) = 280 - t/56*252
-      -->
-      <!-- Session A polyline -->
-      <polyline fill="none" stroke="#1f6f8b" stroke-width="2.5" stroke-linejoin="round"
-        points="
-          56.0,280.0
-          159.7,172.0
-          237.5,140.5
-          341.3,127.0
-          419.1,104.5
-          522.9,95.5
-          652.6,82.0
-          704.5,73.0
-          782.3,50.5
-          860.0,37.0
-        "/>
-      <g fill="#1f6f8b">
-        <circle cx="56.0" cy="280.0" r="3.5"/><circle cx="159.7" cy="172.0" r="3.5"/>
-        <circle cx="237.5" cy="140.5" r="3.5"/><circle cx="341.3" cy="127.0" r="3.5"/>
-        <circle cx="419.1" cy="104.5" r="3.5"/><circle cx="522.9" cy="95.5" r="3.5"/>
-        <circle cx="652.6" cy="82.0" r="3.5"/><circle cx="704.5" cy="73.0" r="3.5"/>
-        <circle cx="782.3" cy="50.5" r="4"/><circle cx="860.0" cy="37.0" r="4"/>
-      </g>
-      <text x="782" y="42" font-size="11" fill="#1f6f8b" font-weight="700">A PASS@57</text>
-
-      <!-- Session B polyline -->
-      <polyline fill="none" stroke="#c45c26" stroke-width="2.5" stroke-linejoin="round"
-        points="
-          56.0,145.0
-          69.0,131.5
-          81.9,109.0
-          107.9,100.0
-          120.8,113.5
-          133.8,104.5
-          140.3,77.5
-          159.7,68.5
-          185.6,91.0
-          198.6,41.5
-          224.5,41.5
-          250.5,32.5
-        "/>
-      <g fill="#c45c26">
-        <circle cx="56.0" cy="145.0" r="3.5"/><circle cx="69.0" cy="131.5" r="3.5"/>
-        <circle cx="81.9" cy="109.0" r="3.5"/><circle cx="107.9" cy="100.0" r="3.5"/>
-        <circle cx="120.8" cy="113.5" r="3.5"/><circle cx="133.8" cy="104.5" r="3.5"/>
-        <circle cx="140.3" cy="77.5" r="3.5"/><circle cx="159.7" cy="68.5" r="3.5"/>
-        <circle cx="185.6" cy="91.0" r="3.5"/><circle cx="198.6" cy="41.5" r="4"/>
-        <circle cx="224.5" cy="41.5" r="3.5"/><circle cx="250.5" cy="32.5" r="4"/>
-      </g>
-      <text x="258" y="36" font-size="11" fill="#c45c26" font-weight="700">B PASS@12</text>
-    </svg>
-  </div>
-
-  <h3>마일스톤 (요약)</h3>
-  <div class="grid2">
-    <div>
-      <table>
-        <tr><th class="num">Q</th><th>A</th><th class="num">Total</th><th>등급</th></tr>
-        <tr><td class="num">1</td><td>착수</td><td class="num">0</td><td><span class="tag fail">FAIL</span></td></tr>
-        <tr><td class="num">15</td><td>첫 기동</td><td class="num">31</td><td><span class="tag fail">FAIL</span></td></tr>
-        <tr><td class="num">47</td><td>IGS/색 미달</td><td class="num">44</td><td><span class="tag fail">FAIL</span></td></tr>
-        <tr><td class="num">57</td><td>HTML 차트</td><td class="num">51</td><td><span class="tag pass">PASS</span></td></tr>
-        <tr><td class="num">63</td><td>STATS/HELP</td><td class="num">54</td><td><span class="tag pass">PASS</span></td></tr>
-      </table>
-    </div>
-    <div>
-      <table>
-        <tr><th class="num">Q</th><th>B</th><th class="num">Total</th><th>등급</th></tr>
-        <tr><td class="num">1</td><td>소스만·미실기</td><td class="num">30</td><td><span class="tag fail">FAIL</span></td></tr>
-        <tr><td class="num">6–7</td><td>활성화/팝업X</td><td class="num">37–39</td><td><span class="tag fail">FAIL</span></td></tr>
-        <tr><td class="num">8–10</td><td>ST22 0건 잔존</td><td class="num">~47</td><td><span class="tag partial">PARTIAL</span></td></tr>
-        <tr><td class="num">12</td><td>ST22 복구</td><td class="num">53</td><td><span class="tag pass">PASS</span></td></tr>
-        <tr><td class="num">16</td><td>HTML 상세</td><td class="num">55</td><td><span class="tag pass">PASS</span></td></tr>
-      </table>
-    </div>
-  </div>
-</section>
-
-<section>
-  <h2>7. 효율</h2>
-  <table>
-    <tr><th>지표</th><th class="num">A</th><th class="num">B</th></tr>
-    <tr><td>첫 PASS까지 Q</td><td class="num">57</td><td class="num">12</td></tr>
-    <tr><td>첫 PASS pt/Q</td><td class="num">≈0.89</td><td class="num">≈4.4</td></tr>
-    <tr><td>최종까지 Q</td><td class="num">63</td><td class="num">16</td></tr>
-    <tr><td>최종 pt/Q</td><td class="num">≈0.86</td><td class="num">≈3.4</td></tr>
-  </table>
-  <p>최종 품질은 유사(60 vs 61 /62). PASS 도달 속도는 B가 뚜렷. “B가 처음부터 실기까지 완벽”은 아님 - 첫 PASS는 Q≈12.</p>
-</section>
-
-<section>
-  <h2>8. 일반화 · 한계</h2>
-  <div class="card">
-    <ul>
-      <li>효과의 상당 부분 = <strong>동일 Ops Monitor 오류·UX 목록화</strong>. 다른 도메인이면 특화 층 효과↓, Preflight 일반 층은 일부 유지.</li>
-      <li>시나리오(추정): 다른 도메인 + 현 Skills → 공정 Q ~30–45 / 같은 Ops 계열 → ~12–20(B 실측).</li>
-      <li>한계: 전사 접근 2세션만 · 중간 곡선 보간(±2) · 프로그램 유형 n=1.</li>
-    </ul>
-  </div>
-</section>
-
-<section>
-  <h2>9. 결론</h2>
-  <div class="card">
-    <ol>
-      <li><strong>품질:</strong> A=60, B=61 (/62, Δ=1) - Hard Gate 적용 기준 동등.</li>
-      <li><strong>과정:</strong> 공정 Q 63→16, 첫 PASS 57→12, E_compile ~18+→2.</li>
-      <li><strong>방법:</strong> 실패를 Skill/Rule로 고착하면 같은 설계서 재현 왕복이 크게 줄어든다.</li>
-      <li><strong>확장:</strong> 다른 형식 프로그램에서는 효과가 줄 수 있으며, 유형별 실패를 다시 쌓아야 일반화가 된다.</li>
-    </ol>
-  </div>
-</section>
-
-<footer>
-  Cursor x ABAP Skills / Parity · 오프라인 HTML · 외부 스크립트 없음 · 그래프는 Hard Gate 보정 마일스톤 기준
-</footer>
-
-</div>
-</body>
-</html>
-"""
-
-def main():
-    out = Path(__file__).resolve().parent / "Cursor_ABAP_Skills_Parity_논의정리_보고서.html"
-    out.write_text(HTML.lstrip('\n') + '\n', encoding='utf-8')
+    out = HERE / OUT_NAME
+    out.write_text(html if html.endswith("\n") else html + "\n", encoding="utf-8")
     print("생성 완료:", out)
+    print("images 폴더:", IMG_DIR)
+    found = sum(1 for s in SHOTS if find_image(s))
+    print(f"캡처 파일 {found}/{len(SHOTS)} 발견")
+    if found < len(SHOTS):
+        print("없는 파일:")
+        for s in SHOTS:
+            if not find_image(s):
+                print(f"  images/{s}.png")
+
 
 if __name__ == "__main__":
     main()
