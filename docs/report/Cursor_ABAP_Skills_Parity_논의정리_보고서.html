@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Cursor x ABAP Ops Monitor - 논의 정리 보고서</title>
+<style>
+  :root {
+    --ink: #1a2332;
+    --muted: #5c6b7a;
+    --line: #d5dee7;
+    --bg: #f7f9fb;
+    --card: #ffffff;
+    --a: #1f6f8b;
+    --b: #c45c26;
+    --pass: #1b7f4e;
+    --fail: #b42318;
+    --nav: #0b1f3a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    line-height: 1.55;
+    font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 32px 20px 64px; }
+  header.hero {
+    background: linear-gradient(135deg, #0b1f3a 0%, #1f4e79 55%, #1f6f8b 100%);
+    color: #fff;
+    border-radius: 14px;
+    padding: 28px 32px;
+    margin-bottom: 28px;
+  }
+  header.hero h1 { margin: 0 0 8px; font-size: 26px; font-weight: 700; }
+  header.hero .meta { margin: 0; opacity: .9; font-size: 14px; }
+  h2 {
+    margin: 36px 0 12px;
+    font-size: 20px;
+    color: var(--nav);
+    border-bottom: 2px solid var(--a);
+    padding-bottom: 6px;
+  }
+  h3 { margin: 20px 0 8px; font-size: 16px; color: var(--nav); }
+  p { margin: 8px 0; }
+  ul { margin: 8px 0; padding-left: 1.25em; }
+  li { margin: 4px 0; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 16px 18px;
+    margin: 12px 0;
+  }
+  .grid2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  @media (max-width: 720px) { .grid2 { grid-template-columns: 1fr; } }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13.5px;
+    background: var(--card);
+  }
+  th, td {
+    border: 1px solid var(--line);
+    padding: 8px 10px;
+    text-align: left;
+    vertical-align: top;
+  }
+  th { background: var(--nav); color: #fff; font-weight: 600; }
+  tr:nth-child(even) td { background: #eef3f7; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .tag.pass { background: #e6f6ee; color: var(--pass); }
+  .tag.fail { background: #fdeceb; color: var(--fail); }
+  .tag.partial { background: #fff4e5; color: #9a6700; }
+  .kpi {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin: 12px 0 4px;
+  }
+  @media (max-width: 720px) { .kpi { grid-template-columns: 1fr 1fr; } }
+  .kpi .item {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 12px;
+    text-align: center;
+  }
+  .kpi .v { font-size: 22px; font-weight: 800; color: var(--nav); }
+  .kpi .l { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .legend {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    font-size: 13px;
+    color: var(--muted);
+    margin: 8px 0 4px;
+  }
+  .legend i {
+    display: inline-block;
+    width: 14px;
+    height: 3px;
+    border-radius: 2px;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+  .legend .a i { background: var(--a); }
+  .legend .b i { background: var(--b); }
+  .chart-wrap {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 12px 8px 8px;
+    overflow-x: auto;
+  }
+  .chart-wrap svg { display: block; width: 100%; min-width: 640px; height: auto; }
+  .note { font-size: 12.5px; color: var(--muted); margin-top: 8px; }
+  .passline { stroke: var(--pass); stroke-dasharray: 5 4; stroke-width: 1.5; }
+  footer {
+    margin-top: 40px;
+    padding-top: 12px;
+    border-top: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .compare-block {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 12px 14px 14px;
+    margin: 14px 0;
+  }
+  .compare-block > h3 {
+    margin: 0 0 10px;
+    font-size: 15px;
+    color: var(--nav);
+  }
+  .compare-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    align-items: start;
+  }
+  @media (max-width: 800px) { .compare-row { grid-template-columns: 1fr; } }
+  .shot {
+    background: #f4f7fa;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 8px;
+    margin: 0;
+    min-width: 0;
+  }
+  .shot .badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 999px;
+    margin-bottom: 6px;
+  }
+  .shot .badge.a { background: #e5f3f8; color: var(--a); }
+  .shot .badge.b { background: #fceee6; color: var(--b); }
+  .shot h4 {
+    margin: 0 0 6px;
+    font-size: 13px;
+    color: var(--nav);
+  }
+  .shot img {
+    display: block;
+    width: 100%;
+    max-height: 240px;
+    height: auto;
+    object-fit: contain;
+    object-position: top center;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: #111;
+    cursor: zoom-in;
+  }
+  .shot img.is-empty { display: none; }
+  .shot .cap {
+    margin: 6px 0 0;
+    font-size: 11.5px;
+    color: var(--muted);
+    line-height: 1.4;
+  }
+  .shot .missing {
+    border: 1px dashed #9aa8b5;
+    color: var(--muted);
+    text-align: center;
+    padding: 18px 8px;
+    border-radius: 8px;
+    font-size: 12px;
+    background: #eef2f5;
+  }
+  .shot .missing[hidden] { display: none !important; }
+  .img-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    margin: 8px 0 10px;
+  }
+  .img-toolbar label.btn {
+    display: inline-block;
+    background: var(--nav);
+    color: #fff;
+    padding: 6px 11px;
+    border-radius: 8px;
+    font-size: 12.5px;
+    cursor: pointer;
+  }
+  .img-toolbar input[type=file] { display: none; }
+  .img-status { font-size: 12px; color: var(--muted); }
+  .lightbox {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 18, 28, .88);
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .lightbox.open { display: flex; }
+  .lightbox img {
+    max-width: min(96vw, 1200px);
+    max-height: 92vh;
+    object-fit: contain;
+    border-radius: 6px;
+    background: #000;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <h1>Cursor x ABAP Ops Monitor - 논의 정리 보고서</h1>
+  <p class="meta">대상: Y_OPS_MONITOR_V2 (SM37 / ST22 / SXI) · Session A vs B · 2026-08-13 · 소스복붙/`계속` 제외 집계</p>
+</header>
+
+<section id="overview">
+  <h2>1. 개요</h2>
+  <div class="card">
+    <h3>주 목적</h3>
+    <p>동일 설계의 <strong>읽기 전용 통합 운영 모니터</strong>를 Cursor로 구현할 때,
+    장기 왕복으로 Skills를 쌓은 Session A와, 그 Skills를 붙인 채 Greenfield로 재현한 Session B가
+    <strong>최종 품질은 동등한지</strong>, 그리고 <strong>PASS까지 드는 질문·오류 왕복은 얼마나 줄어드는지</strong>를 확인한다.</p>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <h3>무엇을 비교하는가</h3>
+      <ul>
+        <li><strong>Session A</strong> — Awesome skills automation<br/>장기 구현 → 오류/UX 왕복 → Skills·Rules 정착</li>
+        <li><strong>Session B</strong> — 통합 운영 모니터링 대시보드<br/>설계서 + 동일 Skills로 Greenfield 재현</li>
+        <li>대상 프로그램: <code>Y_OPS_MONITOR_V2</code> (SM37 / ST22 / SXI, 읽기 전용)</li>
+        <li>실기 화면: 대시보드 · KPI/STATS · TOGGLE 시간추이 · HELP (동일 조회 438건)</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>어떻게 비교하는가</h3>
+      <ul>
+        <li><strong>화면</strong> — 동일 조건 캡처를 A|B 좌우 배치 (다음 절)</li>
+        <li><strong>과정</strong> — 공정 질문 수, 첫 PASS까지 Q, E_compile (세션별, 합산 없음)</li>
+        <li><strong>품질</strong> — Parity v1.1 (만점 62, PASS ≥ 55) Hard Gate 포함</li>
+        <li><strong>집계 범위</strong> — 프로그램 구현·오류·UX 관련만 / 소스복붙·<code>계속</code>·메타 제외</li>
+      </ul>
+    </div>
+  </div>
+  <p class="note">읽는 순서: 개요 → 화면으로 결과물 감각 → 핵심 수치·Parity·추이로 근거 확인.</p>
+</section>
+
+<section id="shots-section">
+  <h2>2. 화면 비교 (Session A | B)</h2>
+  <p>동일 조회 조건(총 438건: SM37 355 / ST22 11 / SXI 72). 왼쪽 A · 오른쪽 B. 사진을 클릭하면 확대됩니다.</p>
+  <div class="img-toolbar">
+    <label class="btn" for="shot-bulk">사진 8장 불러오기</label>
+    <input id="shot-bulk" type="file" accept="image/*" multiple/>
+    <span class="img-status" id="shot-status">0 / 8 표시 · 권장: make_report_html.py로 축소·포함</span>
+  </div>
+
+  <div class="compare-block">
+    <h3>대시보드 · Top-N</h3>
+    <div class="compare-row">
+      <div class="shot" data-shot="session-a-01-dashboard">
+        <span class="badge a">Session A</span>
+        <h4>초기 전체 화면</h4>
+        <img class="is-empty" src="images/session-a-01-dashboard.png" alt="Session A 대시보드" data-img/>
+        <div class="missing" data-miss>이미지 없음</div>
+        <p class="cap">KPI/TOGGLE/REFRESH/HELP · 주의 배너 · 3분할 ALV + Top-N</p>
+      </div>
+      <div class="shot" data-shot="session-b-01-dashboard">
+        <span class="badge b">Session B</span>
+        <h4>초기 전체 화면</h4>
+        <img class="is-empty" src="images/session-b-01-dashboard.png" alt="Session B 대시보드" data-img/>
+        <div class="missing" data-miss>이미지 없음</div>
+        <p class="cap">위험 438건 헤더 · 영역별 Top-N · 3분할 ALV</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="compare-block">
+    <h3>KPI → STATS 팝업</h3>
+    <div class="compare-row">
+      <div class="shot" data-shot="session-a-02-kpi">
+        <span class="badge a">Session A</span>
+        <h4>STATS</h4>
+        <img class="is-empty" src="images/session-a-02-kpi.png" alt="Session A KPI" data-img/>
+        <div class="missing" data-miss>이미지 없음</div>
+        <p class="cap">CRITICAL · 영역별 건수/비중/신호등 · HTML dialog</p>
+      </div>
+      <div class="shot" data-shot="session-b-02-kpi">
+        <span class="badge b">Session B</span>
+        <h4>STATS</h4>
+        <img class="is-empty" src="images/session-b-02-kpi.png" alt="Session B KPI" data-img/>
+        <div class="missing" data-miss>이미지 없음</div>
+        <p class="cap">다크 테마 · SM37/ST22/SXI 카드+비중 바</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="compare-block">
+    <h3>TOGGLE → 시간추이</h3>
+    <div class="compare-row">
+      <div class="shot" data-shot="session-a-03-toggle">
+        <span class="badge a">Session A</span>
+        <h4>시간추이</h4>
+        <img class="is-empty" src="images/session-a-03-toggle.png" alt="Session A TOGGLE" data-img/>
+        <div class="missing" data-miss>이미지 없음</div>
+        <p class="cap">영역별 세로 막대(1칸=1시간) · ALV 유지</p>
+      </div>
+      <div class="shot" data-shot="session-b-03-toggle">
+        <span class="badge b">Session B</span>
+        <h4>시간대별 추이</h4>
+        <img class="is-empty" src="images/session-b-03-toggle.png" alt="Session B TOGGLE" data-img/>
+        <div class="missing" data-miss>이미지 없음</div>
+        <p class="cap">통합 스택 막대(SM37/ST22/SXI)</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="compare-block">
+    <h3>HELP → 사용 안내</h3>
+    <div class="compare-row">
+      <div class="shot" data-shot="session-a-04-help">
+        <span class="badge a">Session A</span>
+        <h4>HELP</h4>
+        <img class="is-empty" src="images/session-a-04-help.png" alt="Session A HELP" data-img/>
+        <div class="missing" data-miss>이미지 없음</div>
+        <p class="cap">상세조회 / REFRESH / TOGGLE / STATS / P_AUTORF</p>
+      </div>
+      <div class="shot" data-shot="session-b-04-help">
+        <span class="badge b">Session B</span>
+        <h4>HELP</h4>
+        <img class="is-empty" src="images/session-b-04-help.png" alt="Session B HELP" data-img/>
+        <div class="missing" data-miss>이미지 없음</div>
+        <p class="cap">F8/REFRESH/TOGGLE/STATS · 읽기전용 경고</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>3. 핵심 수치 (Session A vs B)</h2>
+  <p>각 지표의 <strong>세션별 값만</strong> 비교합니다. 합산 수치는 사용하지 않습니다.</p>
+  <table>
+    <tr>
+      <th>지표</th>
+      <th>의미</th>
+      <th class="num">A<br/><span style="font-weight:400">Awesome skills<br/>(장기 구현→Skills)</span></th>
+      <th class="num">B<br/><span style="font-weight:400">통합 운영 모니터<br/>(Greenfield 재현)</span></th>
+    </tr>
+    <tr>
+      <td>공정 질문 수<br/><code>cum_Q_program</code></td>
+      <td>프로그램 구현·오류·UX 관련 누적 질문<br/>(소스복붙·PPT·메타 제외)</td>
+      <td class="num"><strong>63</strong></td>
+      <td class="num"><strong>16</strong></td>
+    </tr>
+    <tr>
+      <td>첫 PASS까지 Q</td>
+      <td>Hard Gate 통과(실기 동작 OK)까지<br/>든 공정 질문 수</td>
+      <td class="num"><strong>57</strong></td>
+      <td class="num"><strong>12</strong></td>
+    </tr>
+    <tr>
+      <td>최종 Parity</td>
+      <td>설계·UX·기동 바 대비 품질 점수<br/>(만점 62, PASS ≥ 55)</td>
+      <td class="num"><strong>60</strong> <span class="tag pass">PASS</span></td>
+      <td class="num"><strong>61</strong> <span class="tag pass">PASS</span></td>
+    </tr>
+    <tr>
+      <td>E_compile</td>
+      <td>사용자가 활성화·문법 오류를<br/>첨부한 횟수</td>
+      <td class="num"><strong>~18+</strong></td>
+      <td class="num"><strong>2</strong></td>
+    </tr>
+  </table>
+  <p class="note">품질(60 vs 61, 만점 62)은 거의 같고, PASS 도달(57→12)·컴파일 오류 왕복(~18+→2)은 B가 적음. 전사가 열리지 않은 세션은 비교에 미포함.</p>
+</section>
+
+<section>
+  <h2>4. 질문 유형</h2>
+  <div class="card">
+    <ul>
+      <li>컴파일·활성화·타입 오류 (선언 누락, ECC fcode, IGS API, DATUM, 문자열 템플릿, Open SQL 등)</li>
+      <li>UX·차트·레이아웃 (비율, Top-N/시간축, 영역색, ALV 툴바, STATS/HELP HTML 팝업)</li>
+      <li>실기 증상 (빈 화면, 팝업 X, ST22 0건, 더블클릭 상세)</li>
+      <li>Selection Screen / Dynpro / 텍스트심볼 가이드</li>
+      <li>후반: 집계·A/B 비교·Parity 채점</li>
+    </ul>
+    <p class="note">제외: 통짜/전체 로직·채팅 원문 요청, 잘린 출력 <code>계속</code>, 경로 대신 붙여 달라는 전달 전용 턴.</p>
+  </div>
+</section>
+
+<section>
+  <h2>5. Session A → Skills → Session B</h2>
+  <div class="grid2">
+    <div class="card">
+      <h3>A · Awesome skills automation</h3>
+      <ul>
+        <li>장기 구현 + 오류/UX 왕복</li>
+        <li>후반 Skills/Rules 정착</li>
+        <li>공정 Q ≈ <strong>63</strong></li>
+        <li>E_compile ≈ 18+</li>
+        <li>최종 Parity <strong>60</strong> /62</li>
+        <li>첫 PASS ≈ Q <strong>57</strong></li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>B · 통합 운영 모니터링 대시보드</h3>
+      <ul>
+        <li>설계서 + Skills Greenfield 재현</li>
+        <li>동일 UX 바 선반영 시도</li>
+        <li>공정 Q ≈ <strong>16</strong></li>
+        <li>E_compile = 2</li>
+        <li>최종 Parity <strong>61</strong> /62</li>
+        <li>첫 PASS ≈ Q <strong>12</strong></li>
+      </ul>
+    </div>
+  </div>
+  <p>A에서 겪은 실패·합의 UX를 Skill로 고착한 뒤, B에서 같은 설계서로 재구현. 최종 품질은 동등(Δ=1), PASS 도달은 B가 빠름.</p>
+</section>
+
+<section>
+  <h2>6. Skills / Rules 요약</h2>
+  <table>
+    <tr><th>항목</th><th>내용</th></tr>
+    <tr><td>Always-on</td><td>읽기전용 · 채팅 전달 · 선언+구현 동시 · Preflight 강제</td></tr>
+    <tr><td>activation-preflight</td><td>P1–P10: 선언 누락, ECC fcode, IGS, CSS {}, 타입, private 호출 등</td></tr>
+    <tr><td>ops-monitor-ux</td><td>HTML 차트/팝업, 영역색, 독립 스케일, ALV 최소 툴바</td></tr>
+    <tr><td>requirement-intake</td><td>모호 UX ≤8 선택지 1회 계약 (Brief 있으면 생략)</td></tr>
+  </table>
+  <p class="note">전이성(추정): Preflight·Delivery ~70% 일반 / Ops UX·도메인 ~80%+ 특화.</p>
+</section>
+
+<section>
+  <h2>7. Parity 채점 기준 · 최종</h2>
+  <div class="card">
+    <p><strong>만점 62</strong> = S1 기능 20 + S2 안전·기동 18 + S3 UX 16 + S4 전달 8. 항목마다 0/1/2.</p>
+    <p><strong>v1.1:</strong> 활성화·실행 비중을 키움. 기동 클러스터(S2-06~09) = <strong>8/62≈13%</strong> + Hard Gate(미충족 시 PASS 불가).</p>
+    <p><strong>Hard Gate:</strong> 활성화 실패 · 빈 화면 · 팝업 미동작 · 필수 조회 버그 · 드릴다운 불능 → 총점과 무관하게 PASS 불가. 코드만·미실기면 상한 44.</p>
+  </div>
+
+  <h3>S1 기능 (/20) — 설계서 FR: “무엇을 하는가”</h3>
+  <table>
+    <tr><th>ID</th><th>항목</th><th>2점 기준</th></tr>
+    <tr><td>S1-01</td><td>3영역 조회</td><td>SM37 / ST22 / SXI 데이터 경로</td></tr>
+    <tr><td>S1-02</td><td>3분할 대시보드</td><td>0100 + splitter로 영역 ALV 동시 표시</td></tr>
+    <tr><td>S1-03</td><td>상단 요약</td><td>영역별 건수(+신호등/헬스)</td></tr>
+    <tr><td>S1-04</td><td>기간</td><td>기본 −24H, FROM/TO 변경</td></tr>
+    <tr><td>S1-05</td><td>영역 On/Off</td><td>해제 시 미조회·레이아웃 반영</td></tr>
+    <tr><td>S1-06</td><td>드릴다운</td><td>행 선택 → 표시 전용 상세</td></tr>
+    <tr><td>S1-07</td><td>기간 바운드</td><td>풀스캔 없이 선택기간 제한</td></tr>
+    <tr><td>S1-08</td><td>MaxRow / Top-N</td><td>표시 상한 + 차트 집계</td></tr>
+    <tr><td>S1-09</td><td>데이터 소스</td><td>TBTCO / RS_ST22_GET_DUMPS / SXMSPERROR</td></tr>
+    <tr><td>S1-10</td><td>권한 스킵</td><td>한 영역 실패해도 타 영역 유지</td></tr>
+  </table>
+
+  <h3>S2 안전·기동 (/18) — NFR + 실기 (비중 확대)</h3>
+  <table>
+    <tr><th>ID</th><th>항목</th><th>2점 기준</th></tr>
+    <tr><td>S2-01</td><td>읽기전용</td><td>DML / COMMIT / Enqueue / 재처리 없음</td></tr>
+    <tr><td>S2-02</td><td>표준 오브젝트</td><td>Z테이블·외부 직접 접근 없음</td></tr>
+    <tr><td>S2-03</td><td>모듈화</td><td>Provider / UI / Navigator 분리</td></tr>
+    <tr><td>S2-04</td><td>권한</td><td>영역별 AUTHORITY-CHECK</td></tr>
+    <tr><td>S2-05</td><td>드릴다운 표시모드</td><td>display 경로만</td></tr>
+    <tr><td>S2-06</td><td><strong>SE38 활성화</strong></td><td>Activate 성공</td></tr>
+    <tr><td>S2-07</td><td><strong>메인 화면 기동</strong></td><td>0100 표시, 빈화면 없음</td></tr>
+    <tr><td>S2-08</td><td><strong>필수 조회 실실행</strong></td><td>버그성 0건/덤프 없음</td></tr>
+    <tr><td>S2-09</td><td><strong>필수 상호작용 실실행</strong></td><td>필수 팝업 또는 드릴다운 실기 OK</td></tr>
+  </table>
+
+  <h3>S3 UX (/16) — 합의된 화면 품질 바</h3>
+  <table>
+    <tr><th>ID</th><th>항목</th><th>2점 기준</th></tr>
+    <tr><td>S3-01</td><td>HTML/CSS 차트</td><td>IGS-only 아님</td></tr>
+    <tr><td>S3-02</td><td>영역색</td><td>SM37/ST22/SXI 서로 다른 색</td></tr>
+    <tr><td>S3-03</td><td>독립 스케일</td><td>영역별 max</td></tr>
+    <tr><td>S3-04</td><td>Top-N / 시간추이</td><td>가로 Top-N + 시간축</td></tr>
+    <tr><td>S3-05</td><td>STATS HTML</td><td>dialog (MESSAGE 아님)</td></tr>
+    <tr><td>S3-06</td><td>HELP HTML</td><td>동일</td></tr>
+    <tr><td>S3-07</td><td>ALV 툴바</td><td>찾기·정렬·필터 중심</td></tr>
+    <tr><td>S3-08</td><td>ALV 가독성</td><td>zebra + 영역색 + 핵심 컬럼</td></tr>
+  </table>
+
+  <h3>S4 전달 (/8) — SE38 재현 가능성</h3>
+  <table>
+    <tr><th>ID</th><th>항목</th><th>2점 기준</th></tr>
+    <tr><td>S4-01</td><td>단일 소스</td><td>SE38용 완결 리포트</td></tr>
+    <tr><td>S4-02</td><td>Dynpro 가이드</td><td>0100·PF-STATUS 생성 방법</td></tr>
+    <tr><td>S4-03</td><td>선언+구현</td><td>사용 멤버가 DEFINITION에 존재</td></tr>
+    <tr><td>S4-04</td><td>Selection texts</td><td>텍스트 매핑 가능</td></tr>
+  </table>
+
+  <h3>최종 점수 (v1.1)</h3>
+  <table>
+    <tr><th>섹션</th><th class="num">만점</th><th class="num">A</th><th class="num">B</th></tr>
+    <tr><td>S1 기능</td><td class="num">20</td><td class="num">20</td><td class="num">20</td></tr>
+    <tr><td>S2 안전·기동</td><td class="num">18</td><td class="num">18</td><td class="num">18</td></tr>
+    <tr><td>S3 UX</td><td class="num">16</td><td class="num">16</td><td class="num">15</td></tr>
+    <tr><td>S4 전달</td><td class="num">8</td><td class="num">6</td><td class="num">8</td></tr>
+    <tr><td><strong>총점</strong></td><td class="num"><strong>62</strong></td><td class="num"><strong>60</strong> <span class="tag pass">PASS</span></td><td class="num"><strong>61</strong> <span class="tag pass">PASS</span></td></tr>
+  </table>
+  <p class="note">v1.0(만점 56) 환산 시 A=54 / B=55. 기동·실행 +6이 양쪽에 동등 반영되어 Δ=1·동등 결론은 동일.</p>
+</section>
+
+<section>
+  <h2>8. 질문 수별 품질 추이</h2>
+  <p>가로축: 공정 누적 질문 <code>cum_Q_program</code> (PPT·소스복붙·메타 제외). 세로축: Parity Total (그래프는 v1.0 /56 마일스톤 추정치). 최종 공식 점수는 v1.1 /62.</p>
+
+  <div class="legend">
+    <span class="a"><i></i>Session A</span>
+    <span class="b"><i></i>Session B</span>
+    <span>점선 = PASS 기준선 (50)</span>
+  </div>
+
+  <div class="chart-wrap" aria-label="Parity vs cum_Q chart">
+    <!--
+      Data (Hard Gate):
+      A: (1,0) (9,24) (15,31) (23,34) (29,39) (37,41) (47,44) (51,46) (57,51) (63,54)
+      B: (1,30) (2,33) (3,38) (5,40) (6,37) (7,39) (7.5,45) (9,47) (11,42) (12,53) (14,53) (16,55)
+      Chart box: x 1..63, y 0..56
+      Plot area: left=56, right=860, top=28, bottom=280  (viewBox 0 0 900 320)
+    -->
+    <svg viewBox="0 0 900 320" role="img" aria-labelledby="chartTitle">
+      <title id="chartTitle">Parity Total vs cum_Q_program</title>
+      <rect x="0" y="0" width="900" height="320" fill="#fff"/>
+      <!-- grid -->
+      <g stroke="#e6edf3" stroke-width="1">
+        <line x1="56" y1="28" x2="56" y2="280"/>
+        <line x1="56" y1="280" x2="860" y2="280"/>
+        <line x1="56" y1="217.1" x2="860" y2="217.1"/>
+        <line x1="56" y1="154.3" x2="860" y2="154.3"/>
+        <line x1="56" y1="91.4" x2="860" y2="91.4"/>
+        <line x1="56" y1="28" x2="860" y2="28"/>
+      </g>
+      <!-- PASS line y=50 → svgY = 280 - 50*(252/56) = 280 - 225 = 55 -->
+      <line class="passline" x1="56" y1="55" x2="860" y2="55"/>
+      <text x="866" y="59" font-size="11" fill="#1b7f4e">PASS 50</text>
+
+      <!-- y labels -->
+      <g fill="#5c6b7a" font-size="11" text-anchor="end">
+        <text x="50" y="284">0</text>
+        <text x="50" y="221">14</text>
+        <text x="50" y="158">28</text>
+        <text x="50" y="95">42</text>
+        <text x="50" y="32">56</text>
+      </g>
+      <!-- x labels -->
+      <g fill="#5c6b7a" font-size="11" text-anchor="middle">
+        <text x="56" y="298">1</text>
+        <text x="185" y="298">10</text>
+        <text x="314" y="298">20</text>
+        <text x="443" y="298">30</text>
+        <text x="572" y="298">40</text>
+        <text x="701" y="298">50</text>
+        <text x="830" y="298">60</text>
+        <text x="458" y="316">cum_Q_program</text>
+      </g>
+      <text x="18" y="160" font-size="11" fill="#5c6b7a" transform="rotate(-90 18 160)">Parity /56</text>
+
+      <!--
+        mapX(q) = 56 + (q-1)/(63-1)*804
+        mapY(t) = 280 - t/56*252
+      -->
+      <!-- Session A polyline -->
+      <polyline fill="none" stroke="#1f6f8b" stroke-width="2.5" stroke-linejoin="round"
+        points="
+          56.0,280.0
+          159.7,172.0
+          237.5,140.5
+          341.3,127.0
+          419.1,104.5
+          522.9,95.5
+          652.6,82.0
+          704.5,73.0
+          782.3,50.5
+          860.0,37.0
+        "/>
+      <g fill="#1f6f8b">
+        <circle cx="56.0" cy="280.0" r="3.5"/><circle cx="159.7" cy="172.0" r="3.5"/>
+        <circle cx="237.5" cy="140.5" r="3.5"/><circle cx="341.3" cy="127.0" r="3.5"/>
+        <circle cx="419.1" cy="104.5" r="3.5"/><circle cx="522.9" cy="95.5" r="3.5"/>
+        <circle cx="652.6" cy="82.0" r="3.5"/><circle cx="704.5" cy="73.0" r="3.5"/>
+        <circle cx="782.3" cy="50.5" r="4"/><circle cx="860.0" cy="37.0" r="4"/>
+      </g>
+      <text x="782" y="42" font-size="11" fill="#1f6f8b" font-weight="700">A PASS@57</text>
+
+      <!-- Session B polyline -->
+      <polyline fill="none" stroke="#c45c26" stroke-width="2.5" stroke-linejoin="round"
+        points="
+          56.0,145.0
+          69.0,131.5
+          81.9,109.0
+          107.9,100.0
+          120.8,113.5
+          133.8,104.5
+          140.3,77.5
+          159.7,68.5
+          185.6,91.0
+          198.6,41.5
+          224.5,41.5
+          250.5,32.5
+        "/>
+      <g fill="#c45c26">
+        <circle cx="56.0" cy="145.0" r="3.5"/><circle cx="69.0" cy="131.5" r="3.5"/>
+        <circle cx="81.9" cy="109.0" r="3.5"/><circle cx="107.9" cy="100.0" r="3.5"/>
+        <circle cx="120.8" cy="113.5" r="3.5"/><circle cx="133.8" cy="104.5" r="3.5"/>
+        <circle cx="140.3" cy="77.5" r="3.5"/><circle cx="159.7" cy="68.5" r="3.5"/>
+        <circle cx="185.6" cy="91.0" r="3.5"/><circle cx="198.6" cy="41.5" r="4"/>
+        <circle cx="224.5" cy="41.5" r="3.5"/><circle cx="250.5" cy="32.5" r="4"/>
+      </g>
+      <text x="258" y="36" font-size="11" fill="#c45c26" font-weight="700">B PASS@12</text>
+    </svg>
+  </div>
+
+  <h3>마일스톤 (요약)</h3>
+  <div class="grid2">
+    <div>
+      <table>
+        <tr><th class="num">Q</th><th>A</th><th class="num">Total</th><th>등급</th></tr>
+        <tr><td class="num">1</td><td>착수</td><td class="num">0</td><td><span class="tag fail">FAIL</span></td></tr>
+        <tr><td class="num">15</td><td>첫 기동</td><td class="num">31</td><td><span class="tag fail">FAIL</span></td></tr>
+        <tr><td class="num">47</td><td>IGS/색 미달</td><td class="num">44</td><td><span class="tag fail">FAIL</span></td></tr>
+        <tr><td class="num">57</td><td>HTML 차트</td><td class="num">51</td><td><span class="tag pass">PASS</span></td></tr>
+        <tr><td class="num">63</td><td>STATS/HELP</td><td class="num">54</td><td><span class="tag pass">PASS</span></td></tr>
+      </table>
+    </div>
+    <div>
+      <table>
+        <tr><th class="num">Q</th><th>B</th><th class="num">Total</th><th>등급</th></tr>
+        <tr><td class="num">1</td><td>소스만·미실기</td><td class="num">30</td><td><span class="tag fail">FAIL</span></td></tr>
+        <tr><td class="num">6–7</td><td>활성화/팝업X</td><td class="num">37–39</td><td><span class="tag fail">FAIL</span></td></tr>
+        <tr><td class="num">8–10</td><td>ST22 0건 잔존</td><td class="num">~47</td><td><span class="tag partial">PARTIAL</span></td></tr>
+        <tr><td class="num">12</td><td>ST22 복구</td><td class="num">53</td><td><span class="tag pass">PASS</span></td></tr>
+        <tr><td class="num">16</td><td>HTML 상세</td><td class="num">55</td><td><span class="tag pass">PASS</span></td></tr>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>9. 효율</h2>
+  <table>
+    <tr><th>지표</th><th class="num">A</th><th class="num">B</th></tr>
+    <tr><td>첫 PASS까지 Q</td><td class="num">57</td><td class="num">12</td></tr>
+    <tr><td>첫 PASS pt/Q</td><td class="num">≈0.89</td><td class="num">≈4.4</td></tr>
+    <tr><td>최종까지 Q</td><td class="num">63</td><td class="num">16</td></tr>
+    <tr><td>최종 pt/Q</td><td class="num">≈0.86</td><td class="num">≈3.4</td></tr>
+  </table>
+  <p>최종 품질은 유사(60 vs 61 /62). PASS 도달 속도는 B가 뚜렷. “B가 처음부터 실기까지 완벽”은 아님 - 첫 PASS는 Q≈12.</p>
+</section>
+
+<section>
+  <h2>10. 일반화 · 한계</h2>
+  <div class="card">
+    <ul>
+      <li>효과의 상당 부분 = <strong>동일 Ops Monitor 오류·UX 목록화</strong>. 다른 도메인이면 특화 층 효과↓, Preflight 일반 층은 일부 유지.</li>
+      <li>시나리오(추정): 다른 도메인 + 현 Skills → 공정 Q ~30–45 / 같은 Ops 계열 → ~12–20(B 실측).</li>
+      <li>한계: 전사 접근 2세션만 · 중간 곡선 보간(±2) · 프로그램 유형 n=1.</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <h2>11. 결론</h2>
+  <div class="card">
+    <ol>
+      <li><strong>품질:</strong> A=60, B=61 (/62, Δ=1) - Hard Gate 적용 기준 동등.</li>
+      <li><strong>과정:</strong> 공정 Q 63→16, 첫 PASS 57→12, E_compile ~18+→2.</li>
+      <li><strong>방법:</strong> 실패를 Skill/Rule로 고착하면 같은 설계서 재현 왕복이 크게 줄어든다.</li>
+      <li><strong>확장:</strong> 다른 형식 프로그램에서는 효과가 줄 수 있으며, 유형별 실패를 다시 쌓아야 일반화가 된다.</li>
+    </ol>
+  </div>
+</section>
+
+<footer>
+  Cursor x ABAP Skills / Parity · 오프라인 HTML · 외부 CDN 없음 · 그래프는 Hard Gate 보정 마일스톤 기준
+</footer>
+
+</div>
+<div class="lightbox" id="lightbox" title="클릭하면 닫기"><img alt="확대"/></div>
+<script>
+(function () {
+  var ORDER = [
+    "session-a-01-dashboard",
+    "session-a-02-kpi",
+    "session-a-03-toggle",
+    "session-a-04-help",
+    "session-b-01-dashboard",
+    "session-b-02-kpi",
+    "session-b-03-toggle",
+    "session-b-04-help"
+  ];
+
+  function stemOf(name) {
+    return String(name || "").replace(/\.[^.]+$/, "").toLowerCase();
+  }
+
+  function setShot(id, url) {
+    var box = document.querySelector('.shot[data-shot="' + id + '"]');
+    if (!box) return;
+    var img = box.querySelector("[data-img]");
+    var miss = box.querySelector("[data-miss]");
+    if (!img) return;
+    img.onload = function () {
+      img.classList.remove("is-empty");
+      if (miss) miss.hidden = true;
+      updateStatus();
+    };
+    img.onerror = function () {
+      img.classList.add("is-empty");
+      if (miss) miss.hidden = false;
+      updateStatus();
+    };
+    img.src = url;
+  }
+
+  function updateStatus() {
+    var n = 0;
+    ORDER.forEach(function (id) {
+      var img = document.querySelector('.shot[data-shot="' + id + '"] [data-img]');
+      if (img && !img.classList.contains("is-empty") && img.naturalWidth > 0) n += 1;
+    });
+    var el = document.getElementById("shot-status");
+    if (el) el.textContent = n + " / 8 표시 · 클릭 시 확대";
+  }
+
+  function readFile(file, id) {
+    var reader = new FileReader();
+    reader.onload = function () { setShot(id, reader.result); };
+    reader.readAsDataURL(file);
+  }
+
+  function assignFiles(files) {
+    var list = Array.prototype.slice.call(files || []);
+    var used = {};
+    list.forEach(function (f) {
+      var st = stemOf(f.name);
+      if (ORDER.indexOf(st) >= 0) {
+        readFile(f, st);
+        used[st] = true;
+      }
+    });
+    var leftovers = list.filter(function (f) {
+      return ORDER.indexOf(stemOf(f.name)) < 0;
+    });
+    var emptySlots = ORDER.filter(function (id) { return !used[id]; });
+    leftovers.forEach(function (f, i) {
+      if (i < emptySlots.length) readFile(f, emptySlots[i]);
+    });
+  }
+
+  var bulk = document.getElementById("shot-bulk");
+  if (bulk) {
+    bulk.addEventListener("change", function () {
+      assignFiles(bulk.files);
+    });
+  }
+
+  var lb = document.getElementById("lightbox");
+  if (lb) {
+    lb.addEventListener("click", function () { lb.classList.remove("open"); });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") lb.classList.remove("open");
+    });
+  }
+
+  ORDER.forEach(function (id) {
+    var img = document.querySelector('.shot[data-shot="' + id + '"] [data-img]');
+    var miss = document.querySelector('.shot[data-shot="' + id + '"] [data-miss]');
+    if (!img) return;
+    img.onload = function () {
+      img.classList.remove("is-empty");
+      if (miss) miss.hidden = true;
+      updateStatus();
+    };
+    img.onerror = function () {
+      img.classList.add("is-empty");
+      if (miss) miss.hidden = false;
+      updateStatus();
+    };
+    img.addEventListener("click", function () {
+      if (img.classList.contains("is-empty") || !img.src) return;
+      if (!lb) return;
+      lb.querySelector("img").src = img.src;
+      lb.classList.add("open");
+    });
+    var src = img.getAttribute("src");
+    if (src) img.src = src;
+  });
+  updateStatus();
+})();
+</script>
+</body>
+</html>
+
