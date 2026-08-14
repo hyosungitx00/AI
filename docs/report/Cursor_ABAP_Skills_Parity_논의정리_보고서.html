@@ -170,9 +170,9 @@
     </tr>
     <tr>
       <td>최종 Parity</td>
-      <td>설계·UX 바 대비 품질 점수<br/>(만점 56, PASS ≥ 50)</td>
-      <td class="num"><strong>54</strong> <span class="tag pass">PASS</span></td>
-      <td class="num"><strong>55</strong> <span class="tag pass">PASS</span></td>
+      <td>설계·UX·기동 바 대비 품질 점수<br/>(만점 62, PASS ≥ 55)</td>
+      <td class="num"><strong>60</strong> <span class="tag pass">PASS</span></td>
+      <td class="num"><strong>61</strong> <span class="tag pass">PASS</span></td>
     </tr>
     <tr>
       <td>E_compile</td>
@@ -181,7 +181,7 @@
       <td class="num"><strong>2</strong></td>
     </tr>
   </table>
-  <p class="note">품질(54 vs 55)은 거의 같고, PASS 도달(57→12)·컴파일 오류 왕복(~18+→2)은 B가 적음. 전사가 열리지 않은 세션은 비교에 미포함.</p>
+  <p class="note">품질(60 vs 61, 만점 62)은 거의 같고, PASS 도달(57→12)·컴파일 오류 왕복(~18+→2)은 B가 적음. 전사가 열리지 않은 세션은 비교에 미포함.</p>
 </section>
 
 <section>
@@ -208,7 +208,7 @@
         <li>후반 Skills/Rules 정착</li>
         <li>공정 Q ≈ <strong>63</strong></li>
         <li>E_compile ≈ 18+</li>
-        <li>최종 Parity <strong>54</strong></li>
+        <li>최종 Parity <strong>60</strong> /62</li>
         <li>첫 PASS ≈ Q <strong>57</strong></li>
       </ul>
     </div>
@@ -219,7 +219,7 @@
         <li>동일 UX 바 선반영 시도</li>
         <li>공정 Q ≈ <strong>16</strong></li>
         <li>E_compile = 2</li>
-        <li>최종 Parity <strong>55</strong></li>
+        <li>최종 Parity <strong>61</strong> /62</li>
         <li>첫 PASS ≈ Q <strong>12</strong></li>
       </ul>
     </div>
@@ -240,24 +240,79 @@
 </section>
 
 <section>
-  <h2>5. Parity 채점 · 최종</h2>
+  <h2>5. Parity 채점 기준 · 최종</h2>
   <div class="card">
-    <p>만점 56 = S1 기능 20 + S2 안전 12 + S3 UX 16 + S4 전달 8. 항목 0/1/2.</p>
-    <p><strong>Hard Gate:</strong> 활성화 실패 · 빈 화면 · 팝업 미동작 · 필수 조회 0건 버그 · 드릴다운 불능이면 PASS 불가. 코드만·미실기면 Total 상한 40.</p>
+    <p><strong>만점 62</strong> = S1 기능 20 + S2 안전·기동 18 + S3 UX 16 + S4 전달 8. 항목마다 0/1/2.</p>
+    <p><strong>v1.1:</strong> 활성화·실행 비중을 키움. 기동 클러스터(S2-06~09) = <strong>8/62≈13%</strong> + Hard Gate(미충족 시 PASS 불가).</p>
+    <p><strong>Hard Gate:</strong> 활성화 실패 · 빈 화면 · 팝업 미동작 · 필수 조회 버그 · 드릴다운 불능 → 총점과 무관하게 PASS 불가. 코드만·미실기면 상한 44.</p>
   </div>
+
+  <h3>S1 기능 (/20) — 설계서 FR: “무엇을 하는가”</h3>
   <table>
-    <tr><th>섹션</th><th class="num">A</th><th class="num">B</th></tr>
-    <tr><td>S1 기능</td><td class="num">20</td><td class="num">20</td></tr>
-    <tr><td>S2 안전</td><td class="num">12</td><td class="num">12</td></tr>
-    <tr><td>S3 UX</td><td class="num">16</td><td class="num">15</td></tr>
-    <tr><td>S4 전달</td><td class="num">6</td><td class="num">8</td></tr>
-    <tr><td><strong>총점</strong></td><td class="num"><strong>54</strong> <span class="tag pass">PASS</span></td><td class="num"><strong>55</strong> <span class="tag pass">PASS</span></td></tr>
+    <tr><th>ID</th><th>항목</th><th>2점 기준</th></tr>
+    <tr><td>S1-01</td><td>3영역 조회</td><td>SM37 / ST22 / SXI 데이터 경로</td></tr>
+    <tr><td>S1-02</td><td>3분할 대시보드</td><td>0100 + splitter로 영역 ALV 동시 표시</td></tr>
+    <tr><td>S1-03</td><td>상단 요약</td><td>영역별 건수(+신호등/헬스)</td></tr>
+    <tr><td>S1-04</td><td>기간</td><td>기본 −24H, FROM/TO 변경</td></tr>
+    <tr><td>S1-05</td><td>영역 On/Off</td><td>해제 시 미조회·레이아웃 반영</td></tr>
+    <tr><td>S1-06</td><td>드릴다운</td><td>행 선택 → 표시 전용 상세</td></tr>
+    <tr><td>S1-07</td><td>기간 바운드</td><td>풀스캔 없이 선택기간 제한</td></tr>
+    <tr><td>S1-08</td><td>MaxRow / Top-N</td><td>표시 상한 + 차트 집계</td></tr>
+    <tr><td>S1-09</td><td>데이터 소스</td><td>TBTCO / RS_ST22_GET_DUMPS / SXMSPERROR</td></tr>
+    <tr><td>S1-10</td><td>권한 스킵</td><td>한 영역 실패해도 타 영역 유지</td></tr>
   </table>
+
+  <h3>S2 안전·기동 (/18) — NFR + 실기 (비중 확대)</h3>
+  <table>
+    <tr><th>ID</th><th>항목</th><th>2점 기준</th></tr>
+    <tr><td>S2-01</td><td>읽기전용</td><td>DML / COMMIT / Enqueue / 재처리 없음</td></tr>
+    <tr><td>S2-02</td><td>표준 오브젝트</td><td>Z테이블·외부 직접 접근 없음</td></tr>
+    <tr><td>S2-03</td><td>모듈화</td><td>Provider / UI / Navigator 분리</td></tr>
+    <tr><td>S2-04</td><td>권한</td><td>영역별 AUTHORITY-CHECK</td></tr>
+    <tr><td>S2-05</td><td>드릴다운 표시모드</td><td>display 경로만</td></tr>
+    <tr><td>S2-06</td><td><strong>SE38 활성화</strong></td><td>Activate 성공</td></tr>
+    <tr><td>S2-07</td><td><strong>메인 화면 기동</strong></td><td>0100 표시, 빈화면 없음</td></tr>
+    <tr><td>S2-08</td><td><strong>필수 조회 실실행</strong></td><td>버그성 0건/덤프 없음</td></tr>
+    <tr><td>S2-09</td><td><strong>필수 상호작용 실실행</strong></td><td>필수 팝업 또는 드릴다운 실기 OK</td></tr>
+  </table>
+
+  <h3>S3 UX (/16) — 합의된 화면 품질 바</h3>
+  <table>
+    <tr><th>ID</th><th>항목</th><th>2점 기준</th></tr>
+    <tr><td>S3-01</td><td>HTML/CSS 차트</td><td>IGS-only 아님</td></tr>
+    <tr><td>S3-02</td><td>영역색</td><td>SM37/ST22/SXI 서로 다른 색</td></tr>
+    <tr><td>S3-03</td><td>독립 스케일</td><td>영역별 max</td></tr>
+    <tr><td>S3-04</td><td>Top-N / 시간추이</td><td>가로 Top-N + 시간축</td></tr>
+    <tr><td>S3-05</td><td>STATS HTML</td><td>dialog (MESSAGE 아님)</td></tr>
+    <tr><td>S3-06</td><td>HELP HTML</td><td>동일</td></tr>
+    <tr><td>S3-07</td><td>ALV 툴바</td><td>찾기·정렬·필터 중심</td></tr>
+    <tr><td>S3-08</td><td>ALV 가독성</td><td>zebra + 영역색 + 핵심 컬럼</td></tr>
+  </table>
+
+  <h3>S4 전달 (/8) — SE38 재현 가능성</h3>
+  <table>
+    <tr><th>ID</th><th>항목</th><th>2점 기준</th></tr>
+    <tr><td>S4-01</td><td>단일 소스</td><td>SE38용 완결 리포트</td></tr>
+    <tr><td>S4-02</td><td>Dynpro 가이드</td><td>0100·PF-STATUS 생성 방법</td></tr>
+    <tr><td>S4-03</td><td>선언+구현</td><td>사용 멤버가 DEFINITION에 존재</td></tr>
+    <tr><td>S4-04</td><td>Selection texts</td><td>텍스트 매핑 가능</td></tr>
+  </table>
+
+  <h3>최종 점수 (v1.1)</h3>
+  <table>
+    <tr><th>섹션</th><th class="num">만점</th><th class="num">A</th><th class="num">B</th></tr>
+    <tr><td>S1 기능</td><td class="num">20</td><td class="num">20</td><td class="num">20</td></tr>
+    <tr><td>S2 안전·기동</td><td class="num">18</td><td class="num">18</td><td class="num">18</td></tr>
+    <tr><td>S3 UX</td><td class="num">16</td><td class="num">16</td><td class="num">15</td></tr>
+    <tr><td>S4 전달</td><td class="num">8</td><td class="num">6</td><td class="num">8</td></tr>
+    <tr><td><strong>총점</strong></td><td class="num"><strong>62</strong></td><td class="num"><strong>60</strong> <span class="tag pass">PASS</span></td><td class="num"><strong>61</strong> <span class="tag pass">PASS</span></td></tr>
+  </table>
+  <p class="note">v1.0(만점 56) 환산 시 A=54 / B=55. 기동·실행 +6이 양쪽에 동등 반영되어 Δ=1·동등 결론은 동일.</p>
 </section>
 
 <section>
   <h2>6. 질문 수별 품질 추이</h2>
-  <p>가로축: 공정 누적 질문 <code>cum_Q_program</code> (PPT·소스복붙·메타 제외). 세로축: Parity Total / 56. 중간값은 마일스톤 추정(±2), 최종행은 공식 채점.</p>
+  <p>가로축: 공정 누적 질문 <code>cum_Q_program</code> (PPT·소스복붙·메타 제외). 세로축: Parity Total (그래프는 v1.0 /56 마일스톤 추정치). 최종 공식 점수는 v1.1 /62.</p>
 
   <div class="legend">
     <span class="a"><i></i>Session A</span>
@@ -399,7 +454,7 @@
     <tr><td>최종까지 Q</td><td class="num">63</td><td class="num">16</td></tr>
     <tr><td>최종 pt/Q</td><td class="num">≈0.86</td><td class="num">≈3.4</td></tr>
   </table>
-  <p>최종 품질은 유사(54 vs 55). PASS 도달 속도는 B가 뚜렷. “B가 처음부터 실기까지 완벽”은 아님 - 첫 PASS는 Q≈12.</p>
+  <p>최종 품질은 유사(60 vs 61 /62). PASS 도달 속도는 B가 뚜렷. “B가 처음부터 실기까지 완벽”은 아님 - 첫 PASS는 Q≈12.</p>
 </section>
 
 <section>
@@ -417,7 +472,7 @@
   <h2>9. 결론</h2>
   <div class="card">
     <ol>
-      <li><strong>품질:</strong> A=54, B=55 (Δ=1) - Hard Gate 적용 기준 동등.</li>
+      <li><strong>품질:</strong> A=60, B=61 (/62, Δ=1) - Hard Gate 적용 기준 동등.</li>
       <li><strong>과정:</strong> 공정 Q 63→16, 첫 PASS 57→12, E_compile ~18+→2.</li>
       <li><strong>방법:</strong> 실패를 Skill/Rule로 고착하면 같은 설계서 재현 왕복이 크게 줄어든다.</li>
       <li><strong>확장:</strong> 다른 형식 프로그램에서는 효과가 줄 수 있으며, 유형별 실패를 다시 쌓아야 일반화가 된다.</li>
