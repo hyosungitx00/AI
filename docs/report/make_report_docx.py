@@ -401,7 +401,7 @@ DoD는 “이 체크리스트를 다 만족하면 유사 품질로 본다”는 
 |------|-----|
 | Session A | Awesome skills automation (장기 구현+Skills) |
 | Session B | 통합 운영 모니터링 대시보드 (Greenfield 재현) |
-| `cum_Q_program` | 프로그램 구현·오류·UX 관련 누적 질문 (PPT/`계속`/메타 제외 가능) |
+| `cum_Q_program` | 프로그램 구현·오류·UX 관련 누적 질문 (PPT·소스복붙/`계속`·메타 제외) |
 | Parity | 설계·UX 바 대비 품질 동등성 점수 |
 | Hard Gate | 활성화/미동작 결함이 있으면 PASS 금지 |
 | DoD | 내부 완료 체크리스트 (외부 공인 지표 아님) |
