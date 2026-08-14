@@ -255,6 +255,8 @@ def embed_images(html: str) -> str:
 
 
 def main() -> None:
+    global MAX_SIDE, JPEG_QUALITY
+
     ap = argparse.ArgumentParser()
     ap.add_argument("--no-embed", action="store_true")
     ap.add_argument("--embed", action="store_true")
@@ -262,7 +264,6 @@ def main() -> None:
     ap.add_argument("--quality", type=int, default=JPEG_QUALITY)
     args = ap.parse_args()
 
-    global MAX_SIDE, JPEG_QUALITY
     MAX_SIDE = args.max_side
     JPEG_QUALITY = args.quality
 
