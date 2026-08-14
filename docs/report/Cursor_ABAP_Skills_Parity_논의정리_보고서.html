@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Cursor × ABAP Ops Monitor — 논의 정리 보고서</title>
+<style>
+  :root {
+    --ink: #1a2332;
+    --muted: #5c6b7a;
+    --line: #d5dee7;
+    --bg: #f7f9fb;
+    --card: #ffffff;
+    --a: #1f6f8b;
+    --b: #c45c26;
+    --pass: #1b7f4e;
+    --fail: #b42318;
+    --nav: #0b1f3a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    line-height: 1.55;
+    font-size: 15px;
+  }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 32px 20px 64px; }
+  header.hero {
+    background: linear-gradient(135deg, #0b1f3a 0%, #1f4e79 55%, #1f6f8b 100%);
+    color: #fff;
+    border-radius: 14px;
+    padding: 28px 32px;
+    margin-bottom: 28px;
+  }
+  header.hero h1 { margin: 0 0 8px; font-size: 26px; font-weight: 700; }
+  header.hero .meta { margin: 0; opacity: .9; font-size: 14px; }
+  h2 {
+    margin: 36px 0 12px;
+    font-size: 20px;
+    color: var(--nav);
+    border-bottom: 2px solid var(--a);
+    padding-bottom: 6px;
+  }
+  h3 { margin: 20px 0 8px; font-size: 16px; color: var(--nav); }
+  p { margin: 8px 0; }
+  ul { margin: 8px 0; padding-left: 1.25em; }
+  li { margin: 4px 0; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 16px 18px;
+    margin: 12px 0;
+  }
+  .grid2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  @media (max-width: 720px) { .grid2 { grid-template-columns: 1fr; } }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13.5px;
+    background: var(--card);
+  }
+  th, td {
+    border: 1px solid var(--line);
+    padding: 8px 10px;
+    text-align: left;
+    vertical-align: top;
+  }
+  th { background: var(--nav); color: #fff; font-weight: 600; }
+  tr:nth-child(even) td { background: #eef3f7; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .tag.pass { background: #e6f6ee; color: var(--pass); }
+  .tag.fail { background: #fdeceb; color: var(--fail); }
+  .tag.partial { background: #fff4e5; color: #9a6700; }
+  .kpi {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin: 12px 0 4px;
+  }
+  @media (max-width: 720px) { .kpi { grid-template-columns: 1fr 1fr; } }
+  .kpi .item {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 12px;
+    text-align: center;
+  }
+  .kpi .v { font-size: 22px; font-weight: 800; color: var(--nav); }
+  .kpi .l { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .legend {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    font-size: 13px;
+    color: var(--muted);
+    margin: 8px 0 4px;
+  }
+  .legend i {
+    display: inline-block;
+    width: 14px;
+    height: 3px;
+    border-radius: 2px;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+  .legend .a i { background: var(--a); }
+  .legend .b i { background: var(--b); }
+  .chart-wrap {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 12px 8px 8px;
+    overflow-x: auto;
+  }
+  .chart-wrap svg { display: block; width: 100%; min-width: 640px; height: auto; }
+  .note { font-size: 12.5px; color: var(--muted); margin-top: 8px; }
+  .passline { stroke: var(--pass); stroke-dasharray: 5 4; stroke-width: 1.5; }
+  footer {
+    margin-top: 40px;
+    padding-top: 12px;
+    border-top: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 12px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <h1>Cursor × ABAP Ops Monitor — 논의 정리 보고서</h1>
+  <p class="meta">대상: Y_OPS_MONITOR_V2 (SM37 / ST22 / SXI) · Session A vs B · 2026-08-13 · 소스복붙/`계속` 제외 집계</p>
+</header>
+
+<section>
+  <h2>1. 핵심 수치</h2>
+  <div class="kpi">
+    <div class="item"><div class="v">105</div><div class="l">총 질문<br/>(메타·복붙 제외)</div></div>
+    <div class="item"><div class="v">23</div><div class="l">오류 관련<br/>(중복 제거)</div></div>
+    <div class="item"><div class="v">13–15</div><div class="l">기능 수정<br/>(중복 제거)</div></div>
+    <div class="item"><div class="v">54 / 55</div><div class="l">최종 Parity<br/>A / B (만점 56)</div></div>
+  </div>
+  <p class="note">집계 세션: A Awesome skills automation + B 통합 운영 모니터링 대시보드. 전사가 열리지 않은 세션(SELECT-OPTIONS 등)은 미포함.</p>
+</section>
+
+<section>
+  <h2>2. 질문 유형</h2>
+  <div class="card">
+    <ul>
+      <li>컴파일·활성화·타입 오류 (선언 누락, ECC fcode, IGS API, DATUM, 문자열 템플릿, Open SQL 등)</li>
+      <li>UX·차트·레이아웃 (비율, Top-N/시간축, 영역색, ALV 툴바, STATS/HELP HTML 팝업)</li>
+      <li>실기 증상 (빈 화면, 팝업 X, ST22 0건, 더블클릭 상세)</li>
+      <li>Selection Screen / Dynpro / 텍스트심볼 가이드</li>
+      <li>후반: 집계·A/B 비교·Parity 채점</li>
+    </ul>
+    <p class="note">제외: 통짜/전체 로직·채팅 원문 요청, 잘린 출력 <code>계속</code>, 경로 대신 붙여 달라는 전달 전용 턴.</p>
+  </div>
+</section>
+
+<section>
+  <h2>3. Session A → Skills → Session B</h2>
+  <div class="grid2">
+    <div class="card">
+      <h3>A · Awesome skills automation</h3>
+      <ul>
+        <li>장기 구현 + 오류/UX 왕복</li>
+        <li>후반 Skills/Rules 정착</li>
+        <li>공정 Q ≈ <strong>63</strong></li>
+        <li>E_compile ≈ 18+</li>
+        <li>최종 Parity <strong>54</strong></li>
+        <li>첫 PASS ≈ Q <strong>57</strong></li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>B · 통합 운영 모니터링 대시보드</h3>
+      <ul>
+        <li>설계서 + Skills Greenfield 재현</li>
+        <li>동일 UX 바 선반영 시도</li>
+        <li>공정 Q ≈ <strong>16</strong></li>
+        <li>E_compile = 2</li>
+        <li>최종 Parity <strong>55</strong></li>
+        <li>첫 PASS ≈ Q <strong>12</strong></li>
+      </ul>
+    </div>
+  </div>
+  <p>A에서 겪은 실패·합의 UX를 Skill로 고착한 뒤, B에서 같은 설계서로 재구현. 최종 품질은 동등(Δ=1), PASS 도달은 B가 빠름.</p>
+</section>
+
+<section>
+  <h2>4. Skills / Rules 요약</h2>
+  <table>
+    <tr><th>항목</th><th>내용</th></tr>
+    <tr><td>Always-on</td><td>읽기전용 · 채팅 전달 · 선언+구현 동시 · Preflight 강제</td></tr>
+    <tr><td>activation-preflight</td><td>P1–P10: 선언 누락, ECC fcode, IGS, CSS {}, 타입, private 호출 등</td></tr>
+    <tr><td>ops-monitor-ux</td><td>HTML 차트/팝업, 영역색, 독립 스케일, ALV 최소 툴바</td></tr>
+    <tr><td>requirement-intake</td><td>모호 UX ≤8 선택지 1회 계약 (Brief 있으면 생략)</td></tr>
+  </table>
+  <p class="note">전이성(추정): Preflight·Delivery ~70% 일반 / Ops UX·도메인 ~80%+ 특화.</p>
+</section>
+
+<section>
+  <h2>5. Parity 채점 · 최종</h2>
+  <div class="card">
+    <p>만점 56 = S1 기능 20 + S2 안전 12 + S3 UX 16 + S4 전달 8. 항목 0/1/2.</p>
+    <p><strong>Hard Gate:</strong> 활성화 실패 · 빈 화면 · 팝업 미동작 · 필수 조회 0건 버그 · 드릴다운 불능이면 PASS 불가. 코드만·미실기면 Total 상한 40.</p>
+  </div>
+  <table>
+    <tr><th>섹션</th><th class="num">A</th><th class="num">B</th></tr>
+    <tr><td>S1 기능</td><td class="num">20</td><td class="num">20</td></tr>
+    <tr><td>S2 안전</td><td class="num">12</td><td class="num">12</td></tr>
+    <tr><td>S3 UX</td><td class="num">16</td><td class="num">15</td></tr>
+    <tr><td>S4 전달</td><td class="num">6</td><td class="num">8</td></tr>
+    <tr><td><strong>총점</strong></td><td class="num"><strong>54</strong> <span class="tag pass">PASS</span></td><td class="num"><strong>55</strong> <span class="tag pass">PASS</span></td></tr>
+  </table>
+</section>
+
+<section>
+  <h2>6. 질문 수별 품질 추이</h2>
+  <p>가로축: 공정 누적 질문 <code>cum_Q_program</code> (PPT·소스복붙·메타 제외). 세로축: Parity Total / 56. 중간값은 마일스톤 추정(±2), 최종행은 공식 채점.</p>
+
+  <div class="legend">
+    <span class="a"><i></i>Session A</span>
+    <span class="b"><i></i>Session B</span>
+    <span>점선 = PASS 기준선 (50)</span>
+  </div>
+
+  <div class="chart-wrap" aria-label="Parity vs cum_Q chart">
+    <!--
+      Data (Hard Gate):
+      A: (1,0) (9,24) (15,31) (23,34) (29,39) (37,41) (47,44) (51,46) (57,51) (63,54)
+      B: (1,30) (2,33) (3,38) (5,40) (6,37) (7,39) (7.5,45) (9,47) (11,42) (12,53) (14,53) (16,55)
+      Chart box: x 1..63, y 0..56
+      Plot area: left=56, right=860, top=28, bottom=280  (viewBox 0 0 900 320)
+    -->
+    <svg viewBox="0 0 900 320" role="img" aria-labelledby="chartTitle">
+      <title id="chartTitle">Parity Total vs cum_Q_program</title>
+      <rect x="0" y="0" width="900" height="320" fill="#fff"/>
+      <!-- grid -->
+      <g stroke="#e6edf3" stroke-width="1">
+        <line x1="56" y1="28" x2="56" y2="280"/>
+        <line x1="56" y1="280" x2="860" y2="280"/>
+        <line x1="56" y1="217.1" x2="860" y2="217.1"/>
+        <line x1="56" y1="154.3" x2="860" y2="154.3"/>
+        <line x1="56" y1="91.4" x2="860" y2="91.4"/>
+        <line x1="56" y1="28" x2="860" y2="28"/>
+      </g>
+      <!-- PASS line y=50 → svgY = 280 - 50*(252/56) = 280 - 225 = 55 -->
+      <line class="passline" x1="56" y1="55" x2="860" y2="55"/>
+      <text x="866" y="59" font-size="11" fill="#1b7f4e">PASS 50</text>
+
+      <!-- y labels -->
+      <g fill="#5c6b7a" font-size="11" text-anchor="end">
+        <text x="50" y="284">0</text>
+        <text x="50" y="221">14</text>
+        <text x="50" y="158">28</text>
+        <text x="50" y="95">42</text>
+        <text x="50" y="32">56</text>
+      </g>
+      <!-- x labels -->
+      <g fill="#5c6b7a" font-size="11" text-anchor="middle">
+        <text x="56" y="298">1</text>
+        <text x="185" y="298">10</text>
+        <text x="314" y="298">20</text>
+        <text x="443" y="298">30</text>
+        <text x="572" y="298">40</text>
+        <text x="701" y="298">50</text>
+        <text x="830" y="298">60</text>
+        <text x="458" y="316">cum_Q_program</text>
+      </g>
+      <text x="18" y="160" font-size="11" fill="#5c6b7a" transform="rotate(-90 18 160)">Parity /56</text>
+
+      <!--
+        mapX(q) = 56 + (q-1)/(63-1)*804
+        mapY(t) = 280 - t/56*252
+      -->
+      <!-- Session A polyline -->
+      <polyline fill="none" stroke="#1f6f8b" stroke-width="2.5" stroke-linejoin="round"
+        points="
+          56.0,280.0
+          159.7,172.0
+          237.5,140.5
+          341.3,127.0
+          419.1,104.5
+          522.9,95.5
+          652.6,82.0
+          704.5,73.0
+          782.3,50.5
+          860.0,37.0
+        "/>
+      <g fill="#1f6f8b">
+        <circle cx="56.0" cy="280.0" r="3.5"/><circle cx="159.7" cy="172.0" r="3.5"/>
+        <circle cx="237.5" cy="140.5" r="3.5"/><circle cx="341.3" cy="127.0" r="3.5"/>
+        <circle cx="419.1" cy="104.5" r="3.5"/><circle cx="522.9" cy="95.5" r="3.5"/>
+        <circle cx="652.6" cy="82.0" r="3.5"/><circle cx="704.5" cy="73.0" r="3.5"/>
+        <circle cx="782.3" cy="50.5" r="4"/><circle cx="860.0" cy="37.0" r="4"/>
+      </g>
+      <text x="782" y="42" font-size="11" fill="#1f6f8b" font-weight="700">A PASS@57</text>
+
+      <!-- Session B polyline -->
+      <polyline fill="none" stroke="#c45c26" stroke-width="2.5" stroke-linejoin="round"
+        points="
+          56.0,145.0
+          69.0,131.5
+          81.9,109.0
+          107.9,100.0
+          120.8,113.5
+          133.8,104.5
+          140.3,77.5
+          159.7,68.5
+          185.6,91.0
+          198.6,41.5
+          224.5,41.5
+          250.5,32.5
+        "/>
+      <g fill="#c45c26">
+        <circle cx="56.0" cy="145.0" r="3.5"/><circle cx="69.0" cy="131.5" r="3.5"/>
+        <circle cx="81.9" cy="109.0" r="3.5"/><circle cx="107.9" cy="100.0" r="3.5"/>
+        <circle cx="120.8" cy="113.5" r="3.5"/><circle cx="133.8" cy="104.5" r="3.5"/>
+        <circle cx="140.3" cy="77.5" r="3.5"/><circle cx="159.7" cy="68.5" r="3.5"/>
+        <circle cx="185.6" cy="91.0" r="3.5"/><circle cx="198.6" cy="41.5" r="4"/>
+        <circle cx="224.5" cy="41.5" r="3.5"/><circle cx="250.5" cy="32.5" r="4"/>
+      </g>
+      <text x="258" y="36" font-size="11" fill="#c45c26" font-weight="700">B PASS@12</text>
+    </svg>
+  </div>
+
+  <h3>마일스톤 (요약)</h3>
+  <div class="grid2">
+    <div>
+      <table>
+        <tr><th class="num">Q</th><th>A</th><th class="num">Total</th><th>등급</th></tr>
+        <tr><td class="num">1</td><td>착수</td><td class="num">0</td><td><span class="tag fail">FAIL</span></td></tr>
+        <tr><td class="num">15</td><td>첫 기동</td><td class="num">31</td><td><span class="tag fail">FAIL</span></td></tr>
+        <tr><td class="num">47</td><td>IGS/색 미달</td><td class="num">44</td><td><span class="tag fail">FAIL</span></td></tr>
+        <tr><td class="num">57</td><td>HTML 차트</td><td class="num">51</td><td><span class="tag pass">PASS</span></td></tr>
+        <tr><td class="num">63</td><td>STATS/HELP</td><td class="num">54</td><td><span class="tag pass">PASS</span></td></tr>
+      </table>
+    </div>
+    <div>
+      <table>
+        <tr><th class="num">Q</th><th>B</th><th class="num">Total</th><th>등급</th></tr>
+        <tr><td class="num">1</td><td>소스만·미실기</td><td class="num">30</td><td><span class="tag fail">FAIL</span></td></tr>
+        <tr><td class="num">6–7</td><td>활성화/팝업X</td><td class="num">37–39</td><td><span class="tag fail">FAIL</span></td></tr>
+        <tr><td class="num">8–10</td><td>ST22 0건 잔존</td><td class="num">~47</td><td><span class="tag partial">PARTIAL</span></td></tr>
+        <tr><td class="num">12</td><td>ST22 복구</td><td class="num">53</td><td><span class="tag pass">PASS</span></td></tr>
+        <tr><td class="num">16</td><td>HTML 상세</td><td class="num">55</td><td><span class="tag pass">PASS</span></td></tr>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>7. 효율</h2>
+  <table>
+    <tr><th>지표</th><th class="num">A</th><th class="num">B</th></tr>
+    <tr><td>첫 PASS까지 Q</td><td class="num">57</td><td class="num">12</td></tr>
+    <tr><td>첫 PASS pt/Q</td><td class="num">≈0.89</td><td class="num">≈4.4</td></tr>
+    <tr><td>최종까지 Q</td><td class="num">63</td><td class="num">16</td></tr>
+    <tr><td>최종 pt/Q</td><td class="num">≈0.86</td><td class="num">≈3.4</td></tr>
+  </table>
+  <p>최종 품질은 유사(54 vs 55). PASS 도달 속도는 B가 뚜렷. “B가 처음부터 실기까지 완벽”은 아님 — 첫 PASS는 Q≈12.</p>
+</section>
+
+<section>
+  <h2>8. 일반화 · 한계</h2>
+  <div class="card">
+    <ul>
+      <li>효과의 상당 부분 = <strong>동일 Ops Monitor 오류·UX 목록화</strong>. 다른 도메인이면 특화 층 효과↓, Preflight 일반 층은 일부 유지.</li>
+      <li>시나리오(추정): 다른 도메인 + 현 Skills → 공정 Q ~30–45 / 같은 Ops 계열 → ~12–20(B 실측).</li>
+      <li>한계: 전사 접근 2세션만 · 중간 곡선 보간(±2) · 프로그램 유형 n=1.</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <h2>9. 결론</h2>
+  <div class="card">
+    <ol>
+      <li><strong>품질:</strong> A=54, B=55 (Δ=1) — Hard Gate 적용 기준 동등.</li>
+      <li><strong>과정:</strong> 공정 Q 63→16, 첫 PASS 57→12, E_compile ~18+→2.</li>
+      <li><strong>방법:</strong> 실패를 Skill/Rule로 고착하면 같은 설계서 재현 왕복이 크게 줄어든다.</li>
+      <li><strong>확장:</strong> 다른 형식 프로그램에서는 효과가 줄 수 있으며, 유형별 실패를 다시 쌓아야 일반화가 된다.</li>
+    </ol>
+  </div>
+</section>
+
+<footer>
+  Cursor × ABAP Skills / Parity · 오프라인 HTML · 외부 스크립트 없음 · 그래프는 Hard Gate 보정 마일스톤 기준
+</footer>
+
+</div>
+</body>
+</html>
