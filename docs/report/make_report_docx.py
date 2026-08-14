@@ -1,3 +1,13 @@
+# -*- coding: utf-8 -*-
+"""로컬에서 Word 문서 생성.
+필요: pip install python-docx
+실행: python make_report_docx.py
+"""
+from pathlib import Path
+from docx import Document
+from docx.shared import Pt, Cm
+
+MD = r"""
 # Cursor × ABAP Ops Monitor — 논의 정리 보고서
 
 | 항목 | 내용 |
@@ -391,7 +401,7 @@ DoD는 “이 체크리스트를 다 만족하면 유사 품질로 본다”는 
 |------|-----|
 | Session A | Awesome skills automation (장기 구현+Skills) |
 | Session B | 통합 운영 모니터링 대시보드 (Greenfield 재현) |
-| `cum_Q_program` | 프로그램 구현·오류·UX 관련 누적 질문 (PPT·소스복붙/`계속`·메타 제외) |
+| `cum_Q_program` | 프로그램 구현·오류·UX 관련 누적 질문 (PPT/`계속`/메타 제외 가능) |
 | Parity | 설계·UX 바 대비 품질 동등성 점수 |
 | Hard Gate | 활성화/미동작 결함이 있으면 PASS 금지 |
 | DoD | 내부 완료 체크리스트 (외부 공인 지표 아님) |
@@ -401,3 +411,87 @@ DoD는 “이 체크리스트를 다 만족하면 유사 품질로 본다”는 
 ---
 
 *본 문서는 해당 Cursor 대화에서 합의·보정된 수치와 채점 규칙을 기준으로 작성되었다.*
+
+"""
+
+def main():
+    doc = Document()
+    section = doc.sections[0]
+    section.top_margin = Cm(2)
+    section.bottom_margin = Cm(2)
+    section.left_margin = Cm(2.2)
+    section.right_margin = Cm(2.2)
+    style = doc.styles["Normal"]
+    style.font.name = "Malgun Gothic"
+    style.font.size = Pt(11)
+
+    table_buf = []
+
+    def flush_table():
+        nonlocal table_buf
+        if not table_buf:
+            return
+        rows = []
+        for line in table_buf:
+            cells = [c.strip() for c in line.strip("|").split("|")]
+            if all(set(c) <= set("-: ") for c in cells):
+                continue
+            rows.append(cells)
+        table_buf = []
+        if not rows:
+            return
+        cols = max(len(r) for r in rows)
+        t = doc.add_table(rows=len(rows), cols=cols)
+        t.style = "Table Grid"
+        for i, row in enumerate(rows):
+            for j in range(cols):
+                cell = t.cell(i, j)
+                cell.text = row[j] if j < len(row) else ""
+                for p in cell.paragraphs:
+                    for r in p.runs:
+                        r.font.size = Pt(9)
+                        r.font.name = "Malgun Gothic"
+                        if i == 0:
+                            r.bold = True
+        doc.add_paragraph()
+
+    def add_para(text, bold=False, size=11):
+        p = doc.add_paragraph()
+        run = p.add_run(text)
+        run.bold = bold
+        run.font.size = Pt(size)
+        run.font.name = "Malgun Gothic"
+        return p
+
+    for line in MD.splitlines():
+        if line.startswith("|"):
+            table_buf.append(line)
+            continue
+        else:
+            flush_table()
+        if not line.strip() or line.strip() == "---":
+            continue
+        if line.startswith("# "):
+            add_para(line[2:].strip(), bold=True, size=18)
+        elif line.startswith("## "):
+            add_para(line[3:].strip(), bold=True, size=14)
+        elif line.startswith("### "):
+            add_para(line[4:].strip(), bold=True, size=12)
+        elif line.startswith("> "):
+            p = add_para(line[2:].strip(), size=10)
+            p.paragraph_format.left_indent = Cm(0.5)
+        elif line.startswith("- "):
+            p = doc.add_paragraph(style="List Bullet")
+            run = p.add_run(line[2:])
+            run.font.size = Pt(11)
+            run.font.name = "Malgun Gothic"
+        else:
+            add_para(line)
+
+    flush_table()
+    out = Path(__file__).resolve().parent / "Cursor_ABAP_Skills_Parity_논의정리_보고서.docx"
+    doc.save(out)
+    print("생성 완료:", out)
+
+if __name__ == "__main__":
+    main()
