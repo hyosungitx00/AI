@@ -118,6 +118,56 @@ def to_data_uri(path: Path, Image=None) -> tuple[str, str]:
     return f"data:{mime};base64,{b64}", note
 
 
+def build_overview_section() -> str:
+    return """<section id="overview">
+  <h2>1. 개요</h2>
+  <div class="card">
+    <h3>주 목적</h3>
+    <p>동일 설계의 <strong>읽기 전용 통합 운영 모니터</strong>를 Cursor로 구현할 때,
+    장기 왕복으로 Skills를 쌓은 Session A와, 그 Skills를 붙인 채 Greenfield로 재현한 Session B가
+    <strong>최종 품질은 동등한지</strong>, 그리고 <strong>PASS까지 드는 질문·오류 왕복은 얼마나 줄어드는지</strong>를 확인한다.</p>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <h3>무엇을 비교하는가</h3>
+      <ul>
+        <li><strong>Session A</strong> — Awesome skills automation (장기 구현 → Skills 정착)</li>
+        <li><strong>Session B</strong> — 통합 운영 모니터링 대시보드 (설계서 + Skills Greenfield)</li>
+        <li>대상: <code>Y_OPS_MONITOR_V2</code> (SM37 / ST22 / SXI, 읽기 전용)</li>
+        <li>실기 화면: 대시보드 · KPI/STATS · TOGGLE · HELP (동일 조회 438건)</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>어떻게 비교하는가</h3>
+      <ul>
+        <li><strong>화면</strong> — 동일 조건 캡처 A|B 좌우 (다음 절)</li>
+        <li><strong>과정</strong> — 공정 Q, 첫 PASS까지 Q, E_compile (세션별)</li>
+        <li><strong>품질</strong> — Parity v1.1 (만점 62, PASS ≥ 55)</li>
+        <li><strong>집계</strong> — 구현·오류·UX만 / 소스복붙·<code>계속</code>·메타 제외</li>
+      </ul>
+    </div>
+  </div>
+  <p class="note">읽는 순서: 개요 → 화면 비교 → 핵심 수치·Parity·추이.</p>
+</section>
+"""
+
+
+def ensure_overview(html: str) -> str:
+    """개요가 없으면 hero 뒤에 삽입. 핵심 수치는 개요가 아님."""
+    if re.search(r'id=["\']overview["\']', html, flags=re.I):
+        return html
+    if re.search(r"<h2[^>]*>\s*1\.\s*개요\b", html, flags=re.I):
+        return html
+    section = build_overview_section()
+    m = re.search(r"</header\s*>", html, flags=re.I)
+    if m:
+        return html[: m.end()] + "\n\n" + section + html[m.end() :]
+    m = re.search(r"<body[^>]*>", html, flags=re.I)
+    if m:
+        return html[: m.end()] + "\n" + section + html[m.end() :]
+    return section + html
+
+
 def build_shots_section() -> str:
     blocks = [
         '<section id="shots-section">',
