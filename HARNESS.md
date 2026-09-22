@@ -3,14 +3,17 @@
 > SKILL.md의 표준 워크플로우를 실행하기 위한 구체 절차서.
 > AI(또는 사용자)는 아래 5단계를 순서대로 수행한다. 각 단계에는 **게이트(Gate)** 가 있으며,
 > 게이트를 통과하지 못하면 다음 단계로 넘어가지 않는다.
+>
+> 확정 사항(사용자 답변 반영, 2026-09-22): 기준 `SAP_BASIS 750 / S/4HANA`, 주력 `ALV 리포트(SE38) + Function Module(SE37)`,
+> ALV 방식 `건별 유연 선택`, `엄격 게이트(스펙 OK 전 코드 금지)`, 사용 도구 `Cursor`.
 
 ## 전체 그림
 
 ```text
 [0. 사전준비 1회] system-context + 네이밍 확정
         ↓
-[1. Context 수집] requirements/00-common + 유형별 템플릿(01~07) + DDIC 수집
-        ↓ Gate 1: 빈칸율 체크
+[1. Context 수집] requirements/00-common + 주력 템플릿(01 ALV / 03 FM) + DDIC 수집 (02, 04~07은 확장용)
+        ↓ Gate 1: 빈칸율 체크 (★ 1개라도 비면 코드 금지)
 [2. Spec 확정] 테이블·조인·화면·예외 스펙 문서화 → 사용자 OK
         ↓ Gate 2: 스펙 승인
 [3. Code 생성] 복붙 계약 준수 코드 + DDIC/메시지/T-code 정의서
@@ -36,19 +39,19 @@
 
 ## 1단계. Context 수집
 
-### 1.1 템플릿 선택
+### 1.1 템플릿 선택 (주력: 01 ALV · 03 FM)
 
-`requirements/README.md` 의 라우터 표로 유형을 고른다.
+`requirements/README.md` 의 라우터 표로 유형을 고른다. 이 저장소의 주력은 **01 ALV 리포트**와 **03 Function Module**이다.
 
-| 만들고 싶은 것 | 템플릿 |
-|---|---|
-| 조회·출력 리포트(ALV) | `requirements/01-alv-report.md` |
-| 입력·저장 화면(전표 입력 등) | `requirements/02-module-pool.md` |
-| 재사용 로직, 배치 호출 대상 | `requirements/03-function-module.md` |
-| 표준 기능 강화, exits/BAdI | `requirements/04-enhancement.md` |
-| 외부 시스템 연동(RFC/파일/IDoc) | `requirements/05-interface.md` |
-| 대량 등록·변경(CBO 업로드, 잔재 정리) | `requirements/06-batch.md` |
-| 출력 서식(청구서, 라벨) | `requirements/07-forms.md` |
+| 만들고 싶은 것 | 템플릿 | 구분 |
+|---|---|---|
+| 조회·출력 리포트(ALV) ★주력 | `requirements/01-alv-report.md` | 주력 |
+| 재사용 로직, 배치 호출 대상 ★주력 | `requirements/03-function-module.md` | 주력 |
+| 입력·저장 화면(전표 입력 등) | `requirements/02-module-pool.md` | 확장 |
+| 표준 기능 강화, exits/BAdI | `requirements/04-enhancement.md` | 확장 |
+| 외부 시스템 연동(RFC/파일/IDoc) | `requirements/05-interface.md` | 확장 |
+| 대량 등록·변경(CBO 업로드, 잔재 정리) | `requirements/06-batch.md` | 확장 |
+| 출력 서식(청구서, 라벨) | `requirements/07-forms.md` | 확장 |
 
 공통 항목은 `requirements/00-common.md` 에 먼저 기입한다.
 
@@ -86,10 +89,11 @@ AI는 코드를 만들기 전에 아래 형식의 **미니 스펙**을 먼저 �
 [OK] 라고 답하면 코드를 생성합니다. 수정은 번호로 지시해 주세요.
 ```
 
-### Gate 2 — 스펙 승인
+### Gate 2 — 스펙 승인 (엄격 게이트)
 
-- 사용자가 "OK / 진행" 이라고 답하거나, 처음부터 "바로 코드 줘"라고 했을 때만 3단계로 간다.
-- "바로 코드" 요청 시에도 스펙+코드를 **같은 답변에 함께** 제공한다(스펙 생략 금지).
+- 사용자가 **"OK / 진행"이라고 답했을 때만** 3단계로 간다.
+- "바로 코드 줘" 요청이 와도 예외 없이 스펙 확정안을 먼저 제시하고, 승인 후에 코드를 생성한다.
+- FM 건은 I/E/T 파라미터표, ALV 건은 ALV 방식(`CL_SALV_TABLE` / `REUSE` / `CL_GUI_ALV_GRID` 중 택1)이 스펙에 포함되어야 승인이 유효하다.
 
 ---
 
@@ -122,9 +126,9 @@ AI는 코드를 만들기 전에 아래 형식의 **미니 스펙**을 먼저 �
 - [ ] `FOR ALL ENTRIES` 앞 빈 체크 있음?
 - [ ] 루프 내 SELECT 없음?
 - [ ] `SY-SUBRC` 체크 누락 없음?
-- [ ] 릴리스 금지 문법 없음? (ECC 호환 모드면 인라인 선언 전수 검사)
+- [ ] 릴리스 금지 문법 없음? (기준 750/S4 모던 허용. "보수적으로" 지정 건에 한해 인라인 선언 전수 검사)
 - [ ] 메시지·권한 TODO 명시됨?
-- [ ] 한글 주석 깨짐 대비(영문 병기 또는 영문판 제공 여부) 확인됨?
+- [ ] 주석 한국어+영문 병기 확인됨?
 
 ---
 
@@ -196,14 +200,15 @@ AI는 아래 3종 세트를 답변에 포함한다.
 ```text
 당신은 SAP GUI ABAP 바이브 코딩 어시스턴트입니다.
 이 저장소의 SKILL.md + HARNESS.md + 아래 시스템 컨텍스트를 따르십시오.
-릴리스 초과 문법 금지, DDIC 환각 금지, 복붙 계약 준수를 엄수하십시오.
+기준 릴리스 SAP_BASIS 750 / S/4HANA(모던 허용), DDIC 환각 금지, 복붙 계약 준수를 엄수하십시오.
+주력 유형은 ALV 리포트(SE38)와 Function Module(SE37)입니다.
 
 [시스템 컨텍스트 붙여넣기 — context/system-context.template.md 작성본]
 
-[요구사항 템플릿 붙여넣기 — requirements/01 등 해당 유형 1부]
+[요구사항 템플릿 붙여넣기 — requirements/01 또는 03 작성본]
 
-위 템플릿의 빈칸이 있으면 코드를 만들지 말고 Gate 1 질문 리스트를 주십시오.
-빈칸이 없으면 스펙 확정안(Gate 2)부터 제시하십시오.
+위 템플릿의 필수(★) 빈칸이 1개라도 있으면 코드를 만들지 말고 Gate 1 질문 리스트를 주십시오.
+빈칸이 없으면 스펙 확정안(Gate 2)부터 제시하고, "OK" 승인 전에는 코드를 생성하지 마십시오(엄격 게이트).
 ```
 
 ## 부록 B. AI용 시스템 프롬프트 조각
