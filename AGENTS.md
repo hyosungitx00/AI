@@ -14,6 +14,7 @@
 | `requirements/` | 프로그램 유형별 요구사항 템플릿 8종 | 프로그램마다 1부 작성 |
 | `harness/checklists/` | 활성화·리뷰 체크리스트 | SE38 활성화 전후 |
 | `harness/prompts/` | 그대로 붙여넣는 프롬프트 조각 | AI 대화 시작 시 |
+| `.cursor/rules/sap-gui-abap-session-start.mdc` | 세션 시작 자동 질문 규칙 (Cursor 자동 적용) | 새 대화 첫 턴 자동 실행 |
 | `examples/` | 최소 동작 샘플 | AI 출력 형식의 기준 |
 
 ## 확정 사항 (사용자 답변 반영, 2026-09-22)
@@ -44,9 +45,11 @@
 
 ## Cursor 등록 절차 (사용 도구: Cursor)
 
-1. Cursor Settings → Rules / Custom Instructions에 `harness/prompts/system-prompt-fragment.md` 전문을 등록한다.
-2. 새 AI 대화 시작 시 `HARNESS.md` 부록 A 블록(시스템 컨텍스트 + 요구사항 01/03 작성본)만 붙여넣는다. SKILL 지시는 Rules에 이미 있으므로 생략 가능.
-3. ALV·FM 외 유형(02, 04~07)이 필요해지면 해당 템플릿 1부를 추가로 붙여넣는다.
+1. `harness/prompts/system-prompt-fragment.md` 전문을 Cursor Settings → Rules / Custom Instructions에 등록한다.
+2. `.cursor/rules/sap-gui-abap-session-start.mdc` 는 `alwaysApply: true` 로 저장소에 포함되어 있어, Cursor 새 대화의 첫 턴에 1번 항목 맞춤 질문(8문항)이 자동으로 진행된다. 별도 붙여넣기가 필요 없다.
+3. Cursor를 쓰지 않는 도구에서는 새 대화 첫 메시지로 `harness/prompts/session-start.md` 의 전문을 붙여넣는다.
+4. 세션 적용값이 확정되면 `HARNESS.md` 부록 A 블록(시스템 컨텍스트 + 요구사항 01/03 작성본)을 붙여넣고 Gate 1→Gate 2 순으로 진입한다.
+5. ALV·FM 외 유형(02, 04~07)이 필요해지면 해당 템플릿 1부를 추가로 붙여넣는다.
 
 ## 사용 모델별 팁
 
