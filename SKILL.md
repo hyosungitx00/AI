@@ -118,7 +118,7 @@ AI가 생성하는 모든 ABAP 코드는 다음 계약을 만족해야 한다.
 | `requirements/02, 04~07` | 확장용 템플릿 (Module Pool·Enhancement·Interface·Batch·Forms, 필요 시 사용) |
 | `harness/checklists/` | 활성화·코드 리뷰 체크리스트 |
 | `harness/prompts/` | 그대로 붙여넣는 시스템 프롬프트 조각·코드생성 지시문 |
-| `examples/` | 활성화 확인된 최소 샘플 (ALV 리포트) |
+| `examples/` | AI 출력 형식 기준 샘플 2종(`ZSD_SALES_ALV01` ALV · `Z_SD_GET_SALES` FM) + 작성본 견본(`filled/`) |
 
 ## 7. 응답 템플릿 (AI가 사용자에게 말할 때)
 

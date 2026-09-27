@@ -11,9 +11,10 @@ SAP GUI에서 ABAP 바이브 코딩을 시작하기 전에 준비하는 2종 세
    - `AGENTS.md` — 이 저장소를 AI와 함께 쓰는 순서
 2. **프로그램별 요구사항·프롬프트 문서**
    - `context/` — 시스템 정보 1회성 템플릿 + SE11/SE16N 수집 양식
-   - `requirements/` — 공통(00) + 유형별(01~07) 1회 입력 템플릿
-   - `harness/` — 활성화·리뷰 체크리스트 + 그대로 붙여넣는 프롬프트
-   - `examples/` — AI 출력 형식의 기준 샘플
+- `requirements/` — 공통(00) + 유형별(01~07) 1회 입력 템플릿
+  - 작성 견본: `examples/filled/01-alv-report.filled.md`(ALV 완성 입력), `examples/filled/03-function-module.filled.md`(FM 완성 입력)
+- `harness/` — 활성화·리뷰 체크리스트 + 그대로 붙여넣는 프롬프트
+- `examples/` — AI 출력 형식의 기준 샘플 2종(ALV `ZSD_SALES_ALV01.abap`, FM `Z_SD_GET_SALES.fugr.abap`, 상세 `examples/README.md`)
 
 ## 3분 시작 가이드
 

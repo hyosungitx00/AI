@@ -15,7 +15,7 @@
 | `harness/checklists/` | 활성화·리뷰 체크리스트 | SE38 활성화 전후 |
 | `harness/prompts/` | 그대로 붙여넣는 프롬프트 조각 | AI 대화 시작 시 |
 | `.cursor/rules/sap-gui-abap-session-start.mdc` | 세션 시작 자동 질문 규칙 (Cursor 자동 적용) | 새 대화 첫 턴 자동 실행 |
-| `examples/` | 최소 동작 샘플 | AI 출력 형식의 기준 |
+| `examples/` | 출력 형식 기준 2종(ALV·FM) + 작성본 견본(`filled/` 4종) | AI 출력 형식·입력 예시 확인 |
 
 ## 확정 사항 (사용자 답변 반영, 2026-09-22)
 
