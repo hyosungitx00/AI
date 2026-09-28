@@ -31,4 +31,4 @@
 
 | 세션 폴더 | 프로그램 | 상태 |
 |---|---|---|
-| `20260928-ZMM_PR_LINK_ALV01/` | PR 연결정보 일괄 조회 (SE38 ALV) | Gate 3 코드 제공, V-1 진행 중 |
+| `20260928-ZMM_PR_LINK_ALV01/` | PR 연결정보 일괄 조회 (SE38 ALV) | 완료 (Verify·Handover済) |
