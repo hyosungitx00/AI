@@ -12,6 +12,9 @@
 REPORT zmm_pr_link_alv01 NO STANDARD PAGE HEADING
   LINE-SIZE 250 LINE-COUNT 65.
 
+"! 테이블 선언 / Table declaration (SELECT-OPTIONS FOR dict-field에 필수)
+TABLES eban.
+
 "! 타입 정의 / Type definitions
 "! [확인필요] EBKN(계정지정), 판매오더·입고·송장 연결 필드는 SE11 실재 확인 후 활성화하십시오.
 TYPES: BEGIN OF ty_link,
@@ -32,7 +35,7 @@ DATA gt_link TYPE STANDARD TABLE OF ty_link.
 "! 선택화면 / Selection screen (S1)
 SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE TEXT-001.
   PARAMETERS p_banfn TYPE eban-banfn MODIF ID sc1.
-  SELECT-OPTIONS s_badat FOR sy-datum MODIF ID sc1.
+  SELECT-OPTIONS s_badat FOR eban-badat MODIF ID sc1.
   PARAMETERS p_werks TYPE eban-werks MODIF ID sc1.
   PARAMETERS p_ekgrp TYPE eban-ekgrp MODIF ID sc1.
 SELECTION-SCREEN END OF BLOCK b1.
