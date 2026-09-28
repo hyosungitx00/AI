@@ -18,6 +18,7 @@
 | `spec.md` | Gate 2 스펙 확정안 | Gate 2 승인 시 |
 | `code.abap` | Gate 3 산출물 | 코드 제공 시 (SE38 복붙본과 동일) |
 | `verify.md` | V-1~V-4 답변 정리 | Verify 진행 시 |
+| `errors.md` | 다건 Syntax 오류 목록 (V-3b 양식, 위에서부터 1건씩 순차 수정) | 오류 2건 이상 시 |
 | `handover.md` | H-1 답변 + 이관 묶음 | Handover 시 |
 
 ## 세션 시작 시 (AI용)
