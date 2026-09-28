@@ -4,11 +4,10 @@
 *& PR 연결정보 일괄 조회 (샘플) / Sample: PR linkage inquiry
 *& 기준: SAP_BASIS 750 / S/4HANA, 모던 ABAP 허용
 *&      / Baseline: SAP_BASIS 750 / S/4HANA, modern ABAP allowed
-*& 패키지 / Package: ZMM01, 메시지 클래스 / Message class: ZMM_MSG(SE91 별도 생성)
+*& 패키지 / Package: ZMM01, 메시지: 텍스트 리터럴 사용(SE91 생성 불필요)
 *& 복사 순서 / Copy order:
-*&   ① SE91 — 메시지 클래스 ZMM_MSG 001~004 등록 (아래 메시지 정의서 참조)
-*&   ② SE38 — 프로그램 ZMM_PR_LINK_ALV01 생성 (Type=Executable), 본 파일 전체 붙여넣기
-*&   ③ Ctrl+F2 Syntax Check → Extended Check → F8 실행
+*&   ① SE38 — 프로그램 ZMM_PR_LINK_ALV01 생성 후 본 파일 전체 붙여넣기(SE91 불필요)
+*&   ② Ctrl+F2 Syntax Check → Extended Check → F8 실행
 *&---------------------------------------------------------------------*
 REPORT zmm_pr_link_alv01 NO STANDARD PAGE HEADING
   LINE-SIZE 250 LINE-COUNT 65.
@@ -41,17 +40,14 @@ SELECTION-SCREEN END OF BLOCK b1.
 "! 입력 검증 / Input validation
 AT SELECTION-SCREEN.
   IF s_badat-low > s_badat-high AND s_badat-high IS NOT INITIAL.
-    MESSAGE e003(zmm_msg) DISPLAY LIKE 'E'.
-    " TODO(GUI): SE91 ZMM_MSG 003 = '시작일이 종료일보다 큽니다. / Start date is later than end date.'
+    MESSAGE '시작일이 종료일보다 큽니다. / Start date is later than end date.' TYPE 'E'.
   ENDIF.
   IF p_banfn IS INITIAL AND s_badat-low IS INITIAL
       AND p_werks IS INITIAL AND p_ekgrp IS INITIAL.
-    MESSAGE e004(zmm_msg) DISPLAY LIKE 'E'.
-    " TODO(GUI): SE91 ZMM_MSG 004 = '최소 1개 조건을 입력하십시오. / Enter at least one criterion.'
+    MESSAGE '최소 1개 조건을 입력하십시오. / Enter at least one criterion.' TYPE 'E'.
   ENDIF.
   IF s_badat-high - s_badat-low > 90.
-    MESSAGE e004(zmm_msg) DISPLAY LIKE 'E'.
-    " TODO(GUI): 생성일 범위는 최대 90일입니다. / Date range limited to 90 days.
+    MESSAGE '생성일 범위는 최대 90일입니다. / Date range limited to 90 days.' TYPE 'E'.
   ENDIF.
 
 START-OF-SELECTION.
@@ -68,7 +64,7 @@ FORM frm_get_data.
     ID 'WERKS' FIELD p_werks
     ID 'ACTVT' FIELD '03'.
   IF sy-subrc <> 0 AND p_werks IS NOT INITIAL.
-    MESSAGE e002(zmm_msg) DISPLAY LIKE 'E'.
+    MESSAGE '권한이 없습니다. / No authority.' TYPE 'E'.
     RETURN.
   ENDIF.
 
@@ -89,8 +85,7 @@ FORM frm_get_data.
       AND ( a~ekgrp = @p_ekgrp OR @p_ekgrp = @space ).
 
   IF sy-subrc <> 0.
-    MESSAGE s001(zmm_msg) DISPLAY LIKE 'S'.
-    " TODO(GUI): SE91 ZMM_MSG 001 = '조건에 맞는 데이터가 없습니다. / No data found.'
+    MESSAGE '조건에 맞는 데이터가 없습니다. / No data found.' TYPE 'S'.
     RETURN.
   ENDIF.
 ENDFORM.
@@ -111,8 +106,7 @@ FORM frm_show_alv.
       PERFORM frm_set_hotspot USING lo_salv.
       lo_salv->display( ).
     CATCH cx_salv_msg INTO lx_msg.
-      MESSAGE e002(zmm_msg) DISPLAY LIKE 'E'.
-      " TODO(GUI): SE91 ZMM_MSG 002 = 'ALV 표시 중 오류가 발생했습니다. / ALV display error.'
+      MESSAGE 'ALV 표시 중 오류가 발생했습니다. / ALV display error.' TYPE 'E'.
   ENDTRY.
 ENDFORM.
 
@@ -140,11 +134,9 @@ ENDFORM.
 "! EBKN [확인필요] (계정지정), EKPO-EBELN (구매오더), MSEG-MBLNR [확인필요] (입고),
 "! RSEG-BELNR [확인필요] (송장), VBAP-VBELN [확인필요] (판매오더), WBS=PS_PSP_PNR [확인필요]
 "!----------------------------------------------------------------------
-"! 메시지 클래스 정의서 (SE91 ZMM_MSG) / Message definitions
-"! 001(S): 조건에 맞는 데이터가 없습니다. / No data found for the selection.
-"! 002(E): 권한이 없거나 ALV 표시 중 오류가 발생했습니다. / No authority or ALV display error.
-"! 003(E): 시작일이 종료일보다 큽니다. / Start date is later than end date.
-"! 004(E): 최소 1개 조건 입력 + 생성일 범위 최대 90일. / Enter 1+ criteria; max 90-day range.
+"! 메시지: 텍스트 리터럴 사용 — SE91 생성 불필요 / Literals, no message class needed
+"! S: 조건에 맞는 데이터가 없습니다. / No data found.
+"! E: 권한 없음·ALV 오류·일자 역전·미입력·90일 초과 (코드 내 리터럴 참조)
 "!----------------------------------------------------------------------
 "! 테스트 절차 / Test procedure (SE38 F8)
 "! T1: 생성일=오늘 → 당일 PR ALV 표시 (S2), 상태바 건수 확인
