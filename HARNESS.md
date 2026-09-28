@@ -53,8 +53,10 @@
 
 ### 0.5.1 접수 (00-intake)
 
-1. 사용자가 `00-intake.md` §0(세션 유형·요구사항 형식·데모 포함 여부) + §2 본문을 제출한다.
-   본문은 작성 틀 `requirements/00-intake-prompt.md`(§0 접수 → §8 테스트값 9섹션, 견본 `examples/filled/00-intake-prompt.filled.md`) 사용을 권장하며,
+1. 사용자가 `00-intake.md` §0(세션 유형·요구사항 형식·데모 포함 여부)을 제출하고 접수 방식을 택한다.
+   기본은 인터뷰 방식이다: 사용자가 `[신규 프로그램 요구사항 인터뷰 시작 요청]` 한 줄만 보내면,
+   AI가 `harness/prompts/interview-script.md` 순서(I-0 접수 → I-8 테스트값, 한 턴 최대 3문항)로 질문하고 답변을 받아 설계한다.
+   작성 틀 `requirements/00-intake-prompt.md` 한 번에 입력(견본 `examples/filled/00-intake-prompt.filled.md`),
    자유 텍스트 붙여넣기 또는 파일 첨부(md / txt / xlsx / docx / pdf / 이미지 / html 데모)도 가능하다.
 3. AI는 접수물을 기준으로만 판단하고, 이전 세션의 요구사항·코드를 끌어오지 않는다.
 

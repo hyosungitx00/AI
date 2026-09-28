@@ -13,7 +13,7 @@
 | `context/ddic-collect.template.md` | SE11/SE16N 값 수집 양식 | 테이블·필드가 불확실할 때 |
 | `requirements/` | 접수 커버(00-intake) + 화면 데모(08) + 필드맵(09) + 유형별 템플릿 8종(00~07) | 프로그램마다 접수 1건 |
 | `harness/checklists/` | 활성화·리뷰 체크리스트 | SE38 활성화 전후 |
-| `harness/prompts/` | 그대로 붙여넣는 프롬프트 조각(신규 기본: `intake-demo-prompt.md`) | AI 대화 시작 시 |
+| `harness/prompts/` | 그대로 붙여넣는 프롬프트 조각(신규 기본: `intake-demo-prompt.md` + 인터뷰 스크립트 `interview-script.md`) | AI 대화 시작 시 |
 | `.cursor/rules/sap-gui-abap-session-start.mdc` | 세션 시작 자동 질문 규칙 (Cursor 자동 적용) | 새 대화 첫 턴 자동 실행 |
 | `examples/` | 출력 형식 기준 2종(ALV·FM) + 작성본 견본(`filled/` 4종) | AI 출력 형식·입력 예시 확인 |
 
@@ -31,7 +31,9 @@
 
 1. `context/system-context.template.md` 복사·작성 (5분, 프로젝트당 1회).
 2. `requirements/00-intake.md` 커버 작성 + 요구사항 본문 준비 (텍스트 붙여넣기 또는 파일 첨부, 기존 요구사항 참조 불필요).
-3. AI 채팅에 순서대로 붙여넣기: `SKILL 지시 1줄` + `시스템 컨텍스트` + `00-intake 작성본` + `요구사항 텍스트/파일`.
+3. AI 채팅에 순서대로 붙여넣기: `SKILL 지시 1줄` + `시스템 컨텍스트` + 아래 중 택1.
+   - (A) 인터뷰 방식(기본): `[신규 프로그램 요구사항 인터뷰 시작 요청]` 한 줄만 보내면 AI가 `harness/prompts/interview-script.md` 순서로 한 턴 최대 3문항씩 질문한다.
+   - (B) 한 번에 입력: `00-intake` 커버 + `00-intake-prompt.md` 작성 틀 1블록 (또는 요구사항 텍스트/파일).
    - 원문은 `harness/prompts/intake-demo-prompt.md`에 있다 (구방식 원문은 `HARNESS.md` 부록 A).
 4. AI가 Gate U(이해도 확인서) → Gate D(08-demo 화면 컨펌, 데모 없음이면 AI 목업 생성) → Gate F(09-fieldmap 필드·구현 승인) → Gate 2(스펙 확정안) → Gate 3(코드) 순으로 준다. 각 게이트 승인 전에는 다음 산출물을 만들지 않는다.
 5. `harness/checklists/activation-checklist.md` 대로 SE38에 활성화·테스트한다.
