@@ -33,6 +33,8 @@
 - `examples/ZMM_PR_LINK_ALV01.abap`와 동일 (리터럴 메시지 개정본)
 - 변경 이력: ① 메시지 클래스 → 리터럴 (SE91 불필요, 사용자 요청) → `practice` MSG-P01 승격
 
-## verify (V-1 진행 중)
+## verify (V-4 확정 대기)
 
-- ㉖ Syntax: 미실행 / ㉗ Extended: 미실행 / ㉙ T1: 미실행
+- ㉖ Syntax: 1건(ERR-006 TABLES 미선언) → 수정 후 0건 / ㉗ Extended: 미실행(사용자 생략)
+- ㉙ T1: 정상 ALV / ㉚ T2: 규정 메시지 / ㉛ T3: 규정 메시지
+- errors.md #1 해결済
