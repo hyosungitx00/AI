@@ -114,7 +114,9 @@ AI가 생성하는 모든 ABAP 코드는 다음 계약을 만족해야 한다.
 | `HARNESS.md` | 5단계 워크플로우, 게이트, 복붙 프로토콜, 덤프 대응표 |
 | `context/system-context.template.md` | 1회만 작성하는 시스템 정보 (릴리스, 클라이언트, 네이밍, 권한) |
 | `context/ddic-collect.template.md` | SE11/SE16N에서 테이블·필드 정보를 뽑아오는 절차 + 붙여넣기 양식 |
-| `requirements/README.md` | 어떤 템플릿을 고를지 결정하는 라우터 (신규 기본: 00-intake → 08-demo → 09-fieldmap → 01~07) |
+| `requirements/README.md` | 어떤 템플릿을 고를지 결정하는 라우터 (신규 기본: 인터뷰 → 08-demo → 09-fieldmap → 01~07) |
+| `sessions/README.md` | 세션별 묶음 규칙 — 프로그램 1건당 폴더 1개, 게이트별 기록 파일 |
+| `practice/error-patterns.md` | 오류·교훈 패턴 — Gate 3 전 대조 필수, V-3에서 신규 승격 |
 | `requirements/00-intake.md` | 신규 세션 접수 커버 — 텍스트/파일 요구사항 + 데모 포함 여부 (기존 요구사항 참조 불필요) |
 | `requirements/00-intake-prompt.md` | 붙여넣기용 요구사항 작성 틀 — §0 접수 → §8 테스트값 9섹션, 채우면 Gate U 진입 |
 | `requirements/08-demo.md` | 화면 데모 확인서 — 제공 데모 분석(경로A) 또는 AI 생성 데모(경로B) + 화면 컨펌 |

@@ -187,6 +187,7 @@ AI는 코드를 만들기 전에 아래 형식의 **미니 스펙**을 먼저 �
 
 ### Gate 3 — 정적 체크 (AI 자가검증, 답변 전에 수행)
 
+- [ ] `practice/error-patterns.md` 전수 대조 후 해당 패턴 선반영됨? (대조 없이 코드 금지)
 - [ ] `SELECT *` 없음?
 - [ ] `FOR ALL ENTRIES` 앞 빈 체크 있음?
 - [ ] 루프 내 SELECT 없음?
@@ -237,6 +238,8 @@ AI는 아래 3종 세트를 답변에 포함한다.
 
 - AI가 `interview-script.md` V-1(활성화) → V-2(실행 테스트) 순으로 질문하고 답변을 받아 마무리한다.
   오류 발생 시 V-3(덤프명·메시지 전문·입력값·SY-SUBRC) 질문으로 회수하고, 덤프 대응표로 수정본을 제공한다.
+- 회수 후 AI는 `practice/error-patterns.md`를 먼저 대조한다. 기존 패턴이면 그 ID 처방으로, 신규면 새 ID로 패턴 추가 후 수정본을 제공한다.
+  덤프 대응표는 `error-patterns.md` ERR 표와 동일하게 유지한다.
 - "활성화 OK + T1~T3 결과"가 돌아오기 전에는 5단계(Handover)로 가지 않는다.
 - V-4 Verify 확정(`Handover로 넘어갈까요?`) 확인 후에만 Handover 산출물을 만든다.
 

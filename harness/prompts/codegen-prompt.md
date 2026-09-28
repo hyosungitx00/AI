@@ -8,6 +8,7 @@ Gate 2 스펙이 승인되었습니다. Gate 3 코드 생성을 시작하십시�
 - 릴리스 게이트: SAP_BASIS 750 / S/4HANA 모던 문법 ("보수적으로" 지정 건만 ECC 호환으로 폴백).
 - ALV 방식: 승인된 스펙에서 정한 방식 1종 (CL_SALV_TABLE / REUSE / CL_GUI_ALV_GRID).
 - DDIC 그라운딩: 아래 수집값에 없는 필드를 쓰지 마십시오. (수집값 붙여넣기)
+- practice 대조: `practice/error-patterns.md` 전수 대조 후 해당 패턴을 코드에 선반영하십시오 (대조 없이 코드 금지).
 - 자가검증: code-review-checklist.md A~C를 통과한 것만 제시하십시오.
 
 [여기에 승인된 스펙 확정안 + DDIC 수집값을 붙여넣기]

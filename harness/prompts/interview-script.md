@@ -89,7 +89,9 @@
 32. `덤프·메시지`: ST22 덤프명(예: ITAB_DUPLICATE_KEY) 또는 메시지 전문을 기타란에 그대로 붙여넣어 주세요.
 33. `입력값·위치`: 어느 케이스(T1/T2/T3) 입력값인가요? Syntax 에러면 행번호는요?
 34. `SY-SUBRC`: 디버깅(`/BREAK-POINT`) 확인값이 있나요? (없으면 "없음")
-- 회수 후 AI는 `HARNESS.md` 덤프 대응표로 수정본 + 원인 1줄을 제공한다. 수정본 적용 후 V-1부터 다시 질문한다.
+- 회수 후 AI는 `practice/error-patterns.md`를 먼저 대조한다. 기존 패턴 ID가 있으면 그 ID의 처방으로 답하고,
+  없으면 새 ID(ERR/MSG/PROC-nnn)로 패턴을 추가한 뒤 답한다 (V-3 승격 규칙).
+  덤프 대응표는 `error-patterns.md` ERR 표와 동일하게 유지한다.
 
 ### V-4 Verify 확정
 
