@@ -30,7 +30,7 @@
 
 ## code (Gate 3)
 
-- `examples/ZMM_PR_LINK_ALV01.abap`와 동일 (리터럴 메시지 개정본)
+- `code.abap` (이 폴더, 리터럴 메시지·TABLES 개정본 — SE38 복붙본과 동일)
 - 변경 이력: ① 메시지 클래스 → 리터럴 (SE91 불필요, 사용자 요청) → `practice` MSG-P01 승격
 
 ## verify (확정済)
