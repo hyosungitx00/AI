@@ -53,8 +53,9 @@
 
 ### 0.5.1 접수 (00-intake)
 
-1. 사용자가 `00-intake.md` §0(세션 유형·요구사항 형식·데모 포함 여부) + §2 본문(텍스트 붙여넣기 또는 파일 첨부)을 제출한다.
-2. 접수 형식: 채팅 텍스트, 또는 md / txt / xlsx / docx / pdf / 이미지 / html 데모 파일.
+1. 사용자가 `00-intake.md` §0(세션 유형·요구사항 형식·데모 포함 여부) + §2 본문을 제출한다.
+   본문은 작성 틀 `requirements/00-intake-prompt.md`(§0 접수 → §8 테스트값 9섹션, 견본 `examples/filled/00-intake-prompt.filled.md`) 사용을 권장하며,
+   자유 텍스트 붙여넣기 또는 파일 첨부(md / txt / xlsx / docx / pdf / 이미지 / html 데모)도 가능하다.
 3. AI는 접수물을 기준으로만 판단하고, 이전 세션의 요구사항·코드를 끌어오지 않는다.
 
 ### Gate U — AI 이해 내용 점검

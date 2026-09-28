@@ -16,6 +16,7 @@
 |---|---|---|
 | `filled/system-context.filled.md` | `context/system-context.template.md` | 시스템 정보 작성본 — 모든 대화 맨 앞에 붙여넣기 |
 | `filled/00-intake.filled.md` | `requirements/00-intake.md` | 신규 접수 커버 + 텍스트 요구사항 — 데모 없음 케이스, Gate U 진입용 |
+| `filled/00-intake-prompt.filled.md` | `requirements/00-intake-prompt.md` | 작성 틀 완성본 — 블록 1개 붙여넣기로 Gate U 진입 |
 | `filled/08-demo.filled.md` | `requirements/08-demo.md` 경로B | AI 생성 데모 목업 — Gate D 화면 컨펌용 |
 | `filled/09-fieldmap.filled.md` | `requirements/09-fieldmap.md` | 필드 연결 + 구현 방식 — Gate F 승인 후 01로 구조화 |
 | `filled/01-alv-report.filled.md` | `requirements/00-common.md` + `01-alv-report.md` | ALV 완성 입력 — 구방식 또는 Gate F 구조화 결과물 |

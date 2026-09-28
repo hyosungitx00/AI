@@ -116,6 +116,7 @@ AI가 생성하는 모든 ABAP 코드는 다음 계약을 만족해야 한다.
 | `context/ddic-collect.template.md` | SE11/SE16N에서 테이블·필드 정보를 뽑아오는 절차 + 붙여넣기 양식 |
 | `requirements/README.md` | 어떤 템플릿을 고를지 결정하는 라우터 (신규 기본: 00-intake → 08-demo → 09-fieldmap → 01~07) |
 | `requirements/00-intake.md` | 신규 세션 접수 커버 — 텍스트/파일 요구사항 + 데모 포함 여부 (기존 요구사항 참조 불필요) |
+| `requirements/00-intake-prompt.md` | 붙여넣기용 요구사항 작성 틀 — §0 접수 → §8 테스트값 9섹션, 채우면 Gate U 진입 |
 | `requirements/08-demo.md` | 화면 데모 확인서 — 제공 데모 분석(경로A) 또는 AI 생성 데모(경로B) + 화면 컨펌 |
 | `requirements/09-fieldmap.md` | 필드 연결 정보 + 구현 방식 확인서 (화면 컨펌 후 작성, Gate F 점검) |
 | `requirements/00-common.md` + `01-alv-report.md` + `03-function-module.md` | 주력 요구사항 템플릿 (1건당 공통+유형 1부) |

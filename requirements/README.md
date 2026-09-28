@@ -15,7 +15,7 @@
 
 | 순서 | 단계 | 템플릿·입력 | 게이트 |
 |---|---|---|---|
-| 1 | 접수 | `requirements/00-intake.md` + 요구사항 본문(텍스트 붙여넣기 또는 파일: md/txt/xlsx/docx/pdf/이미지/html 데모) | — |
+| 1 | 접수 | `requirements/00-intake.md` 커버 + 본문(작성 틀 `00-intake-prompt.md` 권장, 또는 자유 텍스트·파일: md/txt/xlsx/docx/pdf/이미지/html 데모) | — |
 | 2 | 이해도 확인 | AI 작성 **이해도 확인서** (목적·기능·입출력·예외·모호점·데모 분기) | Gate U 승인 전 데모·필드맵·스펙·코드 금지 |
 | 3 | 화면 데모 | `requirements/08-demo.md` — 데모 있음→경로A 분석 / 없음→경로B AI 생성 목업 | Gate D 화면 컨펌 전 필드맵·스펙·코드 금지 |
 | 4 | 필드·구현 | `requirements/09-fieldmap.md` — 화면-필드 연결표 + 테이블·조인 + 구현 방식 + T1~T3 | Gate F 승인 후 유형 템플릿으로 구조화 |
