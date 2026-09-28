@@ -9,18 +9,18 @@ SAP GUI에서 ABAP 바이브 코딩을 시작하기 전에 준비하는 2종 세
    - `SKILL.md` — AI 행동 규칙 (DDIC 환각 금지·릴리스 게이트·복붙 계약)
    - `HARNESS.md` — 5단계 워크플로우·게이트·덤프 대응표·복붙 프로토콜
    - `AGENTS.md` — 이 저장소를 AI와 함께 쓰는 순서
-2. **프로그램별 요구사항·프롬프트 문서**
+2. **프로그램별 요구사항·프롬프트 문서 (신규 기본: 인테이크·데모-퍼스트)**
    - `context/` — 시스템 정보 1회성 템플릿 + SE11/SE16N 수집 양식
-- `requirements/` — 공통(00) + 유형별(01~07) 1회 입력 템플릿
-  - 작성 견본: `examples/filled/01-alv-report.filled.md`(ALV 완성 입력), `examples/filled/03-function-module.filled.md`(FM 완성 입력)
-- `harness/` — 활성화·리뷰 체크리스트 + 그대로 붙여넣는 프롬프트
+- `requirements/` — 접수 커버(00-intake) + 화면 데모(08) + 필드맵(09) + 공통(00) + 유형별(01~07)
+  - 작성 견본: `examples/filled/00-intake.filled.md`(접수), `examples/filled/08-demo.filled.md`(AI 생성 데모), `examples/filled/09-fieldmap.filled.md`(필드·구현), `examples/filled/01-alv-report.filled.md`(ALV), `examples/filled/03-function-module.filled.md`(FM)
+- `harness/` — 활성화·리뷰 체크리스트 + 그대로 붙여넣는 프롬프트(신규 기본 `intake-demo-prompt.md`)
 - `examples/` — AI 출력 형식의 기준 샘플 2종(ALV `ZSD_SALES_ALV01.abap`, FM `Z_SD_GET_SALES.fugr.abap`, 상세 `examples/README.md`)
 
-## 3분 시작 가이드
+## 3분 시작 가이드 (신규 세션)
 
-1. `context/system-context.template.md` 1부 작성 (릴리스·패키지·네이밍).
-2. `requirements/README.md` 에서 유형 선택 → `00-common.md` + 해당 유형 1부 작성.
-3. AI 채팅에 붙여넣기: `AGENTS.md`의 지시 1줄 + 시스템 컨텍스트 + 요구사항 2부.
-4. AI의 Gate 1(빈칸 질문) → Gate 2(스펙 확정) → Gate 3(코드) 흐름을 따른다.
+1. `context/system-context.template.md` 1부 작성 (릴리스·패키지·네이밍, 프로젝트당 1회).
+2. `requirements/00-intake.md` 커버 작성 + 요구사항 본문 준비 (텍스트 또는 파일, 기존 요구사항 참조 불필요).
+3. AI 채팅에 붙여넣기: `AGENTS.md`의 지시 1줄 + 시스템 컨텍스트 + 00-intake 작성본 + 요구사항 텍스트/파일.
+4. AI의 Gate U(이해도 확인) → Gate D(08-demo 화면 컨펌) → Gate F(09-fieldmap 승인) → Gate 2(스펙 확정) → Gate 3(코드) 흐름을 따른다.
 
-상세 절차는 `HARNESS.md`, AI 등록용 문구는 `harness/prompts/system-prompt-fragment.md` 참조.
+상세 절차는 `HARNESS.md` 0.5단계, 신규 최초 프롬프트는 `harness/prompts/intake-demo-prompt.md` 참조.

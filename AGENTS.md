@@ -11,9 +11,9 @@
 | `HARNESS.md` | 5단계 워크플로우 + 게이트 + 오류 대응표 | AI와 사용자 공통 절차서 |
 | `context/system-context.template.md` | 시스템 정보 1부 (릴리스·패키지·네이밍) | 프로젝트당 1회 작성 |
 | `context/ddic-collect.template.md` | SE11/SE16N 값 수집 양식 | 테이블·필드가 불확실할 때 |
-| `requirements/` | 프로그램 유형별 요구사항 템플릿 8종 | 프로그램마다 1부 작성 |
+| `requirements/` | 접수 커버(00-intake) + 화면 데모(08) + 필드맵(09) + 유형별 템플릿 8종(00~07) | 프로그램마다 접수 1건 |
 | `harness/checklists/` | 활성화·리뷰 체크리스트 | SE38 활성화 전후 |
-| `harness/prompts/` | 그대로 붙여넣는 프롬프트 조각 | AI 대화 시작 시 |
+| `harness/prompts/` | 그대로 붙여넣는 프롬프트 조각(신규 기본: `intake-demo-prompt.md`) | AI 대화 시작 시 |
 | `.cursor/rules/sap-gui-abap-session-start.mdc` | 세션 시작 자동 질문 규칙 (Cursor 자동 적용) | 새 대화 첫 턴 자동 실행 |
 | `examples/` | 출력 형식 기준 2종(ALV·FM) + 작성본 견본(`filled/` 4종) | AI 출력 형식·입력 예시 확인 |
 
@@ -27,13 +27,13 @@
 - 주석: 한국어+영문 병기 고정
 - 사용 도구: Cursor — 아래 등록 절차 참조
 
-## 권장 사용 순서 (최초 1회 → 매 프로그램)
+## 권장 사용 순서 (최초 1회 → 매 프로그램, 신규 기본: 인테이크 방식)
 
-1. `context/system-context.template.md` 복사·작성 (5분).
-2. `requirements/README.md` 에서 유형 선택 → 해당 템플릿 1부 작성 (10~15분).
-3. AI 채팅에 순서대로 붙여넣기: `SKILL 지시 1줄` + `시스템 컨텍스트` + `요구사항 템플릿`.
-   - 원문은 `HARNESS.md` 부록 A에 있다.
-4. AI가 Gate 1(빈칸 질문) → Gate 2(스펙 확정안) → Gate 3(코드) 순으로 준다.
+1. `context/system-context.template.md` 복사·작성 (5분, 프로젝트당 1회).
+2. `requirements/00-intake.md` 커버 작성 + 요구사항 본문 준비 (텍스트 붙여넣기 또는 파일 첨부, 기존 요구사항 참조 불필요).
+3. AI 채팅에 순서대로 붙여넣기: `SKILL 지시 1줄` + `시스템 컨텍스트` + `00-intake 작성본` + `요구사항 텍스트/파일`.
+   - 원문은 `harness/prompts/intake-demo-prompt.md`에 있다 (구방식 원문은 `HARNESS.md` 부록 A).
+4. AI가 Gate U(이해도 확인서) → Gate D(08-demo 화면 컨펌, 데모 없음이면 AI 목업 생성) → Gate F(09-fieldmap 필드·구현 승인) → Gate 2(스펙 확정안) → Gate 3(코드) 순으로 준다. 각 게이트 승인 전에는 다음 산출물을 만들지 않는다.
 5. `harness/checklists/activation-checklist.md` 대로 SE38에 활성화·테스트한다.
 6. 오류는 `HARNESS.md` §4.3 양식으로 회수한다.
 
@@ -48,7 +48,7 @@
 1. `harness/prompts/system-prompt-fragment.md` 전문을 Cursor Settings → Rules / Custom Instructions에 등록한다.
 2. `.cursor/rules/sap-gui-abap-session-start.mdc` 는 `alwaysApply: true` 로 저장소에 포함되어 있어, Cursor 새 대화의 첫 턴에 1번 항목 맞춤 질문(8문항)이 자동으로 진행된다. 별도 붙여넣기가 필요 없다.
 3. Cursor를 쓰지 않는 도구에서는 새 대화 첫 메시지로 `harness/prompts/session-start.md` 의 전문을 붙여넣는다.
-4. 세션 적용값이 확정되면 `HARNESS.md` 부록 A 블록(시스템 컨텍스트 + 요구사항 01/03 작성본)을 붙여넣고 Gate 1→Gate 2 순으로 진입한다.
+4. 세션 적용값이 확정되면 신규 기본 흐름으로 진행한다: `harness/prompts/intake-demo-prompt.md` 블록(시스템 컨텍스트 + 00-intake 작성본 + 요구사항 텍스트/파일)을 붙여넣고 Gate U → Gate D → Gate F → Gate 2 순으로 진입한다. 구방식(00-common + 01/03 직접 작성 시작)도 유효하며, 그때는 `HARNESS.md` 부록 A 블록을 쓴다.
 5. ALV·FM 외 유형(02, 04~07)이 필요해지면 해당 템플릿 1부를 추가로 붙여넣는다.
 
 ## 사용 모델별 팁

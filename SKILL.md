@@ -89,8 +89,9 @@ AI가 생성하는 모든 ABAP 코드는 다음 계약을 만족해야 한다.
 
 ## 4. 표준 워크플로우 (Harness 연동 — 엄격 게이트)
 
-`HARNESS.md` 의 5단계 게이트를 따른다. 이 저장소는 **엄격 게이트**로 운용한다. 요약:
+`HARNESS.md` 의 게이트를 따른다. 이 저장소는 **엄격 게이트**로 운용한다. 신규 세션 기본값은 **인테이크·데모-퍼스트(0.5단계)** 이며, 세션마다 기존 요구사항을 참조하지 않는다. 요약:
 
+0.5. **Intake·데모-퍼스트** — `requirements/00-intake.md` 커버 + 요구사항 본문(텍스트/파일) 접수 → Gate U 이해도 확인서("OK" 전 데모·필드맵·스펙·코드 금지) → `08-demo.md` 분기(데모 있음→경로A 분석 / 없음→경로B AI 생성) → Gate D 화면 컨펌(컨펌 전 필드맵·스펙·코드 금지) → `09-fieldmap.md`(필드 연결 + 구현 방식) → Gate F 승인 후 유형 템플릿(01~07)으로 구조화.
 1. **Context 수집** — `context/system-context.template.md` + `requirements/00-common.md` + 해당 유형 템플릿(주력은 `01-alv-report` / `03-function-module`)이 모두 채워졌는지 확인. 필수(★) 1개라도 비어 있으면 코드 작성 금지, 템플릿 빈칸을 질문 리스트로 반환.
 2. **Spec 확정** — 테이블·조인·선택화면·ALV 레이아웃(FM이면 I/E/T 파라미터)·예외처리를 불릿 스펙으로 먼저 확정. 사용자 **"OK" 승인 전에는 코드 생성 금지**. "바로 코드" 요청이 와도 스펙 없이 코드를 주지 않고, 스펙 확정안을 먼저 제시한다.
 3. **Code 생성** — Output Contract(3.3) 준수. 릴리스 게이트(3.2, 750/S4 모던) 준수. ALV 방식은 스펙에서 건별로 선택(`CL_SALV_TABLE` / `REUSE_ALV_GRID_DISPLAY` / `CL_GUI_ALV_GRID`).
@@ -113,7 +114,10 @@ AI가 생성하는 모든 ABAP 코드는 다음 계약을 만족해야 한다.
 | `HARNESS.md` | 5단계 워크플로우, 게이트, 복붙 프로토콜, 덤프 대응표 |
 | `context/system-context.template.md` | 1회만 작성하는 시스템 정보 (릴리스, 클라이언트, 네이밍, 권한) |
 | `context/ddic-collect.template.md` | SE11/SE16N에서 테이블·필드 정보를 뽑아오는 절차 + 붙여넣기 양식 |
-| `requirements/README.md` | 어떤 템플릿을 고를지 결정하는 라우터 (주력: 01 ALV·03 FM) |
+| `requirements/README.md` | 어떤 템플릿을 고를지 결정하는 라우터 (신규 기본: 00-intake → 08-demo → 09-fieldmap → 01~07) |
+| `requirements/00-intake.md` | 신규 세션 접수 커버 — 텍스트/파일 요구사항 + 데모 포함 여부 (기존 요구사항 참조 불필요) |
+| `requirements/08-demo.md` | 화면 데모 확인서 — 제공 데모 분석(경로A) 또는 AI 생성 데모(경로B) + 화면 컨펌 |
+| `requirements/09-fieldmap.md` | 필드 연결 정보 + 구현 방식 확인서 (화면 컨펌 후 작성, Gate F 점검) |
 | `requirements/00-common.md` + `01-alv-report.md` + `03-function-module.md` | 주력 요구사항 템플릿 (1건당 공통+유형 1부) |
 | `requirements/02, 04~07` | 확장용 템플릿 (Module Pool·Enhancement·Interface·Batch·Forms, 필요 시 사용) |
 | `harness/checklists/` | 활성화·코드 리뷰 체크리스트 |
@@ -121,6 +125,23 @@ AI가 생성하는 모든 ABAP 코드는 다음 계약을 만족해야 한다.
 | `examples/` | AI 출력 형식 기준 샘플 2종(`ZSD_SALES_ALV01` ALV · `Z_SD_GET_SALES` FM) + 작성본 견본(`filled/`) |
 
 ## 7. 응답 템플릿 (AI가 사용자에게 말할 때)
+
+신규 세션 접수 직후 (Gate U):
+
+> 전달해 주신 요구사항(텍스트/파일)을 분석했습니다. 아래 이해도 확인서를 점검해 주세요.
+> ① 목적·사용자 ② 핵심 기능 ③ 입력/출력 ④ 예외 ⑤ 모호점 ⑥ 데모 분기(있음→경로A / 없음→경로B).
+> [OK] 라고 답하면 데모 단계로 진행합니다. 승인 전에는 데모·필드맵·스펙·코드를 만들지 않습니다.
+
+화면 단계 (Gate D):
+
+> 화면 데모 확인서(`08-demo.md`)를 준비했습니다. (제공 데모 분석본 / AI 생성 목업)
+> 화면 구성·버튼·이벤트 중 틀린 곳을 번호로 지시해 주세요. "컨펌(OK)"을 답하면 필드 연결 정보 + 구현 방식(`09-fieldmap.md`)을 작성합니다.
+> 화면 컨펌 전에는 필드맵·스펙·코드를 만들지 않습니다.
+
+필드맵 단계 (Gate F):
+
+> 필드 연결 정보 + 구현 방식(`09-fieldmap.md`)을 준비했습니다. 화면-필드 연결표·조인·구현 방식·T1~T3를 점검해 주세요.
+> "컨펌(OK)"을 답하면 해당 유형 템플릿으로 구조화해 스펙 확정안(Gate 2)을 제시합니다.
 
 요구사항이 비어 있을 때:
 
