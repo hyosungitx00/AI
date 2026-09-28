@@ -32,10 +32,18 @@ DATA gt_link TYPE STANDARD TABLE OF ty_link.
 "! 선택화면 / Selection screen (S1)
 SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE TEXT-001.
   PARAMETERS p_banfn TYPE eban-banfn MODIF ID sc1.
-  SELECT-OPTIONS s_badat FOR eban-badat DEFAULT sy-datum TO sy-datum.
+  SELECT-OPTIONS s_badat FOR sy-datum MODIF ID sc1.
   PARAMETERS p_werks TYPE eban-werks MODIF ID sc1.
   PARAMETERS p_ekgrp TYPE eban-ekgrp MODIF ID sc1.
 SELECTION-SCREEN END OF BLOCK b1.
+
+"! 선택화면 초기값 / Initial values (기본=당일, DDIC 무관)
+INITIALIZATION.
+  s_badat-sign = 'I'.
+  s_badat-option = 'BT'.
+  s_badat-low = sy-datum.
+  s_badat-high = sy-datum.
+  APPEND s_badat.
 
 "! 입력 검증 / Input validation
 AT SELECTION-SCREEN.
