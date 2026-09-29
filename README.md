@@ -25,3 +25,33 @@ SAP GUI에서 ABAP 바이브 코딩을 시작하기 전에 준비하는 2종 세
 3. AI의 인터뷰(I-0 → I-8) 응답 → Gate U(이해도 확인) → Gate D(08-demo 화면 컨펌) → Gate F(09-fieldmap 승인) → Gate 2(스펙 확정) → Gate 3(코드) 흐름을 따른다.
 
 상세 절차는 `HARNESS.md` 0.5단계, 신규 최초 프롬프트는 `harness/prompts/intake-demo-prompt.md` 참조.
+
+## ACP 선택형 질문으로 시작
+
+Claude의 `AskUserQuestion`처럼 번호 선택 방식으로 질문을 받으려면 로컬 터미널에서
+저장소에 포함된 ACP 클라이언트를 실행한다. 이 방식은 현재 대화를 전환하지 않고
+새 Cursor Agent 세션을 만든다.
+
+1. [Cursor CLI 공식 설치 안내](https://cursor.com/docs/cli/installation)에 따라 CLI를 설치한다.
+
+   ```bash
+   curl https://cursor.com/install -fsS | bash
+   export PATH="$HOME/.local/bin:$PATH"
+   agent login
+   ```
+
+2. 이 저장소 루트에서 ACP 클라이언트를 실행한다.
+
+   ```bash
+   node tools/cursor-acp-client.mjs
+   ```
+
+3. 클라이언트가 저장소의 세션 시작 규칙을 자동으로 전달한다. 에이전트가
+   `cursor/ask_question`을 호출하면 단일 선택 또는 복수 선택 질문이 번호 목록으로 표시된다.
+   후속 요청 입력란에서 `/exit`를 입력하면 종료된다.
+
+Cursor CLI 실행 파일이 기본 PATH에 없으면 다음과 같이 지정할 수 있다.
+
+```bash
+CURSOR_AGENT_BIN="$HOME/.local/bin/agent" node tools/cursor-acp-client.mjs
+```
