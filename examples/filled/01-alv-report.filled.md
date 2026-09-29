@@ -1,7 +1,7 @@
 # 작성본 예시 — 00 공통 + 01 ALV 리포트 (복붙용)
 
 > `requirements/00-common.md` + `requirements/01-alv-report.md`의 작성본 예시이다.
-> 두 파일을 합쳐 1개 블록으로 AI에 붙여넣으면 Gate 1(빈칸 질문)을 통과하고 Gate 2(스펙 확정안)로 진입한다.
+> 두 파일을 합쳐 1개 블록으로 AI에 붙여넣으면 Gate 1(빈칸 확인)을 통과하고 Gate 2(스펙 확정안)로 진입한다.
 
 ```markdown
 ## 00 §0 프로그램 식별

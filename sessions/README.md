@@ -11,7 +11,7 @@
 
 | 파일 | 원본 템플릿 | 작성 시점 |
 |---|---|---|
-| `00-intake.filled.md` | `requirements/00-intake.md` + `00-intake-prompt.md` | 접수 시 (인터뷰면 답변 정리본) |
+| `00-intake.filled.md` | `requirements/00-intake.md` + `00-intake-prompt.md` | 접수 시 (답변지 I 회수본 정리) |
 | `08-demo.filled.md` | `requirements/08-demo.md` | Gate D 텍스트 컨펌 시 |
 | `demo-s1.png` / `demo-s2.png` | AI 생성 데모 이미지 | Gate D-2 이미지 재검증 시 |
 | `09-fieldmap.filled.md` | `requirements/09-fieldmap.md` | Gate F 승인 시 |

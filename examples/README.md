@@ -10,13 +10,14 @@
 | `ZSD_SALES_ALV01.abap` | ALV 리포트(SE38) 최소 동작 샘플 — `CL_SALV_TABLE`, `@` 호스트변수, DDIC·메시지·테스트 부록 포함 | SE38 |
 | `Z_SD_GET_SALES.fugr.abap` | Function Module(SE37) 최소 동작 샘플 — `V_VBAK_VKO` 권한 체크, `NO_DATA`/`NO_AUTH` 예외, SE37 테스트 표 포함 | SE37 (함수그룹 `ZFGSD01`) |
 
-## 2. 작성본 견본 (인터뷰 문항·산출물 형식 참고용 — 직접 붙여넣기 접수 중단)
+## 2. 작성본 견본 (답변지·산출물 형식 참고용 — 직접 붙여넣기 접수 중단)
 
 | 파일 | 원본 템플릿 | 용도 |
 |---|---|---|
 | `filled/system-context.filled.md` | `context/system-context.template.md` | 시스템 정보 작성본 — 모든 대화 맨 앞에 붙여넣기 |
-| `filled/00-intake.filled.md` | `requirements/00-intake.md` | 구 접수 커버 예시(참고용 보관) — 현행은 인터뷰 I-0~I-8로 접수 |
-| `filled/00-intake-prompt.filled.md` | `requirements/00-intake-prompt.md` | 구 작성 틀 완성본(참고용 보관) — 현행은 인터뷰로 접수, 붙여넣기로 Gate U 진입 불가 |
+| `filled/session-answer-sheet.filled.md` | `harness/prompts/session-answer-sheet.md` | 답변지 S·I 작성 예시 — 채워서 통째로 붙여넣으면 접수 |
+| `filled/00-intake.filled.md` | `requirements/00-intake.md` | 구 접수 커버 예시(참고용 보관) — 현행은 답변지 I로 접수 |
+| `filled/00-intake-prompt.filled.md` | `requirements/00-intake-prompt.md` | 구 작성 틀 완성본(참고용 보관) — 현행은 답변지 I로 접수, 붙여넣기로 Gate U 진입 불가 |
 | `filled/08-demo.filled.md` | `requirements/08-demo.md` 경로B | AI 생성 데모 목업 — Gate D 화면 컨펌용 |
 | `filled/09-fieldmap.filled.md` | `requirements/09-fieldmap.md` | 필드 연결 + 구현 방식 — Gate F 승인 후 01로 구조화 |
 | `filled/01-alv-report.filled.md` | `requirements/00-common.md` + `01-alv-report.md` | ALV 완성 입력 — 구방식 또는 Gate F 구조화 결과물 |
@@ -25,12 +26,12 @@
 
 위 `00-intake` → `08-demo` → `09-fieldmap` → `01-alv-report` 4부는 동일 스토리(판매실적 조회, 데모 없음→AI 생성)로 이어지는 1세트이다.
 
-## 3. 붙여넣는 순서 (인터뷰 전용)
+## 3. 붙여넣는 순서 (답변지 전용)
 
 ```text
 ① AGENTS.md의 지시 1줄 (또는 harness/prompts/intake-demo-prompt.md 전문)
 ② filled/system-context.filled.md
-③ [신규 프로그램 요구사항 인터뷰 시작 요청] 1줄
-→ 인터뷰(I-0~I-8) → Gate U 이해도 확인 → "OK" → ④ filled/08-demo.filled.md 형식의 데모 → 화면 컨펌
+③ 답변지 I 1건(채워서 통째로 붙여넣기)
+→ Gate U 이해도 확인 → "OK" → ④ filled/08-demo.filled.md 형식의 데모 → 화면 컨펌
 → ⑤ filled/09-fieldmap.filled.md 승인 → Gate 2 스펙 확정 → "OK" → Gate 3 코드 (examples/*.abap 형식)
 ```

@@ -11,12 +11,12 @@
 | `HARNESS.md` | 5단계 워크플로우 + 게이트 + 오류 대응표 | AI와 사용자 공통 절차서 |
 | `context/system-context.template.md` | 시스템 정보 1부 (릴리스·패키지·네이밍) | 프로젝트당 1회 작성 |
 | `context/ddic-collect.template.md` | SE11/SE16N 값 수집 양식 | 테이블·필드가 불확실할 때 |
-| `requirements/` | 접수 커버(00-intake) + 화면 데모(08) + 필드맵(09) + 유형별 템플릿 8종(00~07) | 프로그램마다 인터뷰 1건 |
+| `requirements/` | 접수 안내(00-intake) + 화면 데모(08) + 필드맵(09) + 유형별 템플릿 8종(00~07) | 프로그램마다 답변지 I 1건 |
 | `harness/checklists/` | 활성화·리뷰 체크리스트 | SE38 활성화 전후 |
-| `harness/prompts/` | 그대로 붙여넣는 프롬프트 조각(인터뷰 전용: `intake-demo-prompt.md` + 인터뷰 스크립트 `interview-script.md`) | AI 대화 시작 시 |
+| `harness/prompts/` | 그대로 제시하는 답변지·프롬프트 조각(답변지 전용: `session-answer-sheet.md` + `intake-demo-prompt.md` + `interview-script.md`) | AI 대화 시작 시 |
 | `sessions/` | 세션별 묶음 — 1건당 `YYYYMMDD-프로그램명/` 폴더에 intake·demo·fieldmap·spec·code·verify·handover 기록 (신규 세션은 이전 폴더 참조 금지) | 매 세션 기록 |
 | `practice/` | 오류·교훈 패턴 축적 — Gate 3 전 확인용 `error-patterns.md` + 사용 규칙 (V-3에서 신규 패턴 승격) | 코드 생성 전 확인·오류 회수 시 |
-| `.cursor/rules/sap-gui-abap-session-start.mdc` | 세션 시작 자동 질문 규칙 (Cursor 자동 적용) | 새 대화 첫 턴 자동 실행 |
+| `.cursor/rules/sap-gui-abap-session-start.mdc` | 세션 시작 자동 답변지 규칙 (Cursor 자동 적용) | 새 대화 첫 턴 자동 실행 |
 | `examples/` | 출력 형식 기준 2종(ALV·FM) + 작성본 견본(`filled/` 4종) | AI 출력 형식·입력 예시 확인 |
 
 ## 확정 사항 (사용자 답변 반영, 2026-09-22)
@@ -29,11 +29,11 @@
 - 주석: 한국어+영문 병기 고정
 - 사용 도구: Cursor — 아래 등록 절차 참조
 
-## 권장 사용 순서 (최초 1회 → 매 프로그램, 인터뷰 전용)
+## 권장 사용 순서 (최초 1회 → 매 프로그램, 답변지 전용)
 
 1. `context/system-context.template.md` 복사·작성 (5분, 프로젝트당 1회).
-2. AI 채팅에 순서대로 붙여넣기: `SKILL 지시 1줄` + `시스템 컨텍스트` + `[신규 프로그램 요구사항 인터뷰 시작 요청]` 한 줄.
-   - 인터뷰 전용: 작성 틀 한 번에 입력·자유 텍스트·파일 첨부는 접수하지 않는다. 해당 형식으로 보내주셔도 인터뷰(I-0)부터 다시 진행한다.
+2. AI가 답변지 S 블록을 제시하면 채워서 통째로 붙여넣는다 (빈칸=★기본값, `기본값으로 진행` 한 줄 답변 가능). 이어서 답변지 I 블록 1건을 채워 붙여넣는다.
+   - 답변지 전용: 작성 틀 한 번에 입력·자유 텍스트·파일 첨부는 접수하지 않는다. 해당 형식으로 보내주셔도 답변지 I부터 다시 진행한다. AI는 한 문항씩 묻지 않는다.
    - 원문은 `harness/prompts/intake-demo-prompt.md`에 있다.
 4. AI가 Gate U(이해도 확인서) → Gate D(08-demo 화면 컨펌, 데모 없음이면 AI 목업 생성) → Gate F(09-fieldmap 필드·구현 승인) → Gate 2(스펙 확정안) → Gate 3(코드) 순으로 준다. 각 게이트 승인 전에는 다음 산출물을 만들지 않는다.
 5. `harness/checklists/activation-checklist.md` 대로 SE38에 활성화·테스트한다.
@@ -42,15 +42,15 @@
 ## AI 모델 공통 지시 1줄
 
 ```text
-이 저장소의 SKILL.md와 HARNESS.md를 따르십시오. 기준 SAP_BASIS 750/S4 모던 허용, DDIC 환각 금지, 복붙 계약(완전 소스+복사 순서+테스트 절차) 준수, 엄격 게이트(★ 빈칸 시 코드 금지·스펙 OK 전 코드 금지)를 엄수하십시오. 주력은 ALV 리포트와 Function Module입니다. 신규 접수 방식은 인터뷰 전용입니다(작성 틀·자유 텍스트·파일 접수는 받지 않고 인터뷰 I-0으로 전환).
+이 저장소의 SKILL.md와 HARNESS.md를 따르십시오. 기준 SAP_BASIS 750/S4 모던 허용, DDIC 환각 금지, 복붙 계약(완전 소스+복사 순서+테스트 절차) 준수, 엄격 게이트(★ 빈칸 시 코드 금지·스펙 OK 전 코드 금지)를 엄수하십시오. 주력은 ALV 리포트와 Function Module입니다. 신규 접수 방식은 답변지 전용입니다(작성 틀·자유 텍스트·파일 접수는 받지 않고 답변지 I로 전환, 한 문항씩 묻지 않음).
 ```
 
 ## Cursor 등록 절차 (사용 도구: Cursor)
 
 1. `harness/prompts/system-prompt-fragment.md` 전문을 Cursor Settings → Rules / Custom Instructions에 등록한다.
-2. `.cursor/rules/sap-gui-abap-session-start.mdc` 는 `alwaysApply: true` 로 저장소에 포함되어 있어, Cursor 새 대화의 첫 턴에 1번 항목 맞춤 질문(8문항)이 자동으로 진행된다. 별도 붙여넣기가 필요 없다.
+2. `.cursor/rules/sap-gui-abap-session-start.mdc` 는 `alwaysApply: true` 로 저장소에 포함되어 있어, Cursor 새 대화의 첫 턴에 설정 답변지(S 8문항 1블록) 제시가 자동으로 진행된다. 별도 붙여넣기가 필요 없다.
 3. Cursor를 쓰지 않는 도구에서는 새 대화 첫 메시지로 `harness/prompts/session-start.md` 의 전문을 붙여넣는다.
-4. 세션 적용값이 확정되면 인터뷰 전용 흐름으로 진행한다: `harness/prompts/intake-demo-prompt.md` 블록(시스템 컨텍스트 + 인터뷰 시작 요청 한 줄)을 붙여넣고 인터뷰(I-0 → I-8) → Gate U → Gate D → Gate F → Gate 2 순으로 진입한다. 작성 틀 직접 작성 시작(00-common + 01/03)·자유 텍스트·파일 첨부 접수는 받지 않는다.
+4. 세션 적용값이 확정되면 답변지 전용 흐름으로 진행한다: `harness/prompts/session-answer-sheet.md` 답변지 I 1건을 채워 붙여넣고 Gate U → Gate D → Gate F → Gate 2 순으로 진입한다. 작성 틀 직접 작성 시작(00-common + 01/03)·자유 텍스트·파일 첨부 접수는 받지 않는다.
 5. ALV·FM 외 유형(02, 04~07)이 필요해지면 해당 템플릿 1부를 추가로 붙여넣는다.
 
 ## 사용 모델별 팁
