@@ -47,11 +47,12 @@
 
 ## Cursor 등록 절차 (사용 도구: Cursor)
 
-1. `harness/prompts/system-prompt-fragment.md` 전문을 Cursor Settings → Rules / Custom Instructions에 등록한다.
-2. `.cursor/rules/sap-gui-abap-session-start.mdc` 는 `alwaysApply: true` 로 저장소에 포함되어 있어, Cursor 새 대화의 첫 턴에 1번 항목 맞춤 질문(8문항)이 자동으로 진행된다. 별도 붙여넣기가 필요 없다.
-3. Cursor를 쓰지 않는 도구에서는 새 대화 첫 메시지로 `harness/prompts/session-start.md` 의 전문을 붙여넣는다.
-4. 세션 적용값이 확정되면 인터뷰 전용 흐름으로 진행한다: `harness/prompts/intake-demo-prompt.md` 블록(시스템 컨텍스트 + 인터뷰 시작 요청 한 줄)을 붙여넣고 인터뷰(I-0 → I-8) → Gate U → Gate D → Gate F → Gate 2 순으로 진입한다. 작성 틀 직접 작성 시작(00-common + 01/03)·자유 텍스트·파일 첨부 접수는 받지 않는다.
-5. ALV·FM 외 유형(02, 04~07)이 필요해지면 해당 템플릿 1부를 추가로 붙여넣는다.
+1. 이 저장소의 세션은 선택형 질문을 위해 ACP로 시작한다. Cursor CLI 설치·로그인 후 저장소 루트에서 `node tools/cursor-acp-client.mjs`를 실행한다. 일반 Cloud/웹 세션처럼 `cursor/ask_question`이 없는 환경에서는 텍스트 질문으로 대체하지 않고 진행을 중단한다.
+2. `harness/prompts/system-prompt-fragment.md` 전문을 Cursor Settings → Rules / Custom Instructions에 등록한다.
+3. `.cursor/rules/sap-gui-abap-session-start.mdc` 는 `alwaysApply: true` 로 저장소에 포함되어 있어, ACP 새 대화의 첫 턴에 1번 항목 맞춤 질문(8문항)이 `cursor/ask_question`으로 자동 진행된다. 별도 붙여넣기가 필요 없다.
+4. Cursor를 쓰지 않는 도구에서는 `cursor/ask_question`을 제공할 수 없으므로 이 저장소의 대화형 세션을 진행하지 않는다.
+5. 세션 적용값이 확정되면 인터뷰 전용 흐름으로 진행한다: `harness/prompts/intake-demo-prompt.md` 블록(시스템 컨텍스트 + 인터뷰 시작 요청 한 줄)을 붙여넣고 인터뷰(I-0 → I-8) → Gate U → Gate D → Gate F → Gate 2 순으로 진입한다. 작성 틀 직접 작성 시작(00-common + 01/03)·자유 텍스트·파일 첨부 접수는 받지 않는다.
+6. ALV·FM 외 유형(02, 04~07)이 필요해지면 해당 템플릿 1부를 추가로 붙여넣는다.
 
 ## 사용 모델별 팁
 
