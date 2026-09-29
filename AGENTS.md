@@ -34,7 +34,7 @@
 1. `context/system-context.template.md` 복사·작성 (5분, 프로젝트당 1회).
 2. `requirements/00-intake.md` 커버 작성 + 요구사항 본문 준비 (텍스트 붙여넣기 또는 파일 첨부, 기존 요구사항 참조 불필요).
 3. AI 채팅에 순서대로 붙여넣기: `SKILL 지시 1줄` + `시스템 컨텍스트` + 아래 중 택1.
-   - (A) 인터뷰 방식(기본): 세션 시작 질문 종료와 같은 턴에 AI가 `harness/prompts/interview-script.md` 순서로 한 턴 최대 3문항씩 자동 시작해 질문한다. 별도의 시작 요청 문구를 기다리지 않는다. 모든 질문은 질문 카드 형식(번호 보기 + `[모름]` + `기타` 한 줄)으로 오므로 번호만 답하면 된다.
+   - (A) 인터뷰 방식(기본): 세션 시작 질문 종료와 같은 턴에 AI가 `harness/prompts/interview-script.md` 순서로 한 턴 최대 3문항씩 자동 시작해 질문한다. 별도의 시작 요청 문구를 기다리지 않는다. 모든 질문은 Cursor `Ask questions` 툴의 클릭형 질문 카드(보기 + `[모름]` + `기타` 한 줄)로 오므로 클릭만으로 답하면 된다.
    - (B) 한 번에 입력: `00-intake` 커버 + `00-intake-prompt.md` 작성 틀 1블록 (또는 요구사항 텍스트/파일).
    - `[신규 프로그램 요구사항 인터뷰 시작 요청]` 문구는 세션 시작 질문을 건너뛰었거나 인터뷰를 중단 후 재시작할 때만 쓰는 예비 수단이다.
    - 원문은 `harness/prompts/intake-demo-prompt.md`에 있다 (구방식 원문은 `HARNESS.md` 부록 A).
@@ -55,6 +55,16 @@
 3. Cursor를 쓰지 않는 도구에서는 새 대화 첫 메시지로 `harness/prompts/session-start.md` 의 전문을 붙여넣는다.
 4. 세션 적용값이 확정되면 신규 기본 흐름으로 진행한다: `harness/prompts/intake-demo-prompt.md` 블록(시스템 컨텍스트 + 00-intake 작성본 + 요구사항 텍스트/파일)을 붙여넣고 Gate U → Gate D → Gate F → Gate 2 순으로 진입한다. 구방식(00-common + 01/03 직접 작성 시작)도 유효하며, 그때는 `HARNESS.md` 부록 A 블록을 쓴다.
 5. ALV·FM 외 유형(02, 04~07)이 필요해지면 해당 템플릿 1부를 추가로 붙여넣는다.
+
+## 어디서 세션을 열 것인가 (질문 카드 UI 기준)
+
+클릭형 질문 카드(`Ask questions` 툴)는 **Cursor IDE 로컬 Agent 채팅**(Agent·Plan·Debug 모드)에서 제공된다.
+인터뷰는 질문-응답이 전부이므로, 세션은 이 환경에서 여는 것을 기본으로 한다.
+
+| 실행 환경 | 질문 형식 |
+|---|---|
+| Cursor IDE 로컬 Agent 채팅 (권장) | `Ask questions` 툴 — 답변란 위 클릭형 질문 카드 |
+| Cloud Agent(백그라운드)·Cursor CLI·타 LLM | 툴 미제공 → 한 줄 고지 후 폴백 텍스트 카드(번호로 답변) |
 
 ## 사용 모델별 팁
 
