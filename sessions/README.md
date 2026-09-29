@@ -11,10 +11,12 @@
 
 | 파일 | 원본 템플릿 | 작성 시점 |
 |---|---|---|
-| `00-intake.filled.md` | `requirements/00-intake.md` + `00-intake-prompt.md` | 접수 시 (인터뷰면 답변 정리본) |
+| `00-intake.filled.md` | 인터뷰 I-0~I-8 답변 정리본 | Gate U 이해도 확인 시 |
 | `08-demo.filled.md` | `requirements/08-demo.md` | Gate D 텍스트 컨펌 시 |
 | `demo-s1.png` / `demo-s2.png` | AI 생성 데모 이미지 | Gate D-2 이미지 재검증 시 |
 | `09-fieldmap.filled.md` | `requirements/09-fieldmap.md` | Gate F 승인 시 |
+| `ddic-collect.filled.md` | `context/ddic-collect.template.md` | SE11/SE16N 값 회수 시 (DDIC 미확정 필드가 있을 때) |
+| `00-common.filled.md` + `01`~`07`.filled.md | `requirements/00-common.md` + 유형 템플릿 | Gate F 승인 후 구조화 시 |
 | `spec.md` | Gate 2 스펙 확정안 | Gate 2 승인 시 |
 | `code.abap` | Gate 3 산출물 | 코드 제공 시 (SE38 복붙본과 동일) |
 | `verify.md` | V-1~V-4 답변 정리 | Verify 진행 시 |
@@ -31,4 +33,4 @@
 
 | 세션 폴더 | 프로그램 | 상태 |
 |---|---|---|
-| `20260928-ZMM_PR_LINK_ALV01/` | PR 연결정보 일괄 조회 (SE38 ALV) | 완료 (Verify·Handover済) |
+| `20260928-ZMM_PR_LINK_ALV01/` | PR 연결정보 일괄 조회 (SE38 ALV) | 완료 (Verify·Handover 완료) |
