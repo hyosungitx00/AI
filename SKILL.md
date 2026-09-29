@@ -91,8 +91,8 @@ AI가 생성하는 모든 ABAP 코드는 다음 계약을 만족해야 한다.
 
 `HARNESS.md` 의 게이트를 따른다. 이 저장소는 **엄격 게이트**로 운용한다. 신규 세션 기본값은 **인테이크·데모-퍼스트(0.5단계)** 이며, 세션마다 기존 요구사항을 참조하지 않는다. 요약:
 
-0.5. **Intake·데모-퍼스트** — 답변지 I 1건 접수 후 Gate U 이해도 확인서("OK" 전 데모·필드맵·스펙·코드 금지) → `08-demo.md` 분기(데모 있음→경로A 분석 / 없음→경로B AI 생성) → Gate D 화면 컨펌(컨펌 전 필드맵·스펙·코드 금지) → `09-fieldmap.md`(필드 연결 + 구현 방식) → Gate F 승인 후 유형 템플릿(01~07)으로 구조화. 접수 방식은 **답변지 방식만 허용**한다(AI가 `harness/prompts/session-answer-sheet.md` 블록을 그대로 제시하고 1건으로 회수, 빈칸·`[모름]`은 `[추정]` 제안으로 메우고 되묻지 않음). 작성 틀 한 번에 입력·자유 텍스트·파일 첨부로는 접수하지 않으며, 해당 입력이 오면 답변지 I로 전환한다.
-1. **Context 수집** — `context/system-context.template.md` + `requirements/00-common.md` + 해당 유형 템플릿(주력은 `01-alv-report` / `03-function-module`)이 모두 채워졌는지 확인. 필수(★) 1개라도 비어 있으면 코드 작성 금지, 템플릿 빈칸을 확인 리스트로 반환.
+0.5. **Intake·데모-퍼스트** — `requirements/00-intake.md` 접수 후 Gate U 이해도 확인서("OK" 전 데모·필드맵·스펙·코드 금지) → `08-demo.md` 분기(데모 있음→경로A 분석 / 없음→경로B AI 생성) → Gate D 화면 컨펌(컨펌 전 필드맵·스펙·코드 금지) → `09-fieldmap.md`(필드 연결 + 구현 방식) → Gate F 승인 후 유형 템플릿(01~07)으로 구조화. 접수 방식은 **인터뷰 방식만 허용**한다(AI가 `harness/prompts/interview-script.md` 순서로 한 턴 최대 3문항씩 질문, `[모름]`·`건너뛰기` 허용, 단계별 확인 후 진행). 작성 틀 한 번에 입력·자유 텍스트·파일 첨부로는 접수하지 않으며, 해당 입력이 오면 인터뷰(I-0)로 전환한다.
+1. **Context 수집** — `context/system-context.template.md` + `requirements/00-common.md` + 해당 유형 템플릿(주력은 `01-alv-report` / `03-function-module`)이 모두 채워졌는지 확인. 필수(★) 1개라도 비어 있으면 코드 작성 금지, 템플릿 빈칸을 질문 리스트로 반환.
 2. **Spec 확정** — 테이블·조인·선택화면·ALV 레이아웃(FM이면 I/E/T 파라미터)·예외처리를 불릿 스펙으로 먼저 확정. 사용자 **"OK" 승인 전에는 코드 생성 금지**. "바로 코드" 요청이 와도 스펙 없이 코드를 주지 않고, 스펙 확정안을 먼저 제시한다.
 3. **Code 생성** — Output Contract(3.3) 준수. 릴리스 게이트(3.2, 750/S4 모던) 준수. ALV 방식은 스펙에서 건별로 선택(`CL_SALV_TABLE` / `REUSE_ALV_GRID_DISPLAY` / `CL_GUI_ALV_GRID`).
 4. **Verify 안내** — 활성화 체크리스트 + 테스트 케이스 + 예상 덤프 대응표 제공.
@@ -114,28 +114,28 @@ AI가 생성하는 모든 ABAP 코드는 다음 계약을 만족해야 한다.
 | `HARNESS.md` | 5단계 워크플로우, 게이트, 복붙 프로토콜, 덤프 대응표 |
 | `context/system-context.template.md` | 1회만 작성하는 시스템 정보 (릴리스, 클라이언트, 네이밍, 권한) |
 | `context/ddic-collect.template.md` | SE11/SE16N에서 테이블·필드 정보를 뽑아오는 절차 + 붙여넣기 양식 |
-| `requirements/README.md` | 어떤 템플릿을 고를지 결정하는 라우터 (답변지 I → 08-demo → 09-fieldmap → 01~07) |
+| `requirements/README.md` | 어떤 템플릿을 고를지 결정하는 라우터 (신규 기본: 인터뷰 → 08-demo → 09-fieldmap → 01~07) |
 | `sessions/README.md` | 세션별 묶음 규칙 — 프로그램 1건당 폴더 1개, 게이트별 기록 파일 |
 | `practice/error-patterns.md` | 오류·교훈 패턴 — Gate 3 전 대조 필수, V-3에서 신규 승격 |
-| `requirements/00-intake.md` | 답변지 전용 접수 안내 — 답변지 I 1건 회수 고지 |
-| `requirements/00-intake-prompt.md` | 참고용 보관(접수 중단) — 답변지 항목 설계 근거, §0 접수 → §8 테스트값 9섹션 |
+| `requirements/00-intake.md` | 인터뷰 전용 접수 안내 — 시작 1줄 + 인터뷰(I-0~I-8) 순서 고지 |
+| `requirements/00-intake-prompt.md` | 참고용 보관(접수 중단) — 인터뷰 문항 설계 근거, §0 접수 → §8 테스트값 9섹션 |
 | `requirements/08-demo.md` | 화면 데모 확인서 — 제공 데모 분석(경로A) 또는 AI 생성 데모(경로B) + 화면 컨펌 |
 | `requirements/09-fieldmap.md` | 필드 연결 정보 + 구현 방식 확인서 (화면 컨펌 후 작성, Gate F 점검) |
 | `requirements/00-common.md` + `01-alv-report.md` + `03-function-module.md` | 주력 요구사항 템플릿 (1건당 공통+유형 1부) |
 | `requirements/02, 04~07` | 확장용 템플릿 (Module Pool·Enhancement·Interface·Batch·Forms, 필요 시 사용) |
 | `harness/checklists/` | 활성화·코드 리뷰 체크리스트 |
-| `harness/prompts/session-answer-sheet.md` | 질문 UI — 한 번에 채워 붙여넣는 답변지 4종(S 설정·I 인터뷰·V Verify·H 이관) + AI 회수 규칙 |
 | `harness/prompts/` | 그대로 붙여넣는 시스템 프롬프트 조각·코드생성 지시문 |
 | `examples/` | AI 출력 형식 기준 샘플 2종(`ZSD_SALES_ALV01` ALV · `Z_SD_GET_SALES` FM) + 작성본 견본(`filled/`) |
 
 ## 7. 응답 템플릿 (AI가 사용자에게 말할 때)
 
-신규 세션 접수 직후 (답변지 제시 — 유일한 질문 UI):
+신규 세션 접수 직후 (인터뷰 시작 — 유일한 접수 방식):
 
-> 신규 프로그램 설계를 답변지로 진행합니다. 아래 블록을 채워 통째로 붙여넣어 주세요. 아는 칸만 적고 모르는 것은 `[모름]`·빈칸으로 두시면 제가 제안으로 메우고 넘어갑니다. 한 문항씩 묻지 않습니다.
-> [답변지 I 블록 그대로 제시 — I-0 접수 ~ I-8 테스트값]
+> 신규 프로그램 설계를 인터뷰로 진행합니다. 한 번에 최대 3개씩 질문드리고, 모르는 것은 `[모름]`·`건너뛰기`라고 답하시면 제가 제안으로 메우고 넘어갑니다.
+> 먼저 I-0 접수 3문항입니다.
+> ① 신규 vs 변경 (변경이면 기존명 + 변경점 한 줄) ② 화면 데모 [있음 / 없음-AI 생성] ③ 희망 유형 [01 ALV / 02 / 03 / 04 / 05 / 06 / 07 / 모름]
 >
-> 참고: 작성 틀 한 번에 입력·자유 텍스트·파일 첨부 접수는 받지 않습니다. 해당 형식으로 보내주셔도 답변지 I부터 다시 진행합니다.
+> 참고: 작성 틀 한 번에 입력·자유 텍스트·파일 첨부 접수는 받지 않습니다. 해당 형식으로 보내주셔도 인터뷰 I-0부터 다시 진행합니다.
 
 화면 단계 (Gate D):
 
