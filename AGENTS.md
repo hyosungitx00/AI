@@ -34,8 +34,9 @@
 1. `context/system-context.template.md` 복사·작성 (5분, 프로젝트당 1회).
 2. `requirements/00-intake.md` 커버 작성 + 요구사항 본문 준비 (텍스트 붙여넣기 또는 파일 첨부, 기존 요구사항 참조 불필요).
 3. AI 채팅에 순서대로 붙여넣기: `SKILL 지시 1줄` + `시스템 컨텍스트` + 아래 중 택1.
-   - (A) 인터뷰 방식(기본): `[신규 프로그램 요구사항 인터뷰 시작 요청]` 한 줄만 보내면 AI가 `harness/prompts/interview-script.md` 순서로 한 턴 최대 3문항씩 질문한다.
+   - (A) 인터뷰 방식(기본): 세션 시작 질문 종료와 같은 턴에 AI가 `harness/prompts/interview-script.md` 순서로 한 턴 최대 3문항씩 자동 시작해 질문한다. 별도의 시작 요청 문구를 기다리지 않는다.
    - (B) 한 번에 입력: `00-intake` 커버 + `00-intake-prompt.md` 작성 틀 1블록 (또는 요구사항 텍스트/파일).
+   - `[신규 프로그램 요구사항 인터뷰 시작 요청]` 문구는 세션 시작 질문을 건너뛰었거나 인터뷰를 중단 후 재시작할 때만 쓰는 예비 수단이다.
    - 원문은 `harness/prompts/intake-demo-prompt.md`에 있다 (구방식 원문은 `HARNESS.md` 부록 A).
 4. AI가 Gate U(이해도 확인서) → Gate D(08-demo 화면 컨펌, 데모 없음이면 AI 목업 생성) → Gate F(09-fieldmap 필드·구현 승인) → Gate 2(스펙 확정안) → Gate 3(코드) 순으로 준다. 각 게이트 승인 전에는 다음 산출물을 만들지 않는다.
 5. `harness/checklists/activation-checklist.md` 대로 SE38에 활성화·테스트한다.
@@ -50,7 +51,7 @@
 ## Cursor 등록 절차 (사용 도구: Cursor)
 
 1. `harness/prompts/system-prompt-fragment.md` 전문을 Cursor Settings → Rules / Custom Instructions에 등록한다.
-2. `.cursor/rules/sap-gui-abap-session-start.mdc` 는 `alwaysApply: true` 로 저장소에 포함되어 있어, Cursor 새 대화의 첫 턴에 1번 항목 맞춤 질문(8문항)이 자동으로 진행된다. 별도 붙여넣기가 필요 없다.
+2. `.cursor/rules/sap-gui-abap-session-start.mdc` 는 `alwaysApply: true` 로 저장소에 포함되어 있어, Cursor 새 대화의 첫 턴에 1번 항목 맞춤 질문(8문항)이 자동으로 진행되고, 질문 종료와 같은 턴에 인터뷰(I-0)까지 자동 시작된다. 별도 붙여넣기가 필요 없다.
 3. Cursor를 쓰지 않는 도구에서는 새 대화 첫 메시지로 `harness/prompts/session-start.md` 의 전문을 붙여넣는다.
 4. 세션 적용값이 확정되면 신규 기본 흐름으로 진행한다: `harness/prompts/intake-demo-prompt.md` 블록(시스템 컨텍스트 + 00-intake 작성본 + 요구사항 텍스트/파일)을 붙여넣고 Gate U → Gate D → Gate F → Gate 2 순으로 진입한다. 구방식(00-common + 01/03 직접 작성 시작)도 유효하며, 그때는 `HARNESS.md` 부록 A 블록을 쓴다.
 5. ALV·FM 외 유형(02, 04~07)이 필요해지면 해당 템플릿 1부를 추가로 붙여넣는다.

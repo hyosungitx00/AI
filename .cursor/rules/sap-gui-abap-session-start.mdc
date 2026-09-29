@@ -44,7 +44,11 @@ alwaysApply: true
 1. 답변을 `context/system-context.filled.md` 초안 값으로 정리해 보여준다.
 2. `SKILL.md` §3.2(릴리스 게이트)·§4(엄격/빠른)·§3.5(네이밍)·§3.3(주석) 중 해당 절의 적용값을 선언한다.
    - 예: "이번 세션 적용값 — 릴리스 750/S4 모던, 주력 01+03, 엄격 게이트, 한+영, Cursor."
-3. 그 다음 신규 기본 흐름으로 진입한다: `requirements/00-intake.md` 커버 + 요구사항 텍스트/파일 접수를 안내하고,
-   접수되면 `HARNESS.md` 0.5단계 순으로 진행한다 (Gate U 이해도 확인 → Gate D 08-demo 화면 컨펌 → Gate F 09-fieldmap 승인 → Gate 2 스펙 확정).
+3. 2차 답변 정리와 같은 턴에 바로 인터뷰를 자동 시작한다. 별도의 시작 요청 문구를 기다리지 않고
+   `harness/prompts/interview-script.md` I-0 접수 3문항을 즉시 질문한다.
+   사용자가 "한 번에 입력할게요"라고 하면 `requirements/00-intake-prompt.md` 틀로 전환한다.
+4. 이후 신규 기본 흐름으로 진입한다: 인터뷰 답변 수집 → `HARNESS.md` 0.5단계 순으로 진행한다
+   (Gate U 이해도 확인 → Gate D 08-demo 화면 컨펌 → Gate F 09-fieldmap 승인 → Gate 2 스펙 확정).
    이번 세션은 기존 요구사항을 참조하지 않는다. 구방식(00-common + 01~07 직접 작성 시작)을 사용자가 원하면 그 흐름으로 전환한다.
-4. 전체 전문 스크립트는 `harness/prompts/session-start.md`, 신규 최초 프롬프트는 `harness/prompts/intake-demo-prompt.md` 참조.
+5. `[신규 프로그램 요구사항 인터뷰 시작 요청]` 문구는 예비 수단으로 유지한다.
+   세션 시작 질문을 건너뛰었거나 인터뷰를 중단 후 재시작할 때만 사용한다.
