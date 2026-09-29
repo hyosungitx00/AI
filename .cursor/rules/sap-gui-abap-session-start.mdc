@@ -25,7 +25,29 @@ alwaysApply: true
 - 주석: 한국어+영문 병기
 - 사용 도구: Cursor (Custom Instructions 등록)
 
-## 1차 질문 (4문항 — 첫 턴에 그대로 질문)
+## 질문 제시 형식 (전 단계 공통 — 예외 없음)
+
+모든 질문은 **Cursor `Ask questions` 툴(clarification questions)** 로 낸다.
+채팅 입력창 위에 질문지가 떠서 사용자가 **보기를 클릭해 답하는** 그 UI가 이 저장소의 정식 질문 형식이다.
+
+- 적용 범위: 아래 세션 시작 질문(1~8문항), 인터뷰(I-0~I-8), 게이트 확인(Gate U·D·D-2·F·2), Verify(V-1~V-4), Handover(H-1).
+- 질문 1개 = 툴 호출 1건. 보기는 구체값으로 채우고 `[모름]`·`기타(한 줄 입력)`를 항상 함께 넣는다. 기본값은 `★`로 표시한다.
+- 한 턴 문항 수: 인터뷰·게이트·Verify·Handover는 최대 3문항. 세션 시작 질문만 고정 구성을 지켜 1차 4문항 / 2차 4문항.
+- 어시스턴트 본문(마크다운)에 질문을 흘려 쓰고 대화창 자유 입력을 기대하는 형태는 **금지**한다. 단일 승인 요청(`OK/수정`)도 툴로 낸다.
+- 본문에는 카드에 딸리는 안내(진행 상황·적용값·다음 단계)만 쓴다.
+- 사용자는 클릭만으로 프로그램을 완성할 수 있어야 한다(`기타`를 고른 경우에만 한 줄 입력).
+
+### 툴을 쓸 수 없는 환경 (폴백)
+
+`Ask questions` 툴은 Cursor IDE 로컬 Agent 채팅(Agent·Plan·Debug 모드)에서 제공된다.
+Cloud Agent(백그라운드 에이전트)·CLI·타 LLM처럼 툴이 세션에 없는 환경에서는 클릭형 UI를 띄울 수 없다.
+
+1. 첫 질문 직전에 **"이 환경에는 클릭형 질문 툴이 없어 텍스트 카드로 진행합니다"** 를 한 줄 고지한다.
+2. 그 다음 `harness/prompts/interview-script.md` §폴백 텍스트 카드 양식으로 낸다 (번호만 답해도 진행되게).
+3. 클릭형이 필요하면 **Cursor IDE 로컬 Agent 채팅에서 같은 세션을 다시 시작**하도록 안내한다.
+4. 폴백은 형식만 바꾸는 것이다. 문항 순서·게이트·승인 규칙은 그대로 지킨다.
+
+## 1차 질문 (4문항 — 첫 턴에 그대로 질문, 카드 형식)
 
 1. `SAP 릴리스`: [ECC 6.0/ NW 7.31 이하(보수적) / NW 7.40 / ★NW 7.50·S/4HANA(모던 허용) / 모름-ECC호환]
 2. `주력 프로그램 유형(복수 선택)`: [★ALV 리포트 / ★Function Module / Module Pool / Enhancement(BAdI·Exit) / Interface(RFC·파일·IDoc) / Batch(BDC) / Forms]
@@ -44,7 +66,11 @@ alwaysApply: true
 1. 답변을 `context/system-context.filled.md` 초안 값으로 정리해 보여준다.
 2. `SKILL.md` §3.2(릴리스 게이트)·§4(엄격/빠른)·§3.5(네이밍)·§3.3(주석) 중 해당 절의 적용값을 선언한다.
    - 예: "이번 세션 적용값 — 릴리스 750/S4 모던, 주력 01+03, 엄격 게이트, 한+영, Cursor."
-3. 그 다음 신규 기본 흐름으로 진입한다: `requirements/00-intake.md` 커버 + 요구사항 텍스트/파일 접수를 안내하고,
-   접수되면 `HARNESS.md` 0.5단계 순으로 진행한다 (Gate U 이해도 확인 → Gate D 08-demo 화면 컨펌 → Gate F 09-fieldmap 승인 → Gate 2 스펙 확정).
+3. 2차 답변 정리와 같은 턴에 바로 인터뷰를 자동 시작한다. 별도의 시작 요청 문구를 기다리지 않고
+   `harness/prompts/interview-script.md` I-0 접수 3문항을 즉시 질문한다.
+   사용자가 "한 번에 입력할게요"라고 하면 `requirements/00-intake-prompt.md` 틀로 전환한다.
+4. 이후 신규 기본 흐름으로 진입한다: 인터뷰 답변 수집 → `HARNESS.md` 0.5단계 순으로 진행한다
+   (Gate U 이해도 확인 → Gate D 08-demo 화면 컨펌 → Gate F 09-fieldmap 승인 → Gate 2 스펙 확정).
    이번 세션은 기존 요구사항을 참조하지 않는다. 구방식(00-common + 01~07 직접 작성 시작)을 사용자가 원하면 그 흐름으로 전환한다.
-4. 전체 전문 스크립트는 `harness/prompts/session-start.md`, 신규 최초 프롬프트는 `harness/prompts/intake-demo-prompt.md` 참조.
+5. `[신규 프로그램 요구사항 인터뷰 시작 요청]` 문구는 예비 수단으로 유지한다.
+   세션 시작 질문을 건너뛰었거나 인터뷰를 중단 후 재시작할 때만 사용한다.
