@@ -20,6 +20,9 @@ Cursor AI에게 SAP ABAP ALV 조회 화면 설계 및 코드 개발을 요청할
 프로그램명  :
 프로그램 개요 : (예: 구매오더 번호/공급업체/생성일 조건으로 구매오더 Header+Item을
                조회하여 ALV로 출력)
+SAP 환경    : [ ] ECC (Classic ABAP)
+              [ ] S/4HANA On-Premise
+              [ ] S/4HANA Cloud / BTP
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -153,6 +156,23 @@ WHERE 조건:
   체크 필드 및 값:
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+---
+
+## 코드 생성 규칙 (버전 무관 공통 적용)
+
+```
+1. TABLES 선언
+   SELECT-OPTIONS ... FOR table-field 구문을 사용하는 경우
+   반드시 상단에 TABLES: 선언 필요.
+   (HANA 여부와 무관한 ABAP 공통 규칙)
+   예) TABLES: lfa1, lfb1.
+
+2. TEXT-001 등 텍스트 심볼
+   INITIALIZATION에서 TEXT-xxx = '값' 직접 할당 방식 사용 안 함.
+   SE38 → Goto → Text Elements → Text Symbols에 등록하는 방식으로 안내.
+   (모든 ABAP 버전 공통 권장 방식)
 ```
 
 ---

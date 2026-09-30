@@ -4,8 +4,20 @@
 *& 유형      : 1 (Executable Program)
 *& 기능명    : 공급업체 관련 테이블을 통해서 데이터 조회
 *& 참조 테이블: LFA1, LFB1, LFBK
+*& SAP 환경  : S/4HANA On-Premise
+*&
+*& [Text Elements 등록 필요 - SE38 → Goto → Text Elements → Text Symbols]
+*&   001 = 공급업체 조건
+*&   002 = 상세 조건
 *&---------------------------------------------------------------------*
 REPORT zai_cust.
+
+*----------------------------------------------------------------------*
+* 테이블 선언 (SELECT-OPTIONS FOR 절 참조용)
+*----------------------------------------------------------------------*
+TABLES: lfa1,
+        lfb1,
+        lfbk.
 
 *----------------------------------------------------------------------*
 * ALV 이벤트 핸들러 클래스 정의 (더블클릭 → BP 트랜잭션 호출)
@@ -61,6 +73,7 @@ END-OF-DEFINITION.
 
 *----------------------------------------------------------------------*
 * Selection Screen
+* ※ TEXT-001, TEXT-002는 SE38 → Text Elements에 등록 필요
 *----------------------------------------------------------------------*
 SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE TEXT-001.
   PARAMETERS:     p_bukrs TYPE lfb1-bukrs OBLIGATORY.
@@ -72,13 +85,6 @@ SELECTION-SCREEN BEGIN OF BLOCK b2 WITH FRAME TITLE TEXT-002.
                   s_land1 FOR lfa1-land1,
                   s_ktokk FOR lfa1-ktokk.
 SELECTION-SCREEN END OF BLOCK b2.
-
-*----------------------------------------------------------------------*
-* INITIALIZATION
-*----------------------------------------------------------------------*
-INITIALIZATION.
-  TEXT-001 = '공급업체 조건'.
-  TEXT-002 = '상세 조건'.
 
 *----------------------------------------------------------------------*
 * START-OF-SELECTION
@@ -95,9 +101,6 @@ START-OF-SELECTION.
 
 *----------------------------------------------------------------------*
 * Screen 100 PBO 모듈
-* ※ 이 MODULE 코드는 SE38 메인 소스에 작성
-*   Flow Logic(PROCESS BEFORE OUTPUT. MODULE pbo_0100.)은
-*   SE51 Screen 100에 별도 입력 → ZAI_CUST_SCR100.abap 참고
 *----------------------------------------------------------------------*
 MODULE pbo_0100 OUTPUT.
   SET PF-STATUS 'STATUS_100'.
