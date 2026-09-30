@@ -183,6 +183,7 @@ FORM create_alv.
         ls_layout   TYPE lvc_s_layo.
 
   " Custom Container 생성 — CUSTOM_CONTAINER 가 SE51에 없으면 예외 발생
+  " ※ PBO 컨텍스트에서는 TYPE 'E' 메시지가 묻히므로 TYPE 'I' 사용
   CREATE OBJECT go_container
     EXPORTING
       container_name              = 'CUSTOM_CONTAINER'
@@ -194,7 +195,7 @@ FORM create_alv.
       lifetime_dynpro_dynpro_link = 5
       OTHERS                      = 6.
   IF sy-subrc <> 0.
-    MESSAGE 'ALV Container 생성 실패. SE51 Screen 100에서 CUSTOM_CONTAINER 확인 필요.' TYPE 'E'.
+    MESSAGE 'ALV Container 생성 실패. SE51 Screen 100에서 CUSTOM_CONTAINER 확인 필요.' TYPE 'I'.
     RETURN.
   ENDIF.
 
@@ -209,7 +210,7 @@ FORM create_alv.
       error_dp_create   = 4
       OTHERS            = 5.
   IF sy-subrc <> 0.
-    MESSAGE 'ALV Grid 생성 실패.' TYPE 'E'.
+    MESSAGE 'ALV Grid 생성 실패.' TYPE 'I'.
     RETURN.
   ENDIF.
 
@@ -236,10 +237,18 @@ FORM create_alv.
 
   CALL METHOD go_grid->set_table_for_first_display
     EXPORTING
-      is_layout       = ls_layout
+      is_layout                     = ls_layout
     CHANGING
-      it_outtab       = gt_output
-      it_fieldcatalog = lt_fieldcat.
+      it_outtab                     = gt_output
+      it_fieldcatalog               = lt_fieldcat
+    EXCEPTIONS
+      invalid_parameter_combination = 1
+      program_error                 = 2
+      too_many_lines                = 3
+      OTHERS                        = 4.
+  IF sy-subrc <> 0.
+    MESSAGE 'ALV 출력 실패.' TYPE 'I'.
+  ENDIF.
 ENDFORM.
 
 *&---------------------------------------------------------------------*
