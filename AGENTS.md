@@ -14,6 +14,7 @@
 | `requirements/` | 접수 커버(00-intake) + 화면 데모(08) + 필드맵(09) + 유형별 템플릿 8종(00~07) | 프로그램마다 인터뷰 1건 |
 | `harness/checklists/` | 활성화·리뷰 체크리스트 | SE38 활성화 전후 |
 | `harness/prompts/` | 그대로 붙여넣는 프롬프트 조각(인터뷰 전용: `intake-demo-prompt.md` + 인터뷰 스크립트 `interview-script.md`) | AI 대화 시작 시 |
+| `harness/prompts/question-format.md` | 질문 제시 공통 양식 — 클릭 카드(도구 있을 때) / 번호 선택형(웹·클라우드) | 모든 질문 단계 |
 | `sessions/` | 세션별 묶음 — 1건당 `YYYYMMDD-프로그램명/` 폴더에 intake·demo·fieldmap·spec·code·verify·handover 기록 (신규 세션은 이전 폴더 참조 금지) | 매 세션 기록 |
 | `practice/` | 오류·교훈 패턴 축적 — Gate 3 전 확인용 `error-patterns.md` + 사용 규칙 (V-3에서 신규 패턴 승격) | 코드 생성 전 확인·오류 회수 시 |
 | `.cursor/rules/sap-gui-abap-session-start.mdc` | 세션 시작 자동 질문 규칙 (Cursor 자동 적용) | 새 대화 첫 턴 자동 실행 |
@@ -52,6 +53,20 @@
 3. Cursor를 쓰지 않는 도구에서는 새 대화 첫 메시지로 `harness/prompts/session-start.md` 의 전문을 붙여넣는다.
 4. 세션 적용값이 확정되면 인터뷰 전용 흐름으로 진행한다: `harness/prompts/intake-demo-prompt.md` 블록(시스템 컨텍스트 + 인터뷰 시작 요청 한 줄)을 붙여넣고 인터뷰(I-0 → I-8) → Gate U → Gate D → Gate F → Gate 2 순으로 진입한다. 작성 틀 직접 작성 시작(00-common + 01/03)·자유 텍스트·파일 첨부 접수는 받지 않는다.
 5. ALV·FM 외 유형(02, 04~07)이 필요해지면 해당 템플릿 1부를 추가로 붙여넣는다.
+
+### 질문을 선택형으로 받기 (웹 vs 데스크톱 앱)
+
+선택지를 **클릭**하는 질문 카드는 AI 도구(클라이언트)가 세션에 붙여 줄 때만 쓸 수 있고,
+저장소 규칙·프롬프트로는 만들어 낼 수 없다. 그래서 두 가지로 나뉜다.
+
+| 사용 환경 | 질문 형태 | 사용자 조작 |
+|---|---|---|
+| Cursor 데스크톱 앱 (질문 도구 있음) | 클릭형 질문 카드 | 선택지 클릭 |
+| 웹(cursor.com) · 클라우드 에이전트 (질문 도구 없음) | 번호 선택형 텍스트 | 번호만 입력 (`3 12 1 1`) |
+
+- 두 경우 모두 **문장으로 답할 일은 없다.** 웹에서도 선택지가 번호로 나오고, 전부 기본값이면 `0` 한 글자면 된다.
+- 원래 서술형인 문항(목적·테스트값 등)도 AI가 `[추정]` 후보 3개를 선택지로 만들어 제시한다.
+- 양식 전문은 `harness/prompts/question-format.md`.
 
 ## 사용 모델별 팁
 

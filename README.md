@@ -24,4 +24,6 @@ SAP GUI에서 ABAP 바이브 코딩을 시작하기 전에 준비하는 2종 세
 2. AI 채팅에 `[신규 프로그램 요구사항 인터뷰 시작 요청]` 한 줄을 보낸다 (인터뷰 전용 — 작성 틀·파일 접수는 받지 않음).
 3. AI의 인터뷰(I-0 → I-8) 응답 → Gate U(이해도 확인) → Gate D(08-demo 화면 컨펌) → Gate F(09-fieldmap 승인) → Gate 2(스펙 확정) → Gate 3(코드) 흐름을 따른다.
 
+질문은 전부 **선택형**으로 온다. 데스크톱 앱에서는 클릭형 질문 카드로, 웹·클라우드에서는 번호 선택형(`3 12 1 1`, 전부 기본값이면 `0`)으로 받는다 — `harness/prompts/question-format.md`.
+
 상세 절차는 `HARNESS.md` 0.5단계, 신규 최초 프롬프트는 `harness/prompts/intake-demo-prompt.md` 참조.
