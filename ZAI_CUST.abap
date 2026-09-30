@@ -55,7 +55,8 @@ DATA: gt_output    TYPE TABLE OF ty_output,
       wa_output    TYPE ty_output,
       go_container TYPE REF TO cl_gui_custom_container,
       go_grid      TYPE REF TO cl_gui_alv_grid,
-      go_handler   TYPE REF TO lcl_event_handler.
+      go_handler   TYPE REF TO lcl_event_handler,
+      ok_code      TYPE sy-ucomm.        " Screen 100 함수 코드 수신용
 
 *----------------------------------------------------------------------*
 * FIELDCAT 매크로
@@ -113,17 +114,15 @@ ENDMODULE.
 
 *----------------------------------------------------------------------*
 * Screen 100 PAI 모듈
+* ※ ok_code 는 SE51 Screen 100 Element List에 OK_CODE 필드로 등록 필요
 *----------------------------------------------------------------------*
 MODULE pai_0100 INPUT.
-  DATA: lv_ok_code TYPE sy-ucomm.
-  lv_ok_code = sy-ucomm.
-  CLEAR sy-ucomm.
-
-  CASE lv_ok_code.
+  CASE ok_code.
     WHEN 'BACK' OR 'EXIT' OR 'CANC'.
       PERFORM free_alv.
       LEAVE TO SCREEN 0.
   ENDCASE.
+  CLEAR ok_code.
 ENDMODULE.
 
 *----------------------------------------------------------------------*
@@ -183,13 +182,36 @@ FORM create_alv.
         ls_fieldcat TYPE lvc_s_fcat,
         ls_layout   TYPE lvc_s_layo.
 
+  " Custom Container 생성 — CUSTOM_CONTAINER 가 SE51에 없으면 예외 발생
   CREATE OBJECT go_container
     EXPORTING
-      container_name = 'CUSTOM_CONTAINER'.
+      container_name              = 'CUSTOM_CONTAINER'
+    EXCEPTIONS
+      cntl_error                  = 1
+      cntl_system_error           = 2
+      create_error                = 3
+      lifetime_error              = 4
+      lifetime_dynpro_dynpro_link = 5
+      OTHERS                      = 6.
+  IF sy-subrc <> 0.
+    MESSAGE 'ALV Container 생성 실패. SE51 Screen 100에서 CUSTOM_CONTAINER 확인 필요.' TYPE 'E'.
+    RETURN.
+  ENDIF.
 
+  " ALV Grid 생성
   CREATE OBJECT go_grid
     EXPORTING
-      i_parent = go_container.
+      i_parent          = go_container
+    EXCEPTIONS
+      error_cntl_create = 1
+      error_cntl_init   = 2
+      error_cntl_link   = 3
+      error_dp_create   = 4
+      OTHERS            = 5.
+  IF sy-subrc <> 0.
+    MESSAGE 'ALV Grid 생성 실패.' TYPE 'E'.
+    RETURN.
+  ENDIF.
 
   ls_layout-grid_title = '공급업체 목록'.
   ls_layout-cwidth_opt = 'X'.
