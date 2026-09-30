@@ -120,7 +120,7 @@ MODULE pai_0100 INPUT.
   CLEAR sy-ucomm.
 
   CASE lv_ok_code.
-    WHEN 'BACK' OR 'EXIT' OR 'CANCEL'.
+    WHEN 'BACK' OR 'EXIT' OR 'CANC'.
       PERFORM free_alv.
       LEAVE TO SCREEN 0.
   ENDCASE.
