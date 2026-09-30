@@ -173,6 +173,12 @@ WHERE 조건:
    INITIALIZATION에서 TEXT-xxx = '값' 직접 할당 방식 사용 안 함.
    SE38 → Goto → Text Elements → Text Symbols에 등록하는 방식으로 안내.
    (모든 ABAP 버전 공통 권장 방식)
+
+3. sy-ucomm 기능 코드 4자리 제한
+   CASE sy-ucomm 에서 사용하는 기능 코드는 반드시 4자리 이하로 작성.
+   예) CANCEL(6자리) → CANC(4자리)
+       BACK(4자리) → 그대로 사용 가능
+       EXIT(4자리) → 그대로 사용 가능
 ```
 
 ---
