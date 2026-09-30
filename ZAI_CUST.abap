@@ -1,24 +1,14 @@
 *&---------------------------------------------------------------------*
-*& Report      : ZAI_CUST
-*& 기능명      : 공급업체 관련 테이블을 통해서 데이터 조회
-*& 참조 테이블 : LFA1, LFB1, LFBK
-*&
-*& [사전 설정 필요]
-*& 1. SE51 - Screen 100 생성
-*&    - Custom Control 이름: CUSTOM_CONTAINER (전체 영역)
-*&    - Flow Logic:
-*&        PROCESS BEFORE OUTPUT.
-*&          MODULE pbo_0100.
-*&        PROCESS AFTER INPUT.
-*&          MODULE pai_0100.
-*& 2. SE41 - GUI Status / Title 생성
-*&    - STATUS_100: BACK(F3), EXIT(Shift+F3), CANCEL(F12) 버튼 포함
-*&    - TITLE_100 : '공급업체 목록'
+*& 파일 위치 : SE38 → 프로그램명 ZAI_CUST → Source Code
+*& 프로그램명 : ZAI_CUST
+*& 유형      : 1 (Executable Program)
+*& 기능명    : 공급업체 관련 테이블을 통해서 데이터 조회
+*& 참조 테이블: LFA1, LFB1, LFBK
 *&---------------------------------------------------------------------*
 REPORT zai_cust.
 
 *----------------------------------------------------------------------*
-* ALV 이벤트 핸들러 클래스 (더블클릭 → BP 트랜잭션 호출)
+* ALV 이벤트 핸들러 클래스 정의 (더블클릭 → BP 트랜잭션 호출)
 *----------------------------------------------------------------------*
 CLASS lcl_event_handler DEFINITION.
   PUBLIC SECTION.
@@ -56,7 +46,7 @@ DATA: gt_output    TYPE TABLE OF ty_output,
       go_handler   TYPE REF TO lcl_event_handler.
 
 *----------------------------------------------------------------------*
-* FIELDCAT 매크로 (전역 선언)
+* FIELDCAT 매크로
 *----------------------------------------------------------------------*
 DEFINE add_field.
   CLEAR ls_fieldcat.
@@ -104,7 +94,10 @@ START-OF-SELECTION.
   CALL SCREEN 100.
 
 *----------------------------------------------------------------------*
-* Screen 100 PBO
+* Screen 100 PBO 모듈
+* ※ 이 MODULE 코드는 SE38 메인 소스에 작성
+*   Flow Logic(PROCESS BEFORE OUTPUT. MODULE pbo_0100.)은
+*   SE51 Screen 100에 별도 입력 → ZAI_CUST_SCR100.abap 참고
 *----------------------------------------------------------------------*
 MODULE pbo_0100 OUTPUT.
   SET PF-STATUS 'STATUS_100'.
@@ -116,7 +109,7 @@ MODULE pbo_0100 OUTPUT.
 ENDMODULE.
 
 *----------------------------------------------------------------------*
-* Screen 100 PAI
+* Screen 100 PAI 모듈
 *----------------------------------------------------------------------*
 MODULE pai_0100 INPUT.
   DATA: lv_ok_code TYPE sy-ucomm.
@@ -140,16 +133,16 @@ CLASS lcl_event_handler IMPLEMENTATION.
       RETURN.
     ENDIF.
 
-    " BP 트랜잭션 호출 (공급업체 번호 전달)
-    " ※ BP는 Business Partner GUID 기반으로 동작하므로
-    "   실제 환경에 따라 파라미터 ID 및 매핑 로직 확인 필요
+    " BP 트랜잭션 호출
+    " ※ BP는 Business Partner GUID 기반이므로 실제 환경에서 파라미터 ID 확인 필요
+    "   대안: FK03 사용 시 → SET PARAMETER ID 'LIF' / CALL TRANSACTION 'FK03'
     SET PARAMETER ID 'LIF' FIELD wa_output-lifnr.
     CALL TRANSACTION 'BP' AND SKIP FIRST SCREEN.
   ENDMETHOD.
 ENDCLASS.
 
 *&---------------------------------------------------------------------*
-*& FORM: fetch_data — 데이터 조회
+*& FORM: fetch_data
 *&---------------------------------------------------------------------*
 FORM fetch_data.
   CLEAR: gt_output.
@@ -180,29 +173,25 @@ FORM fetch_data.
 ENDFORM.
 
 *&---------------------------------------------------------------------*
-*& FORM: create_alv — ALV Grid 생성
+*& FORM: create_alv
 *&---------------------------------------------------------------------*
 FORM create_alv.
   DATA: lt_fieldcat TYPE lvc_t_fcat,
         ls_fieldcat TYPE lvc_s_fcat,
         ls_layout   TYPE lvc_s_layo.
 
-  " Custom Container 생성
   CREATE OBJECT go_container
     EXPORTING
       container_name = 'CUSTOM_CONTAINER'.
 
-  " ALV Grid 생성
   CREATE OBJECT go_grid
     EXPORTING
       i_parent = go_container.
 
-  " 레이아웃 설정
   ls_layout-grid_title = '공급업체 목록'.
   ls_layout-cwidth_opt = 'X'.
   ls_layout-col_opt    = 'X'.
 
-  " FIELDCAT 설정
   add_field 'LIFNR' '공급업체 번호' 'LFA1' 'LIFNR' '10' 'L'.
   add_field 'NAME1' '공급업체명'    'LFA1' 'NAME1' '30' 'L'.
   add_field 'LAND1' '국가'         'LFA1' 'LAND1' ' 3' 'C'.
@@ -217,11 +206,9 @@ FORM create_alv.
   add_field 'BANKS' '은행국가'     'LFBK' 'BANKS' ' 3' 'C'.
   add_field 'BANKL' '은행키'       'LFBK' 'BANKL' '15' 'L'.
 
-  " 더블클릭 이벤트 핸들러 등록
   CREATE OBJECT go_handler.
   SET HANDLER go_handler->handle_double_click FOR go_grid.
 
-  " ALV 출력
   CALL METHOD go_grid->set_table_for_first_display
     EXPORTING
       is_layout       = ls_layout
@@ -231,7 +218,7 @@ FORM create_alv.
 ENDFORM.
 
 *&---------------------------------------------------------------------*
-*& FORM: free_alv — ALV 메모리 해제
+*& FORM: free_alv
 *&---------------------------------------------------------------------*
 FORM free_alv.
   IF go_grid IS NOT INITIAL.
