@@ -179,6 +179,25 @@ WHERE 조건:
    예) CANCEL(6자리) → CANC(4자리)
        BACK(4자리) → 그대로 사용 가능
        EXIT(4자리) → 그대로 사용 가능
+
+4. CL_GUI_ALV_GRID 사용 시 Module Pool 필수 규칙
+   (버전 무관, ALV 방식으로 CL_GUI_ALV_GRID 선택 시 항상 적용)
+
+   ① ok_code 전역 선언 필수
+      DATA: ok_code TYPE sy-ucomm.
+      PAI 모듈에서 sy-ucomm 대신 ok_code 사용.
+      SE51 Element List에 OK_CODE 필드(Type: OK) 등록 필요.
+
+   ② CREATE OBJECT 예외 처리 필수
+      go_container / go_grid 생성 시 EXCEPTIONS 절 추가.
+      예외 발생 시 명확한 오류 메시지 출력 후 RETURN 처리.
+
+   ③ Flow Logic에 AT EXIT-COMMAND 추가 필수
+      GUI Status에서 Exit Command 타입(E)으로 설정된 버튼(BACK/EXIT/CANC)은
+      일반 MODULE ... INPUT 으로 잡히지 않음.
+      PROCESS AFTER INPUT.
+        MODULE pai_xxxx AT EXIT-COMMAND.
+        MODULE pai_xxxx.
 ```
 
 ---
