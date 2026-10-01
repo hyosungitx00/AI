@@ -175,6 +175,7 @@ TABLES: t001, t001w, t001l, mara.   "! ERR-006 선반영 — DDIC 참조 SELECT-
 ⑦ F8 실행 → T1~T3 테스트
 ```
 
+- 화면 0100 의 요소 목록·속성·흐름 로직·점검 체크리스트는 `screen-0100.md` 에 별도 정의했다.
 - SE11(구조)·SE91(메시지 클래스)·SE41(GUI 상태) 작업 없음. SE93(T-code)은 Handover 단계에서 필요 시 진행.
 - 커스텀 컨트롤 이름 `CC_TREE` 는 코드의 `container_name = 'CC_TREE'` 와 반드시 일치해야 한다. 불일치 시 모달 메시지로 알린다.
 
