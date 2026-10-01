@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SAP 재고 조회 프로그램 AI 개발 — 발표자료 4장</title>
+<style>
+  :root{
+    --ink:#1f2933; --gray:#64748b; --light:#94a3b8;
+    --blue:#134e8f; --blue-bg:#e8f0fa;
+    --orange:#b43c0a; --orange-bg:#fdeee4;
+    --green:#146b4b; --green-bg:#e9f2ee;
+    --panel:#f4f6f9; --line:#d9e0e8; --track:#edf1f5;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:"Malgun Gothic","맑은 고딕","Apple SD Gothic Neo","Noto Sans KR",
+                "NanumBarunGothic",system-ui,sans-serif;
+    background:#e9edf2;color:var(--ink);
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* ---------- 상단 조작줄 ---------- */
+  .bar{
+    position:fixed;top:0;left:0;right:0;height:52px;z-index:10;
+    display:flex;align-items:center;gap:14px;padding:0 20px;
+    background:#fff;border-bottom:1px solid var(--line);
+  }
+  .bar h2{font-size:14px;font-weight:700;margin-right:auto}
+  .bar h2 span{color:var(--light);font-weight:400;margin-left:8px}
+  .bar button{
+    font:inherit;font-size:13px;padding:7px 14px;border:1px solid var(--line);
+    background:#fff;border-radius:6px;color:var(--ink);cursor:pointer;
+  }
+  .bar button:hover{background:var(--panel)}
+  .bar .page{font-size:13px;color:var(--gray);min-width:52px;text-align:center}
+
+  /* ---------- 슬라이드 무대 ---------- */
+  .stage{padding:52px 0 0}
+  .wrap{display:flex;flex-direction:column;align-items:center;gap:26px;padding:26px 0 60px}
+  .slide{
+    width:1280px;height:720px;flex:none;background:#fff;
+    transform-origin:top center;
+    display:flex;flex-direction:column;
+    padding:44px 72px 34px;
+    box-shadow:0 2px 14px rgba(31,41,51,.13);
+  }
+  body.one .slide{display:none}
+  body.one .slide.on{display:flex}
+
+  /* ---------- 공통 머리 ---------- */
+  .label{font-size:13px;font-weight:700;color:var(--light);letter-spacing:.02em}
+  h1{font-size:38px;font-weight:700;letter-spacing:-.015em;margin-top:9px;line-height:1.2}
+  .sub{font-size:17px;color:var(--gray);margin-top:14px}
+  .rule{height:1px;background:var(--line);margin:22px 0 0}
+  .foot{
+    margin-top:auto;padding-top:14px;border-top:1px solid var(--line);
+    font-size:13px;color:var(--gray);line-height:1.5;
+  }
+
+  /* ---------- 1장 ---------- */
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:40px;margin-top:36px}
+  .card{position:relative;padding:26px 30px;border-radius:7px;overflow:hidden}
+  .card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:currentColor}
+  .card .cap{font-size:15px;font-weight:700;color:currentColor}
+  .card .big{font-size:46px;font-weight:700;color:currentColor;margin:10px 0 9px;line-height:1.05}
+  .card .note{font-size:13px;color:var(--gray)}
+  .c-orange{background:var(--orange-bg);color:var(--orange)}
+  .c-blue{background:var(--blue-bg);color:var(--blue)}
+  .c-green{background:var(--green-bg);color:var(--green)}
+
+  .facts{margin-top:46px;display:flex;flex-direction:column;gap:25px}
+  .fact{display:flex;align-items:baseline;gap:14px;font-size:16px}
+  .fact i{width:9px;height:9px;background:var(--blue);flex:none;transform:translateY(-3px)}
+  .fact b{font-weight:700;width:104px;flex:none}
+  .fact span{color:var(--gray)}
+
+  /* ---------- 2장 ---------- */
+  .steps{display:grid;grid-template-columns:repeat(5,1fr);gap:22px;margin-top:30px}
+  .step{background:var(--panel);border:1px solid var(--line);border-top:4px solid var(--blue);
+        border-radius:5px;padding:22px 19px 24px}
+  .step .n{font-size:21px;font-weight:700;color:var(--blue);line-height:1}
+  .step .t{font-size:16px;font-weight:700;margin:10px 0 12px;line-height:1.3}
+  .step p{font-size:12.5px;color:var(--gray);line-height:1.7}
+  .step p + p{margin-top:9px}
+
+  .hi{position:relative;background:var(--blue-bg);border-radius:5px;
+      padding:26px 30px;margin-top:auto;overflow:hidden}
+  .hi::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--blue)}
+  .hi .t{font-size:16.5px;font-weight:700;color:var(--blue)}
+  .hi p{font-size:13.5px;line-height:1.6;margin-top:9px}
+
+  /* ---------- 3장 ---------- */
+  .two{display:grid;grid-template-columns:1fr 1.1fr;gap:54px;margin-top:28px;flex:1}
+  .h3{font-size:19px;font-weight:700;margin-bottom:18px}
+
+  .bar-row{display:grid;grid-template-columns:155px 1fr 48px;align-items:center;
+           gap:12px;margin-bottom:6px}
+  .bar-row .nm{font-size:13.5px}
+  .bar-row .vl{font-size:13.5px;font-weight:700;text-align:right}
+  .track{display:block;height:17px;background:var(--track);border-radius:2px;overflow:hidden}
+  .fill{display:block;height:100%;border-radius:2px}
+  .pct{font-size:11.5px;color:var(--gray);margin:0 0 23px 167px}
+
+  .mini{background:var(--panel);border-radius:6px;padding:20px 22px;margin-top:26px}
+  .mini .t{font-size:14px;font-weight:700}
+  .mini p{font-size:12.5px;color:var(--gray);line-height:1.55;margin-top:7px}
+
+  table{width:100%;border-collapse:collapse}
+  td{padding:16px 10px;font-size:13.5px;vertical-align:middle}
+  tbody tr:nth-child(odd){background:var(--panel)}
+  td.k{color:var(--gray);width:120px}
+  td.v{font-size:16px;font-weight:700;color:var(--blue);width:124px;white-space:nowrap}
+  td.n{color:var(--gray);font-size:12.5px}
+
+  /* ---------- 4장 ---------- */
+  .cmp{margin-bottom:38px}
+  .cmp .nm{font-size:14px;font-weight:700}
+  .cmp .line{display:flex;align-items:center;gap:14px;margin-top:9px}
+  .cmp .track{flex:1;height:26px;max-width:400px}
+  .cmp .val{font-size:16px;font-weight:700;white-space:nowrap}
+  .cmp .note{font-size:11.5px;color:var(--gray);margin-top:8px}
+
+  .lesson{position:relative;background:var(--panel);border-radius:6px;
+          padding:20px 22px 20px 26px;margin-bottom:27px;overflow:hidden}
+  .lesson::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--blue)}
+  .lesson .hd{display:flex;gap:11px;align-items:baseline}
+  .lesson .hd i{font-size:14px;font-weight:700;color:var(--blue);font-style:normal}
+  .lesson .hd b{font-size:14.5px}
+  .lesson p{font-size:12.5px;color:var(--gray);line-height:1.6;margin-top:7px;padding-left:25px}
+
+  /* ---------- 인쇄 (Ctrl+P → PDF) ---------- */
+  @page{size:1280px 720px;margin:0}
+  @media print{
+    body{background:#fff}
+    .bar{display:none}
+    .stage{padding:0}
+    .wrap{gap:0;padding:0}
+    body.one .slide{display:flex !important}
+    .slide{transform:none !important;box-shadow:none;break-after:page;page-break-after:always}
+    .slide:last-child{break-after:auto;page-break-after:auto}
+  }
+</style>
+</head>
+<body class="one">
+
+<div class="bar">
+  <h2>SAP 재고 조회 프로그램 AI 개발 <span>발표자료 4장 · 약 5분 30초</span></h2>
+  <button id="prev">◀ 이전</button>
+  <span class="page" id="page">1 / 4</span>
+  <button id="next">다음 ▶</button>
+  <button id="mode">전체 보기</button>
+  <button onclick="window.print()">인쇄 / PDF</button>
+</div>
+
+<div class="stage"><div class="wrap" id="wrap">
+
+<!-- ========================= 1장 ========================= -->
+<section class="slide on">
+  <div class="label">1 / 4 · 요약</div>
+  <h1>SAP 재고 조회 프로그램을 AI로 만들었습니다</h1>
+  <p class="sub">결론부터 — 사람이 8일 걸릴 일을 4시간 30분에 끝냈습니다</p>
+  <div class="rule"></div>
+
+  <div class="cards">
+    <div class="card c-orange">
+      <div class="cap">사람이 직접 만들면</div>
+      <div class="big">65시간</div>
+      <div class="note">약 8일치 일거리 &nbsp;(추정)</div>
+    </div>
+    <div class="card c-blue">
+      <div class="cap">이번 AI 작업</div>
+      <div class="big">4시간 30분</div>
+      <div class="note">실제 작업 시간 &nbsp;(실측)</div>
+    </div>
+    <div class="card c-green">
+      <div class="cap">차이</div>
+      <div class="big">약 14배</div>
+      <div class="note">빠르게 끝났습니다</div>
+    </div>
+  </div>
+
+  <div class="facts">
+    <div class="fact"><i></i><b>만든 것</b><span>재고 현황을 단계별로 펼쳐보는 조회 화면 1개 — ZMM_STOCK_TREE01</span></div>
+    <div class="fact"><i></i><b>규모</b><span>프로그램 1,479줄 + 설명 문서 약 3,000줄 + 화면 그림 3장</span></div>
+    <div class="fact"><i></i><b>진행 기간</b><span>이틀. 다른 업무와 병행했고, 실제 작업 시간만 4시간 30분</span></div>
+    <div class="fact"><i></i><b>오류</b><span>SAP에 넣은 뒤 발견된 오류 5건 — 모두 해결 완료</span></div>
+  </div>
+
+  <div class="foot">AI는 SAP에 접속하지 않습니다. 설계·코드·문서는 AI가 만들고, SAP 입력과 테스트는 사람이 했습니다.</div>
+</section>
+
+<!-- ========================= 2장 ========================= -->
+<section class="slide">
+  <div class="label">2 / 4 · 진행 방식</div>
+  <h1>묻고 답하며 5단계로 진행했습니다</h1>
+  <p class="sub">코드부터 쓰지 않았습니다. 확인된 것만 코드에 넣었습니다</p>
+  <div class="rule"></div>
+
+  <div class="steps">
+    <div class="step">
+      <div class="n">1</div>
+      <div class="t">무엇을 만들지<br>묻기</div>
+      <p>질문 26개를 주고받았습니다.</p>
+      <p>모른다고 답한 6개는 추측값으로 메우고 ‘추정’이라고 표시했습니다.</p>
+    </div>
+    <div class="step">
+      <div class="n">2</div>
+      <div class="t">화면 그림을<br>먼저 확인</div>
+      <p>코드를 쓰기 전에 화면 그림을 그려 보여드리고 확인받았습니다.</p>
+      <p>합계 계산 방식도 3가지 안을 비교해 골랐습니다.</p>
+    </div>
+    <div class="step">
+      <div class="n">3</div>
+      <div class="t">실제 항목명<br>확인</div>
+      <p>확인용 작은 프로그램을 먼저 만들어 드렸습니다.</p>
+      <p>재고 테이블 7개를 직접 조회해 항목명 24개를 확정했습니다.</p>
+    </div>
+    <div class="step">
+      <div class="n">4</div>
+      <div class="t">전체 코드<br>작성</div>
+      <p>1,479줄을 한 번에 받아 SAP에 붙여넣었습니다.</p>
+      <p>주석은 한국어와 영어를 함께 달았습니다.</p>
+    </div>
+    <div class="step">
+      <div class="n">5</div>
+      <div class="t">오류 고치고<br>화면 만들기</div>
+      <p>9번 주고받으며 오류 5건을 고치고, SAP 화면·버튼·라벨 정의를 받았습니다.</p>
+    </div>
+  </div>
+
+  <div class="hi">
+    <div class="t">핵심 — 모르는 것을 추측해서 코드에 넣지 않았습니다</div>
+    <p>확인용 프로그램을 먼저 돌린 덕분에, 추측으로는 알 수 없는 4가지를 미리 걸러냈습니다
+       — 없는 항목 2건, 수량이 두 번 더해질 위험 1건, 금액 계산식 1건.</p>
+  </div>
+
+  <div class="foot">1~3단계는 첫째 날, 4~5단계는 둘째 날에 진행했습니다.</div>
+</section>
+
+<!-- ========================= 3장 ========================= -->
+<section class="slide">
+  <div class="label">3 / 4 · 수치</div>
+  <h1>숫자로 보면</h1>
+  <p class="sub">주고받은 43번 중 72%는 제대로 진행된 대화였습니다</p>
+  <div class="rule"></div>
+
+  <div class="two">
+    <div>
+      <div class="h3">주고받은 횟수 &nbsp;43번</div>
+
+      <div class="bar-row">
+        <span class="nm">제대로 진행</span>
+        <span class="track"><span class="fill" style="width:100%;background:#134e8f"></span></span>
+        <span class="vl" style="color:#134e8f">31번</span>
+      </div>
+      <div class="pct">72%</div>
+
+      <div class="bar-row">
+        <span class="nm">오류 고치기</span>
+        <span class="track"><span class="fill" style="width:16.1%;background:#b43c0a"></span></span>
+        <span class="vl" style="color:#b43c0a">5번</span>
+      </div>
+      <div class="pct">12%</div>
+
+      <div class="bar-row">
+        <span class="nm">AI가 빠뜨려 다시 요청</span>
+        <span class="track"><span class="fill" style="width:12.9%;background:#b43c0a"></span></span>
+        <span class="vl" style="color:#b43c0a">4번</span>
+      </div>
+      <div class="pct">9%</div>
+
+      <div class="bar-row">
+        <span class="nm">헛턴 (다시 출력 요청 등)</span>
+        <span class="track"><span class="fill" style="width:9.7%;background:#94a3b8"></span></span>
+        <span class="vl" style="color:#94a3b8">3번</span>
+      </div>
+      <div class="pct">7%</div>
+
+      <div class="mini">
+        <div class="t">오류 5건이 나온 곳</div>
+        <p>5건 중 3건이 ‘화면에 표를 펼쳐 보여주는 기능’의 사용법을 알아내는 과정에서 나왔습니다.</p>
+      </div>
+    </div>
+
+    <div>
+      <div class="h3">만든 것 · 다룬 범위</div>
+      <table>
+        <tbody>
+          <tr><td class="k">프로그램</td><td class="v">1,479줄</td><td class="n">이 중 주석이 25%</td></tr>
+          <tr><td class="k">설명 문서</td><td class="v">약 3,000줄</td><td class="n">화면·항목 정의 포함</td></tr>
+          <tr><td class="k">화면 그림</td><td class="v">3장</td><td class="n">미리 보여드린 것</td></tr>
+          <tr><td class="k">조회 테이블</td><td class="v">11개</td><td class="n">항목 24개 직접 확인</td></tr>
+          <tr><td class="k">실행 결과</td><td class="v">재고 69만 건</td><td class="n">화면에는 7,339줄</td></tr>
+          <tr><td class="k">저장한 교훈</td><td class="v">7건</td><td class="n">다음 작업에 자동 반영</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="foot">되돌아간 12번(28%) 중 4번은 AI가 ‘SAP 화면에서 손으로 만들 부분’의 입력값을 표로 주지 않아 생긴 것입니다. 규칙에 추가해 막았습니다.</div>
+</section>
+
+<!-- ========================= 4장 ========================= -->
+<section class="slide">
+  <div class="label">4 / 4 · 결론</div>
+  <h1>시간 비교와 배운 점</h1>
+  <p class="sub">선행 투자가 끝났으므로, 다음 프로그램은 더 빨라집니다</p>
+  <div class="rule"></div>
+
+  <div class="two">
+    <div>
+      <div class="h3">같은 프로그램을 만드는 데 걸리는 시간</div>
+
+      <div class="cmp">
+        <div class="nm">사람이 직접 (AI 없이)</div>
+        <div class="line">
+          <span class="track"><span class="fill" style="width:100%;background:#b43c0a"></span></span>
+          <span class="val" style="color:#b43c0a">65시간</span>
+        </div>
+        <div class="note">추정 · 범위 40~100시간</div>
+      </div>
+
+      <div class="cmp">
+        <div class="nm">이번 AI 작업</div>
+        <div class="line">
+          <span class="track"><span class="fill" style="width:7.1%;background:#134e8f"></span></span>
+          <span class="val" style="color:#134e8f">4시간 30분</span>
+        </div>
+        <div class="note">실측 · 이틀에 걸쳐 병행</div>
+      </div>
+
+      <div class="cmp">
+        <div class="nm">같은 것을 다시 만들면</div>
+        <div class="line">
+          <span class="track"><span class="fill" style="width:4.6%;background:#146b4b"></span></span>
+          <span class="val" style="color:#146b4b">3시간</span>
+        </div>
+        <div class="note">추정 · 교훈 7건이 이미 반영됨</div>
+      </div>
+    </div>
+
+    <div>
+      <div class="h3">배운 점</div>
+
+      <div class="lesson">
+        <div class="hd"><i>1</i><b>모르는 것은 먼저 확인했습니다</b></div>
+        <p>가장 위험한 것은 오류가 아니라 ‘오류 없이 조용히 틀린 숫자’입니다. 확인용 프로그램 1개로 막았습니다.</p>
+      </div>
+      <div class="lesson">
+        <div class="hd"><i>2</i><b>되돌아간 4번은 원인이 하나였습니다</b></div>
+        <p>SAP 화면에서 손으로 만드는 부분의 입력값을 표로 주지 않았습니다. 규칙에 넣어 다시 생기지 않게 했습니다.</p>
+      </div>
+      <div class="lesson">
+        <div class="hd"><i>3</i><b>세 번째 프로그램부터 본격적인 이득입니다</b></div>
+        <p>규칙과 교훈을 쌓는 초기 투자가 끝났습니다. 반복할수록 시간 차이가 커집니다.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot">주의 — 65시간은 통상 생산성 기준의 추정값입니다. 사내 유사 개발 실적이 있으면 그 값으로 바꿔야 정확합니다. 대기·협의·승인·이송 시간은 포함하지 않은 순작업 기준입니다.</div>
+</section>
+
+</div></div>
+
+<script>
+  var slides = document.querySelectorAll('.slide');
+  var wrap = document.getElementById('wrap');
+  var pageEl = document.getElementById('page');
+  var cur = 0, one = true;
+
+  function fit(){
+    var k = Math.min(1, (window.innerWidth - 48) / 1280);
+    for (var i = 0; i < slides.length; i++){
+      slides[i].style.transform = 'scale(' + k + ')';
+      slides[i].style.marginBottom = (720 * k - 720) + 'px';
+    }
+  }
+  function show(i){
+    cur = Math.max(0, Math.min(slides.length - 1, i));
+    for (var j = 0; j < slides.length; j++) slides[j].classList.toggle('on', j === cur);
+    pageEl.textContent = (cur + 1) + ' / ' + slides.length;
+    if (!one) slides[cur].scrollIntoView({behavior:'smooth', block:'start'});
+  }
+  document.getElementById('prev').onclick = function(){ show(cur - 1); };
+  document.getElementById('next').onclick = function(){ show(cur + 1); };
+  document.getElementById('mode').onclick = function(){
+    one = !one;
+    document.body.classList.toggle('one', one);
+    this.textContent = one ? '전체 보기' : '한 장씩 보기';
+    if (one) show(cur);
+  };
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') { show(cur + 1); e.preventDefault(); }
+    if (e.key === 'ArrowLeft'  || e.key === 'PageUp')                   { show(cur - 1); e.preventDefault(); }
+  });
+  window.addEventListener('resize', fit);
+  fit(); show(0);
+</script>
+</body>
+</html>
