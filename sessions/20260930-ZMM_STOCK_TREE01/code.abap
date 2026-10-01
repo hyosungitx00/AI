@@ -22,13 +22,18 @@
 *&
 *& 필요 오브젝트 / Required objects
 *&   ① SE38 프로그램 ZMM_STOCK_TREE01 (이 소스)
-*&   ② SE51 화면 0100 — 커스텀 컨트롤 CC_TREE + 버튼 BT_BACK
+*&   ② SE51 화면 0100 — 커스텀 컨트롤 CC_TREE
 *&      ALV 트리 컨트롤은 Dynpro 의 커스텀 컨트롤에만 확실하게 표시된다.
 *&      도킹 컨테이너를 기본 목록(리스트)에 붙이는 방식은 표시되지 않았다.
 *&      The ALV tree control renders reliably only inside a Dynpro custom
 *&      control; docking it onto the report list did not render.
-*&      화면 생성 절차는 아래 "화면 0100 생성 절차" 참조.
-*&   SE11 구조 / SE91 메시지 클래스 / SE41 GUI 상태는 필요하지 않다 / not required
+*&   ③ SE41 GUI 상태 STAT0100 — F3 BACK / Shift+F3 EXIT / F12 CANC
+*&   ④ SE41 GUI 타이틀 TIT0100 — '재고 현황 트리 조회 - 회사코드 &1'
+*&      ③④ 가 없으면 F3 가 동작하지 않고 창 제목이 비어 실사용이 불가하다.
+*&      Without the status and title, F3 does nothing and the window has no
+*&      caption; both are required for real use.
+*&      생성 절차는 아래 "화면 0100 생성 절차" 및 screen-0100.md 참조.
+*&   SE11 구조 / SE91 메시지 클래스는 필요하지 않다 / not required
 *&
 *& 선택 텍스트 / Selection texts (선택 사항 / optional)
 *&   선택화면에 S_BUKRS 같은 필드명이 그대로 보인다. 한글 라벨을 원하면
@@ -53,26 +58,35 @@
 *&   2) 속성 / Attributes
 *&        짧은 설명 : 재고 현황 트리 / Stock tree
 *&        화면 유형 : 일반 화면 (Normal)
-*&   3) 레이아웃 / Layout — 요소 2개만 배치한다 / place exactly two elements
-*&        ① 푸시버튼 / Pushbutton
-*&             이름 Name     : BT_BACK
-*&             텍스트 Text   : 뒤로 / Back
-*&             기능코드 FctCode : BACK
-*&             위치 Position : 라인 1, 칼럼 1
-*&        ② 커스텀 컨트롤 / Custom control  ← 트리가 그려지는 영역
-*&             이름 Name     : CC_TREE      ← 이름이 반드시 일치해야 한다
-*&             위치 Position : 라인 2, 칼럼 1
-*&             크기 Size     : 높이 22 이상, 폭 120 이상 (화면 전체 권장)
-*&   4) 흐름 로직 / Flow logic — 아래 4줄로 교체한다 / replace with these lines
+*&   3) 레이아웃 / Layout — 요소 1개만 배치한다 / place exactly one element
+*&        커스텀 컨트롤 / Custom control  ← 트리가 그려지는 영역
+*&          이름 Name     : CC_TREE      ← 이름이 반드시 일치해야 한다
+*&          위치 Position : 라인 1, 칼럼 1
+*&          크기 Size     : 높이 20 이상, 폭 80 이상 (화면 전체 권장)
+*&   4) 흐름 로직 / Flow logic — 자동 생성된 2줄의 주석(*)을 제거하고
+*&                               AT EXIT-COMMAND 1줄을 PAI 첫 줄로 추가한다
 *&        PROCESS BEFORE OUTPUT.
 *&          MODULE status_0100.
 *&
 *&        PROCESS AFTER INPUT.
+*&          MODULE exit_0100 AT EXIT-COMMAND.
 *&          MODULE user_command_0100.
-*&   5) 활성화 / Activate (화면 → 프로그램 순서 무관, 둘 다 활성화)
+*&   5) GUI 상태 / GUI status — SE41 또는 SE80
+*&        이름 : STAT0100   상태 유형 : 일반 화면 / Normal screen
+*&        기능 키 / Function keys
+*&          F3       = BACK  (뒤로 / Back)
+*&          Shift+F3 = EXIT  (종료 / Exit)
+*&          F12      = CANC  (취소 / Cancel)
+*&        메뉴 바·애플리케이션 툴바는 비워 둔다. 시스템·도움말 메뉴는 자동.
+*&        Leave menu bar and application toolbar empty.
+*&   6) GUI 타이틀 / GUI title — SE41 또는 SE80
+*&        이름 : TIT0100
+*&        텍스트 : 재고 현황 트리 조회 - 회사코드 &1
+*&        &1 에는 프로그램이 회사코드를 넣는다 / filled by the program
+*&   7) 활성화 / Activate — 화면·상태·타이틀·프로그램 모두 활성화
 *&
-*&   ※ GUI 상태(SE41)는 만들지 않는다. 종료는 BT_BACK 버튼으로 한다.
-*&     No GUI status is needed; the BT_BACK pushbutton exits the screen.
+*&   ※ 상태·타이틀을 생략하면 F3 가 먹지 않고 창 제목이 비어 실사용이 불가하다.
+*&     Omitting them makes the screen unusable in practice.
 *&---------------------------------------------------------------------*
 REPORT zmm_stock_tree01.
 
@@ -203,6 +217,9 @@ DATA:
   go_cont    TYPE REF TO cl_gui_custom_container,
   go_tree    TYPE REF TO cl_gui_alv_tree,
   gv_bukrs   TYPE t001-bukrs,
+  "! 화면 0100 타이틀바 TIT0100 의 &1 에 들어갈 회사코드 문구
+  "! Fills placeholder &1 of title object TIT0100
+  gv_titbu   TYPE c LENGTH 40,
   "! 단계별 건수 — 어디서 멈췄는지 알려주는 진단용 / stage counters for diagnosis
   gv_cnt_plant TYPE i,
   gv_cnt_stock TYPE i,
@@ -310,7 +327,10 @@ START-OF-SELECTION.
   "! Repeated execution would accumulate rows and leak the control; reset first.
   PERFORM f_free_tree.
   CLEAR: gt_plant, gt_stock, gt_row, gt_sum, gt_nodemap, gt_disp,
-         gv_cnt_plant, gv_cnt_stock, gv_cnt_row, gv_msg.
+         gv_cnt_plant, gv_cnt_stock, gv_cnt_row, gv_msg, gv_titbu.
+
+  "! 화면 제목에 넣을 회사코드 문구 / company code text for the title bar
+  PERFORM f_build_title.
 
   PERFORM f_check_authority.
 
@@ -374,11 +394,31 @@ START-OF-SELECTION.
 *&---------------------------------------------------------------------*
 MODULE status_0100 OUTPUT.
 
+  "! 상태·제목은 PBO 마다 지정한다. 한 번만 지정하면 두 번째 PBO 에서 사라진다.
+  "! Status and title must be set on every PBO pass, not just the first one.
+  SET PF-STATUS 'STAT0100'.
+  SET TITLEBAR  'TIT0100' WITH gv_titbu.
+
   "! 두 번째 PBO 에서 다시 만들면 노드가 중복되므로 한 번만 만든다
   "! Build only on the first PBO pass; otherwise nodes would be duplicated
   IF go_tree IS INITIAL.
     PERFORM f_build_tree.
   ENDIF.
+
+ENDMODULE.
+
+*&---------------------------------------------------------------------*
+*& Module EXIT_0100 INPUT
+*&   화면 0100 종료 명령 / exit command of screen 0100
+*&   SE41 에서 EXIT·CANC 에 기능유형 'E' 를 주면 USER_COMMAND 모듈이 호출되지
+*&   않는다. 그 경우에도 화면이 닫히도록 종료 전용 모듈을 둔다.
+*&   With function type 'E' the user-command module is skipped, so handle the
+*&   exit here as well.
+*&---------------------------------------------------------------------*
+MODULE exit_0100 INPUT.
+
+  PERFORM f_free_tree.
+  LEAVE TO SCREEN 0.
 
 ENDMODULE.
 
@@ -403,6 +443,38 @@ MODULE user_command_0100 INPUT.
   ENDCASE.
 
 ENDMODULE.
+
+*&---------------------------------------------------------------------*
+*& Form F_BUILD_TITLE
+*&   타이틀바 TIT0100 의 &1 구성 / build placeholder &1 of title TIT0100
+*&   회사코드가 여럿이면 "첫 값 외 n" 으로 줄인다 / shortened when several
+*&---------------------------------------------------------------------*
+FORM f_build_title.
+
+  "! 선택 테이블의 행 타입을 그대로 쓴다 — 길이가 다른 구조로 받으면 타입 충돌
+  "! Use the selection table's own line type; another structure would clash
+  DATA: ls_bu  LIKE LINE OF s_bukrs[],
+        lv_cnt TYPE i.
+
+  CLEAR gv_titbu.
+
+  lv_cnt = lines( s_bukrs[] ).
+  IF lv_cnt = 0.
+    RETURN.
+  ENDIF.
+
+  READ TABLE s_bukrs[] INTO ls_bu INDEX 1.
+  IF sy-subrc <> 0.
+    RETURN.
+  ENDIF.
+
+  IF lv_cnt > 1.
+    gv_titbu = |{ ls_bu-low } 외 { lv_cnt - 1 }|.
+  ELSE.
+    gv_titbu = ls_bu-low.
+  ENDIF.
+
+ENDFORM.
 
 *&---------------------------------------------------------------------*
 *& Form F_CHECK_AUTHORITY

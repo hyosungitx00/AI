@@ -165,19 +165,22 @@ TABLES: t001, t001w, t001l, mara.   "! ERR-006 선반영 — DDIC 참조 SELECT-
 ② 코드 전문 붙여넣기 → 저장
 ③ Syntax Check (Ctrl+F2) → 에러 0건 확인
 ④ SE80/SE51 — 화면 0100 생성
-     속성   : 일반 화면(Normal)
-     레이아웃: 푸시버튼 BT_BACK (FctCode = BACK, 라인 1)
-               커스텀 컨트롤 CC_TREE (라인 2, 화면 전체 크기)
+     속성   : 일반 화면(Normal), 다음 화면 0100
+     레이아웃: 커스텀 컨트롤 CC_TREE (라인 1, 화면 전체 크기)
      흐름로직: PROCESS BEFORE OUTPUT. MODULE status_0100.
-               PROCESS AFTER INPUT.  MODULE user_command_0100.
-⑤ 화면 활성화 → 프로그램 활성화
-⑥ Extended Check (SLIN) → Error 0건 확인
-⑦ F8 실행 → T1~T3 테스트
+               PROCESS AFTER INPUT.  MODULE exit_0100 AT EXIT-COMMAND.
+                                     MODULE user_command_0100.
+⑤ SE80/SE41 — GUI 상태 STAT0100 (F3 BACK / Shift+F3 EXIT / F12 CANC)
+⑥ SE80/SE41 — GUI 타이틀 TIT0100 ('재고 현황 트리 조회 - 회사코드 &1')
+⑦ 화면·상태·타이틀 활성화 → 프로그램 활성화
+⑧ Extended Check (SLIN) → Error 0건 확인
+⑨ F8 실행 → T1~T3 테스트
 ```
 
-- 화면 0100 의 요소 목록·속성·흐름 로직·점검 체크리스트는 `screen-0100.md` 에 별도 정의했다.
-- SE11(구조)·SE91(메시지 클래스)·SE41(GUI 상태) 작업 없음. SE93(T-code)은 Handover 단계에서 필요 시 진행.
+- 화면 0100 의 요소 목록·GUI 상태·타이틀·흐름 로직·점검 체크리스트는 `screen-0100.md` 에 별도 정의했다.
+- SE11(구조)·SE91(메시지 클래스) 작업 없음. SE93(T-code)은 Handover 단계에서 필요 시 진행.
 - 커스텀 컨트롤 이름 `CC_TREE` 는 코드의 `container_name = 'CC_TREE'` 와 반드시 일치해야 한다. 불일치 시 모달 메시지로 알린다.
+- GUI 상태·타이틀은 2026-10-01 추가분이다. 빼면 F3 가 동작하지 않고 창 제목이 비어 실사용이 불가하다 (`practice/error-patterns.md` **PROC-005**).
 
 ## §9 가정 (확인필요) — 점검 리포트 실행으로 해소됨
 
