@@ -157,7 +157,12 @@ DATA:
   gt_disp    TYPE STANDARD TABLE OF ty_disp WITH EMPTY KEY,
   go_dock    TYPE REF TO cl_gui_docking_container,
   go_tree    TYPE REF TO cl_gui_alv_tree,
-  gv_bukrs   TYPE t001-bukrs.
+  gv_bukrs   TYPE t001-bukrs,
+  "! 단계별 건수 — 어디서 멈췄는지 알려주는 진단용 / stage counters for diagnosis
+  gv_cnt_plant TYPE i,
+  gv_cnt_stock TYPE i,
+  gv_cnt_row   TYPE i,
+  gv_msg       TYPE string.
 
 *----------------------------------------------------------------------*
 * 더블클릭 처리 클래스 / Event handler for double click
@@ -254,10 +259,16 @@ AT SELECTION-SCREEN.
 START-OF-SELECTION.
 
   PERFORM f_check_authority.
+
+  "! 0건 메시지는 모달(TYPE 'I')로 띄운다. 상태바 메시지는 놓치기 쉬워서
+  "! "아무 화면도 안 나온다"와 구분이 되지 않는다.
+  "! Modal messages, because a status-bar message is easy to miss and then
+  "! "no data" looks exactly like "the control did not render".
   PERFORM f_get_plant.
+  gv_cnt_plant = lines( gt_plant ).
   IF gt_plant IS INITIAL.
-    MESSAGE '조회 조건에 해당하는 플랜트가 없습니다. / No plant found.'
-            TYPE 'S' DISPLAY LIKE 'W'.
+    MESSAGE '플랜트를 찾지 못했습니다. 회사코드와 평가영역 배정(T001K)을 확인하십시오.'
+            TYPE 'I'.
     RETURN.
   ENDIF.
 
@@ -265,25 +276,34 @@ START-OF-SELECTION.
   IF p_spec = abap_true.
     PERFORM f_get_special_stock.
   ENDIF.
+  gv_cnt_stock = lines( gt_stock ).
 
   IF gt_stock IS INITIAL.
-    MESSAGE '조회 조건에 해당하는 재고가 없습니다. / No stock found.'
-            TYPE 'S' DISPLAY LIKE 'W'.
+    gv_msg = |재고 레코드가 없습니다. 플랜트 { gv_cnt_plant } 개는 조회됐습니다.|.
+    MESSAGE gv_msg TYPE 'I'.
     RETURN.
   ENDIF.
 
   PERFORM f_build_row.
+  gv_cnt_row = lines( gt_row ).
+
   IF gt_row IS INITIAL.
-    MESSAGE '조회 조건에 해당하는 재고가 없습니다. / No stock found.'
-            TYPE 'S' DISPLAY LIKE 'W'.
+    gv_msg = |표시할 행이 없습니다. 재고 { gv_cnt_stock } 건이 모두 0 이거나 숨김 조건에 걸렸습니다.|.
+    MESSAGE gv_msg TYPE 'I'.
     RETURN.
   ENDIF.
 
   PERFORM f_aggregate.
   PERFORM f_display_tree.
 
-  "! 컨트롤을 유지하기 위해 빈 리스트 화면을 띄운다 / keep the control alive
-  WRITE space.
+  "! 기본 리스트를 띄워 컨트롤을 유지한다. 트리가 보이지 않을 때
+  "! 이 요약이 보이면 "데이터는 있고 화면만 안 나온다"가 확정된다.
+  "! The basic list keeps the control alive; if this summary shows but the tree
+  "! does not, the problem is rendering and not the data.
+  WRITE: / '조회 요약 / Summary',
+         / '  플랜트 / Plants       :', gv_cnt_plant,
+         / '  재고 행 / Stock rows  :', gv_cnt_stock,
+         / '  표시 행 / Tree leaves :', gv_cnt_row.
 
 *&---------------------------------------------------------------------*
 *& Form F_CHECK_AUTHORITY
@@ -1006,16 +1026,20 @@ FORM f_display_tree.
   ls_hhdr-width   = 55.
 
 *--- 컨테이너 / container --------------------------------------------*
+  "! repid·dynnr 를 넘기지 않으면 표시 시점의 화면에 자동으로 붙는다.
+  "! START-OF-SELECTION 의 SY-DYNNR 은 선택화면(1000)이라 그 값으로 묶으면
+  "! 트리가 기본 리스트에 나타나지 않을 수 있다.
+  "! Omitting repid/dynnr lets the container attach automatically. SY-DYNNR at
+  "! START-OF-SELECTION is the selection screen, which can hide the tree.
   CREATE OBJECT go_dock
     EXPORTING
-      repid = sy-repid
-      dynnr = sy-dynnr
       side  = cl_gui_docking_container=>dock_at_left
-      ratio = 95
+      ratio = 90
     EXCEPTIONS
       OTHERS = 1.
   IF sy-subrc <> 0.
-    MESSAGE '화면 컨테이너 생성에 실패했습니다. / Container creation failed.' TYPE 'E'.
+    MESSAGE '화면 컨테이너 생성에 실패했습니다. / Container creation failed.' TYPE 'I'.
+    RETURN.
   ENDIF.
 
   "! API-001: CL_GUI_ALV_TREE 는 생성자만 접두어 없는 이름(PARENT)을 쓰고,
@@ -1032,7 +1056,8 @@ FORM f_display_tree.
     EXCEPTIONS
       OTHERS              = 1.
   IF sy-subrc <> 0.
-    MESSAGE 'ALV 트리 생성에 실패했습니다. / ALV tree creation failed.' TYPE 'E'.
+    MESSAGE 'ALV 트리 생성에 실패했습니다. / ALV tree creation failed.' TYPE 'I'.
+    RETURN.
   ENDIF.
 
   go_tree->set_table_for_first_display(
