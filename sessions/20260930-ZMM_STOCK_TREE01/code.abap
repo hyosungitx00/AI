@@ -20,6 +20,22 @@
 *&      Double-click on material node → MM03
 *&   5) 재고 평가액 표시 (선택화면 옵션)  6) 재고 0 자재 숨기기 (선택화면 옵션)
 *&
+*& 필요 오브젝트 / Required objects
+*&   ① SE38 프로그램 ZMM_STOCK_TREE01 (이 소스)
+*&   ② SE51 화면 0100 — 커스텀 컨트롤 CC_TREE + 버튼 BT_BACK
+*&      ALV 트리 컨트롤은 Dynpro 의 커스텀 컨트롤에만 확실하게 표시된다.
+*&      도킹 컨테이너를 기본 목록(리스트)에 붙이는 방식은 표시되지 않았다.
+*&      The ALV tree control renders reliably only inside a Dynpro custom
+*&      control; docking it onto the report list did not render.
+*&      화면 생성 절차는 아래 "화면 0100 생성 절차" 참조.
+*&   SE11 구조 / SE91 메시지 클래스 / SE41 GUI 상태는 필요하지 않다 / not required
+*&
+*& 선택 텍스트 / Selection texts (선택 사항 / optional)
+*&   선택화면에 S_BUKRS 같은 필드명이 그대로 보인다. 한글 라벨을 원하면
+*&   SE38 → 이동(Goto) → 텍스트 요소 → 선택 텍스트 → "사전 참조(Dictionary
+*&   ref.)" 버튼을 누르면 DDIC 참조 항목이 한 번에 채워진다.
+*&   Field names are shown as-is; use Goto → Text elements → Selection texts
+*&
 *& DDIC 근거 / DDIC source
 *&   ZMM_DDIC_PROBE01 실행 결과(2026-10-01)로 확정된 필드만 사용한다.
 *&   Only fields confirmed by the DDIC probe run are used.
@@ -30,6 +46,33 @@
 *&     MKOL : SLABS / SINSM / SSPEM, 참조 LIFNR
 *&     MSLB : LBLAB / LBINS       , 참조 LIFNR , 보류필드 없음 / no blocked field
 *&     MBEW : LBKUM / SALK3 (BWTAR = space)
+*&---------------------------------------------------------------------*
+*& 화면 0100 생성 절차 / How to create screen 0100
+*&   1) SE80 → 프로그램 ZMM_STOCK_TREE01 → 우클릭 → 생성 → 화면
+*&      (또는 SE51: 프로그램 ZMM_STOCK_TREE01, 화면번호 0100, 생성)
+*&   2) 속성 / Attributes
+*&        짧은 설명 : 재고 현황 트리 / Stock tree
+*&        화면 유형 : 일반 화면 (Normal)
+*&   3) 레이아웃 / Layout — 요소 2개만 배치한다 / place exactly two elements
+*&        ① 푸시버튼 / Pushbutton
+*&             이름 Name     : BT_BACK
+*&             텍스트 Text   : 뒤로 / Back
+*&             기능코드 FctCode : BACK
+*&             위치 Position : 라인 1, 칼럼 1
+*&        ② 커스텀 컨트롤 / Custom control  ← 트리가 그려지는 영역
+*&             이름 Name     : CC_TREE      ← 이름이 반드시 일치해야 한다
+*&             위치 Position : 라인 2, 칼럼 1
+*&             크기 Size     : 높이 22 이상, 폭 120 이상 (화면 전체 권장)
+*&   4) 흐름 로직 / Flow logic — 아래 4줄로 교체한다 / replace with these lines
+*&        PROCESS BEFORE OUTPUT.
+*&          MODULE status_0100.
+*&
+*&        PROCESS AFTER INPUT.
+*&          MODULE user_command_0100.
+*&   5) 활성화 / Activate (화면 → 프로그램 순서 무관, 둘 다 활성화)
+*&
+*&   ※ GUI 상태(SE41)는 만들지 않는다. 종료는 BT_BACK 버튼으로 한다.
+*&     No GUI status is needed; the BT_BACK pushbutton exits the screen.
 *&---------------------------------------------------------------------*
 REPORT zmm_stock_tree01.
 
@@ -155,7 +198,9 @@ DATA:
   gt_sum     TYPE HASHED TABLE OF ty_sum WITH UNIQUE KEY path,
   gt_nodemap TYPE SORTED TABLE OF ty_nodemap WITH UNIQUE KEY nkey,
   gt_disp    TYPE STANDARD TABLE OF ty_disp WITH EMPTY KEY,
-  go_dock    TYPE REF TO cl_gui_docking_container,
+  "! 화면 0100 의 커스텀 컨트롤 CC_TREE 에 붙는 컨테이너
+  "! Container bound to custom control CC_TREE on screen 0100
+  go_cont    TYPE REF TO cl_gui_custom_container,
   go_tree    TYPE REF TO cl_gui_alv_tree,
   gv_bukrs   TYPE t001-bukrs,
   "! 단계별 건수 — 어디서 멈췄는지 알려주는 진단용 / stage counters for diagnosis
@@ -230,7 +275,10 @@ SELECTION-SCREEN BEGIN OF BLOCK b2 WITH FRAME TITLE gv_tit2.
 PARAMETERS:
   p_hide0 AS CHECKBOX DEFAULT 'X',         "! 재고 0 자재 숨기기 / hide zero stock
   p_spec  AS CHECKBOX DEFAULT 'X',         "! 특별재고 포함 / include special stock
-  p_val   AS CHECKBOX DEFAULT ' '.         "! 금액 표시 / show valuation amount
+  p_val   AS CHECKBOX DEFAULT ' ',         "! 금액 표시 / show valuation amount
+  "! 트리 노드는 1건씩 생성되므로 건수가 많으면 화면 생성이 느려진다.
+  "! Nodes are created one by one, so a large result slows the display down.
+  p_maxrow TYPE i DEFAULT 10000.           "! 최대 표시 자재 행 / max leaf rows
 SELECTION-SCREEN END OF BLOCK b2.
 
 *----------------------------------------------------------------------*
@@ -257,6 +305,12 @@ AT SELECTION-SCREEN.
 
 *----------------------------------------------------------------------*
 START-OF-SELECTION.
+
+  "! 재실행(F8 반복) 시 전역 테이블이 누적되고 컨트롤이 남는다. 먼저 정리한다.
+  "! Repeated execution would accumulate rows and leak the control; reset first.
+  PERFORM f_free_tree.
+  CLEAR: gt_plant, gt_stock, gt_row, gt_sum, gt_nodemap, gt_disp,
+         gv_cnt_plant, gv_cnt_stock, gv_cnt_row, gv_msg.
 
   PERFORM f_check_authority.
 
@@ -293,17 +347,62 @@ START-OF-SELECTION.
     RETURN.
   ENDIF.
 
-  PERFORM f_aggregate.
-  PERFORM f_display_tree.
+  "! 노드를 1건씩 만들기 때문에 건수가 과하면 화면이 열리지 않는 것처럼 느려진다.
+  "! 그래서 자르지 않고 막고, 조건을 좁히도록 안내한다.
+  "! Block instead of truncating, because truncation would distort the subtotals.
+  IF gv_cnt_row > p_maxrow.
+    gv_msg = |표시 행이 { gv_cnt_row } 건으로 한계 { p_maxrow } 건을 넘었습니다. | &&
+             |조회 조건을 좁히거나 '최대 표시 자재 행' 값을 올리십시오.|.
+    MESSAGE gv_msg TYPE 'I'.
+    RETURN.
+  ENDIF.
 
-  "! 기본 리스트를 띄워 컨트롤을 유지한다. 트리가 보이지 않을 때
-  "! 이 요약이 보이면 "데이터는 있고 화면만 안 나온다"가 확정된다.
-  "! The basic list keeps the control alive; if this summary shows but the tree
-  "! does not, the problem is rendering and not the data.
-  WRITE: / '조회 요약 / Summary',
-         / '  플랜트 / Plants       :', gv_cnt_plant,
-         / '  재고 행 / Stock rows  :', gv_cnt_stock,
-         / '  표시 행 / Tree leaves :', gv_cnt_row.
+  PERFORM f_aggregate.
+
+  "! 단계별 건수는 트리 화면 상태바에 남긴다 / stage counts on the status bar
+  gv_msg = |플랜트 { gv_cnt_plant } / 재고 { gv_cnt_stock } 건 / 표시 { gv_cnt_row } 행|.
+  MESSAGE gv_msg TYPE 'S'.
+
+  "! ALV 트리는 Dynpro 커스텀 컨트롤에서만 확실하게 그려진다.
+  "! 트리 생성은 화면 0100 의 PBO 모듈에서 수행한다.
+  "! The tree is built in the PBO module of screen 0100.
+  CALL SCREEN 0100.
+
+*&---------------------------------------------------------------------*
+*& Module STATUS_0100 OUTPUT
+*&   화면 0100 PBO — 트리 1회 생성 / build the tree once
+*&---------------------------------------------------------------------*
+MODULE status_0100 OUTPUT.
+
+  "! 두 번째 PBO 에서 다시 만들면 노드가 중복되므로 한 번만 만든다
+  "! Build only on the first PBO pass; otherwise nodes would be duplicated
+  IF go_tree IS INITIAL.
+    PERFORM f_build_tree.
+  ENDIF.
+
+ENDMODULE.
+
+*&---------------------------------------------------------------------*
+*& Module USER_COMMAND_0100 INPUT
+*&   화면 0100 PAI — 뒤로/종료 / back and exit
+*&---------------------------------------------------------------------*
+MODULE user_command_0100 INPUT.
+
+  DATA lv_ucomm TYPE sy-ucomm.
+
+  "! OK 코드 필드를 화면에 두지 않으므로 SY-UCOMM 을 직접 읽는다.
+  "! 읽은 뒤 비운다 — 남아 있으면 다음 실행의 첫 PAI 에서 그대로 다시 처리된다.
+  "! Clear it after reading; a stale value would be re-processed on the next run.
+  lv_ucomm = sy-ucomm.
+  CLEAR sy-ucomm.
+
+  CASE lv_ucomm.
+    WHEN 'BACK' OR 'EXIT' OR 'CANC'.
+      PERFORM f_free_tree.
+      LEAVE TO SCREEN 0.
+  ENDCASE.
+
+ENDMODULE.
 
 *&---------------------------------------------------------------------*
 *& Form F_CHECK_AUTHORITY
@@ -996,10 +1095,12 @@ FORM f_amt_to_char USING iv_val TYPE p
 ENDFORM.
 
 *&---------------------------------------------------------------------*
-*& Form F_DISPLAY_TREE
-*&   도킹 컨테이너 + ALV 트리 / docking container and ALV tree
+*& Form F_BUILD_TREE
+*&   화면 0100 의 커스텀 컨트롤 CC_TREE 에 ALV 트리를 생성한다
+*&   Build the ALV tree inside custom control CC_TREE of screen 0100
+*&   호출 위치 / Called from : MODULE status_0100 OUTPUT (PBO)
 *&---------------------------------------------------------------------*
-FORM f_display_tree.
+FORM f_build_tree.
 
   "! ERR-008: 계층 머리글 구조는 LVC 계열이 아니라 트리 컨트롤 계열이다
   "! The hierarchy header structure is TREEV_HHDR, not an LVC_* type
@@ -1026,20 +1127,22 @@ FORM f_display_tree.
   ls_hhdr-width   = 55.
 
 *--- 컨테이너 / container --------------------------------------------*
-  "! repid·dynnr 를 넘기지 않으면 표시 시점의 화면에 자동으로 붙는다.
-  "! START-OF-SELECTION 의 SY-DYNNR 은 선택화면(1000)이라 그 값으로 묶으면
-  "! 트리가 기본 리스트에 나타나지 않을 수 있다.
-  "! Omitting repid/dynnr lets the container attach automatically. SY-DYNNR at
-  "! START-OF-SELECTION is the selection screen, which can hide the tree.
-  CREATE OBJECT go_dock
-    EXPORTING
-      side  = cl_gui_docking_container=>dock_at_left
-      ratio = 90
-    EXCEPTIONS
-      OTHERS = 1.
-  IF sy-subrc <> 0.
-    MESSAGE '화면 컨테이너 생성에 실패했습니다. / Container creation failed.' TYPE 'I'.
-    RETURN.
+  "! PROC-004: 컨트롤은 Dynpro 의 커스텀 컨트롤에 붙인다.
+  "!   도킹 컨테이너를 리포트 기본 목록에 붙이는 방식은 이 시스템에서
+  "!   아무것도 표시되지 않았다(2026-10-01 측정). 화면 0100 + CC_TREE 로 전환.
+  "! Docking onto the report list rendered nothing here; use a Dynpro instead.
+  "! CONTAINER_NAME 은 SE51 레이아웃의 커스텀 컨트롤 이름과 같아야 한다.
+  IF go_cont IS INITIAL.
+    CREATE OBJECT go_cont
+      EXPORTING
+        container_name = 'CC_TREE'
+      EXCEPTIONS
+        OTHERS         = 1.
+    IF sy-subrc <> 0.
+      MESSAGE '화면 0100 의 커스텀 컨트롤 CC_TREE 를 찾지 못했습니다. ' &&
+              'SE51 레이아웃에서 이름을 확인하십시오.' TYPE 'I'.
+      RETURN.
+    ENDIF.
   ENDIF.
 
   "! API-001: CL_GUI_ALV_TREE 는 생성자만 접두어 없는 이름(PARENT)을 쓰고,
@@ -1049,7 +1152,7 @@ FORM f_display_tree.
   "! With item_selection off, a double click anywhere in the row is a node event
   CREATE OBJECT go_tree
     EXPORTING
-      parent              = go_dock
+      parent              = go_cont
       node_selection_mode = cl_gui_column_tree=>node_sel_mode_single
       item_selection      = abap_false
       no_html_header      = abap_true
@@ -1191,6 +1294,26 @@ FORM f_display_tree.
   ENDLOOP.
 
   go_tree->frontend_update( ).
+
+ENDFORM.
+
+*&---------------------------------------------------------------------*
+*& Form F_FREE_TREE
+*&   컨트롤 해제 / release the controls
+*&   해제하지 않으면 재실행 시 CC_TREE 가 이미 사용 중이라 생성에 실패한다.
+*&   Without this, re-execution fails because CC_TREE is still occupied.
+*&---------------------------------------------------------------------*
+FORM f_free_tree.
+
+  IF go_tree IS NOT INITIAL.
+    go_tree->free( ).
+    CLEAR go_tree.
+  ENDIF.
+
+  IF go_cont IS NOT INITIAL.
+    go_cont->free( ).
+    CLEAR go_cont.
+  ENDIF.
 
 ENDFORM.
 

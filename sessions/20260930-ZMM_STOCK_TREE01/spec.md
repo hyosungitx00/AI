@@ -50,12 +50,13 @@
 | 구분 | 내용 |
 |---|---|
 | 확정 | `CL_GUI_ALV_TREE` (Gate F 초안, 계층 트리에 수량·금액 열을 붙이려면 이 클래스뿐) |
-| 컨테이너 | **`CL_GUI_DOCKING_CONTAINER` 로 변경 제안** (당초 안: `CL_GUI_CUSTOM_CONTAINER` + 화면 1개) |
+| 컨테이너 | ~~`CL_GUI_DOCKING_CONTAINER`~~ → **`CL_GUI_CUSTOM_CONTAINER` + SE51 화면 0100 으로 되돌림 (2026-10-01, V-2 2차 회수)** |
 
-- 변경 이유: 커스텀 컨테이너 방식은 SE80/SE51 화면 편집기(Screen Painter)로 화면 1개와 커스텀 컨트롤·GUI 상태를 손으로 만들어야 한다. 복붙 계약(코드만 옮기면 끝) 전제에서 가장 실수가 나기 쉬운 작업이다.
-- 도킹 컨테이너는 선택화면 위에 트리를 띄우므로 화면을 만들지 않아도 된다. 복사 대상이 프로그램 1개로 끝난다.
-- 트레이드오프: 보이는 느낌이 표준 ALV 트리 데모(화면 방식)와 다소 다르다. 툴바 버튼은 트리 자체의 툴바 객체에 프로그램에서 추가한다.
-- 도킹 방식이 이 시스템에서 걸리면 화면 방식으로 되돌린다. 그때는 화면 생성 절차서를 따로 드린다.
+- 당초 변경 이유: 커스텀 컨테이너 방식은 SE80/SE51 화면 편집기(Screen Painter)로 화면 1개와 커스텀 컨트롤을 손으로 만들어야 한다. 복붙 계약(코드만 옮기면 끝) 전제에서 가장 실수가 나기 쉬운 작업이다. 도킹 컨테이너는 화면을 만들지 않아도 되므로 복사 대상이 프로그램 1개로 끝난다.
+- 당시 명시한 철수 조건: "도킹 방식이 이 시스템에서 걸리면 화면 방식으로 되돌린다."
+- **2026-10-01 철수 실행**: 도킹 컨테이너가 리포트 기본 목록 위에 전혀 표시되지 않음(§11.4 참조). `repid`·`dynnr` 전달/미전달 양쪽 모두 동일. 화면 0100 + 커스텀 컨트롤 `CC_TREE` 방식으로 전환.
+- 추가 비용: SE51 화면 1개(커스텀 컨트롤 `CC_TREE` + 종료 푸시버튼 `BT_BACK`) 수작업. GUI 상태(SE41)는 푸시버튼 + `SY-UCOMM` 으로 대체해 추가하지 않는다.
+- 교훈은 `practice/error-patterns.md` **PROC-004** 로 등록. 다음 세션에서는 컨트롤 표시가 필요하면 Gate 2 단계에서 화면 1개 추가 비용을 먼저 고지한다.
 
 ## §3 선택화면 (S1)
 
@@ -157,17 +158,25 @@ TABLES: t001, t001w, t001l, mara.   "! ERR-006 선반영 — DDIC 참조 SELECT-
 - 권한 체크 2지점: ① 회사코드·플랜트 조회 ② 평가액 조회(`p_val = 'X'` 일 때만). 오브젝트명 미확정이므로 `"! TODO(SU21/SU53)` 주석으로 격리하고, 활성화 후 SU53 TRACE 결과로 확정한다 (I-7 `모름`).
 - 메시지는 텍스트 리터럴로 작성한다. SE91 생성 작업이 없다.
 
-## §8 복사 순서 (예정)
+## §8 복사 순서 (2026-10-01 개정 — 화면 0100 추가)
 
 ```text
 ① SE38 — 프로그램 ZMM_STOCK_TREE01 생성 (Type=Executable, Status=Test, 패키지 지정)
 ② 코드 전문 붙여넣기 → 저장
 ③ Syntax Check (Ctrl+F2) → 에러 0건 확인
-④ Extended Check (SLIN) → Error 0건 확인
-⑤ 활성화 → F8 실행 → T1~T3 테스트
+④ SE80/SE51 — 화면 0100 생성
+     속성   : 일반 화면(Normal)
+     레이아웃: 푸시버튼 BT_BACK (FctCode = BACK, 라인 1)
+               커스텀 컨트롤 CC_TREE (라인 2, 화면 전체 크기)
+     흐름로직: PROCESS BEFORE OUTPUT. MODULE status_0100.
+               PROCESS AFTER INPUT.  MODULE user_command_0100.
+⑤ 화면 활성화 → 프로그램 활성화
+⑥ Extended Check (SLIN) → Error 0건 확인
+⑦ F8 실행 → T1~T3 테스트
 ```
 
-- SE11·SE91·SE51 작업 없음. SE93(T-code)은 Handover 단계에서 필요 시 진행.
+- SE11(구조)·SE91(메시지 클래스)·SE41(GUI 상태) 작업 없음. SE93(T-code)은 Handover 단계에서 필요 시 진행.
+- 커스텀 컨트롤 이름 `CC_TREE` 는 코드의 `container_name = 'CC_TREE'` 와 반드시 일치해야 한다. 불일치 시 모달 메시지로 알린다.
 
 ## §9 가정 (확인필요) — 점검 리포트 실행으로 해소됨
 
@@ -283,6 +292,40 @@ TABLES: t001, t001w, t001l, mara.   "! ERR-006 선반영 — DDIC 참조 SELECT-
 | 4 | 컨테이너·트리 생성 실패 메시지를 `TYPE 'E'` → `TYPE 'I'` + `RETURN` | 실패 사유가 모달로 보이고, 요약 `WRITE` 까지 도달 |
 
 다음 실행 결과로 A/B 가 갈린다. B 로 확정되면 Dynpro + 커스텀 컨테이너(SE51 화면 1개 추가) 방식으로 전환한다 (`spec.md` §2 의 대안).
+
+### 11.5 V-2 실행 회수 (2차) — 후보 B 확정
+
+**회수된 출력** (회사코드 `H322`)
+
+```text
+조회 요약 / Summary
+  플랜트 / Plants       :          4
+  재고 행 / Stock rows  :    689,319
+  표시 행 / Tree leaves :      7,339
+```
+
+판정: **후보 B 확정 — 데이터 문제가 아니라 렌더링 문제.**
+
+| 근거 | 의미 |
+|---|---|
+| 요약 `WRITE` 가 출력됨 | `START-OF-SELECTION` 이 끝까지 실행됐다 |
+| 컨테이너·트리 생성 실패 메시지가 없음 | `CREATE OBJECT` 2건과 `set_table_for_first_display`·`add_node`·`frontend_update` 모두 예외 없이 통과했다 |
+| 플랜트 4 / 재고 689,319 / 리프 7,339 | 조회·집계 로직은 정상. 0건 분기에 걸리지 않았다 |
+| `repid`·`dynnr` 미전달로도 동일 | 1차 조치 3번(자동 결정)은 원인이 아니었다 |
+
+**조치 — 도킹 컨테이너 철수, Dynpro 커스텀 컨테이너로 전환 (§2 의 사전 철수 조건 실행)**
+
+| # | 변경 | 내용 |
+|---|---|---|
+| 1 | 컨테이너 교체 | `CL_GUI_DOCKING_CONTAINER` → `CL_GUI_CUSTOM_CONTAINER (container_name = 'CC_TREE')` |
+| 2 | 화면 추가 | SE51 화면 0100 — 커스텀 컨트롤 `CC_TREE` + 푸시버튼 `BT_BACK`(FctCode `BACK`) |
+| 3 | 흐름 제어 | `START-OF-SELECTION` 끝에 `CALL SCREEN 0100`. 트리 생성은 `MODULE status_0100 OUTPUT` 에서 1회만(`IF go_tree IS INITIAL`) |
+| 4 | 종료 처리 | `MODULE user_command_0100 INPUT` 에서 `SY-UCOMM` 을 읽고 비운 뒤 `BACK`·`EXIT`·`CANC` 에 `f_free_tree` + `LEAVE TO SCREEN 0`. GUI 상태(SE41) 불필요 |
+| 5 | 재실행 안전 | `START-OF-SELECTION` 선두에 `f_free_tree` + 전역 테이블 `CLEAR`. 없으면 F8 반복 시 `gt_stock`·`gt_row` 가 누적되고 `CC_TREE` 가 사용 중이라 컨테이너 생성이 실패한다 |
+| 6 | 건수 상한 | 리프 7,339 건은 `add_node` 7,339회 + 폴더 노드다. 선택화면에 `P_MAXROW`(기본 10,000) 추가 — 초과 시 자르지 않고 모달로 막고 조건을 좁히도록 안내한다. 자르면 소계가 틀어지기 때문이다 |
+| 7 | 요약 위치 | 요약 `WRITE` 는 `CALL SCREEN` 뒤에 또 리스트를 띄우므로 제거하고, 같은 건수를 `MESSAGE ... TYPE 'S'` 로 트리 화면 상태바에 표시 |
+
+교훈은 `practice/error-patterns.md` **PROC-004** 로 등록했다.
 
 ## §12 v1 의도적 미포함 (Gate 4 이후 판단)
 
