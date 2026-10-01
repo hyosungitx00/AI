@@ -19,7 +19,7 @@
 
 | ID | 교훈 | 처방·사전방지 | 출처 세션 |
 |---|---|---|---|
-| API-001 | `CL_GUI_ALV_TREE` 생성자 파라미터를 상위 클래스(`CL_GUI_COLUMN_TREE`) 관례로 추측 → 접두어 불일치 위험. ALV 트리는 `i_`·`is_`·`it_` 접두어를 쓰고, 컬럼 트리는 무접두어를 쓴다 | 기본값으로 충분한 옵션 파라미터는 **아예 넘기지 않는다**(추측 건수를 줄인다). 꼭 필요하면 SE24 → 해당 클래스 → CONSTRUCTOR 파라미터 목록을 회수해 확정한다 | 20260930-ZMM_STOCK_TREE01 |
+| API-001 | **`CL_GUI_ALV_TREE` 는 생성자와 메서드의 작명 규칙이 다르다.** 생성자는 접두어 없음(`parent`·`node_selection_mode`·`item_selection`·`no_html_header`), 메서드는 `i_`·`is_`·`it_`·`e_` 접두어(`i_parent` 아님 주의 / `is_hierarchy_header`·`it_fieldcatalog`·`it_outtab`·`i_relat_node_key`·`i_relationship`·`i_node_text`·`is_node_layout`·`is_outtab_line`·`e_new_node_key`). 2026-10-01 구문검사로 실측 확정 | 한 클래스 안에서도 접두어 관례가 갈릴 수 있으므로 **생성자 파라미터를 메서드 관례로 유추하지 않는다**. 모르면 SE24 → 해당 클래스 → CONSTRUCTOR 파라미터 목록을 회수한다. 구문검사가 `the parameter "XXX" has a similar name` 을 알려주므로 1회 왕복으로 확정 가능 | 20260930-ZMM_STOCK_TREE01 |
 
 ## MSG — 메시지·권한 관행
 

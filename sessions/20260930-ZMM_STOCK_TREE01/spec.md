@@ -257,7 +257,8 @@ TABLES: t001, t001w, t001l, mara.   "! ERR-006 선반영 — DDIC 참조 SELECT-
 |---|---|---|---|---|
 | 1 | `Line 213 "GV_TIT1" was already declared.` | `WITH FRAME TITLE gv_tit1` 이 제목 필드를 암시적으로 선언하는데, 앞에서 `DATA: gv_tit1 ...` 로 중복 선언했다. 11.2 의 1번 조치(텍스트 요소 제거)를 넣으면서 같이 들어간 실수다 | `DATA: gv_tit1, gv_tit2` 2줄 삭제. `INITIALIZATION` 의 값 대입은 그대로 둔다 | **ERR-007** 신규 등록 |
 | 2 | `Line 985 Type "LVC_S_HHDR" is unknown.` | ALV 트리는 LVC(그리드) 구조와 TREEV(트리 컨트롤) 구조를 섞어 쓴다. 계층 머리글만 `TREEV_HHDR` 인데 `LVC_` 접두어로 유추했다 | `ls_hhdr TYPE treev_hhdr` 로 변경. 필드명(`heading`·`width`)은 동일하므로 나머지 코드는 그대로 | **ERR-008** 신규 등록 |
-| 2-b | (선제 조치) 같은 유추 위험이 남아 있던 트리 생성자 | `CL_GUI_ALV_TREE` 는 `i_` 접두어, 상위 `CL_GUI_COLUMN_TREE` 는 무접두어를 쓰는데 두 관례를 섞어 썼다 | 기본값으로 충분한 `node_selection_mode`·`item_selection` 을 **생략**해 추측 3건을 1건으로 축소 | **API-001** 신규 등록 |
+| 2-b | (선제 조치) 같은 유추 위험이 남아 있던 트리 생성자 | 접두어 관례를 섞어 썼다 | 기본값으로 충분한 `node_selection_mode`·`item_selection` 을 생략해 추측 3건을 1건으로 축소 | **API-001** 등록 |
+| 3 | `Line 1024 Formal parameter "I_PARENT" does not exist. However, the parameter "PARENT" has a similar name.` | 2-b 의 축소 조치가 접두어 방향을 잘못 잡았다. `CL_GUI_ALV_TREE` 는 **생성자만 접두어 없음**, 메서드는 `i_`·`is_`·`it_` 접두어다 | 생성자 파라미터를 전부 접두어 없이 복원: `parent`·`node_selection_mode`·`item_selection`·`no_html_header`. 생략했던 2건도 규칙이 확정됐으므로 다시 명시해 "필수 파라미터 누락" 위험까지 제거 | **API-001** 에 실측 결과 반영 |
 
 ## §12 v1 의도적 미포함 (Gate 4 이후 판단)
 
