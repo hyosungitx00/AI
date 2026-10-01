@@ -45,6 +45,7 @@
     padding:44px 72px 34px;
     box-shadow:0 2px 14px rgba(31,41,51,.13);
   }
+  body.one .wrap{padding:26px 0}
   body.one .slide{display:none}
   body.one .slide.on{display:flex}
 
@@ -371,6 +372,8 @@
 
   function fit(){
     var k = Math.min(1, (window.innerWidth - 48) / 1280);
+    // 한 장씩 보기에서는 세로도 창에 맞춘다 (조작줄 52 + 위아래 여백 52)
+    if (one) k = Math.min(k, (window.innerHeight - 104) / 720);
     for (var i = 0; i < slides.length; i++){
       slides[i].style.transform = 'scale(' + k + ')';
       slides[i].style.marginBottom = (720 * k - 720) + 'px';
@@ -388,6 +391,7 @@
     one = !one;
     document.body.classList.toggle('one', one);
     this.textContent = one ? '전체 보기' : '한 장씩 보기';
+    fit();
     if (one) show(cur);
   };
   document.addEventListener('keydown', function(e){
