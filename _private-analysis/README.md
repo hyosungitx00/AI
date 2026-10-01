@@ -31,3 +31,19 @@
 | 파일 | 내용 |
 |---|---|
 | `20261001-session-analysis.md` | 세션 `20260930-ZMM_STOCK_TREE01` 진행 분석 보고서 — 저장소 구조·내역 흐름, 질문·답변 전수, 오류 회수 내역, 수치화, 소요 시간 추정(AI 활용 / 미활용 비교) |
+| `20261001-session-deck.pptx` | 위 보고서를 간단한 용어로 줄인 **발표자료 4장** (16:9, 발표자 노트 포함) |
+| `20261001-session-deck.md` | 발표자료 읽기용 요약본 + 예상 질문·답 |
+| `make_deck.py` | 발표자료 생성 스크립트 (`python3 make_deck.py`). 수치를 고치려면 이 파일을 수정해 다시 실행한다 |
+| `preview_deck.py` | `.pptx` 도형 좌표를 읽어 미리보기 PNG 를 만들고 텍스트 넘침을 검사하는 스크립트 |
+| `preview-slide1~4.png` | 레이아웃 검증용 미리보기 (PowerPoint 실제 렌더링과 자간·줄바꿈이 완전히 같지는 않음) |
+
+### 발표자료 재생성
+
+```bash
+cd _private-analysis
+pip install python-pptx pillow     # 최초 1회
+python3 make_deck.py               # .pptx 생성
+python3 preview_deck.py            # 미리보기 + 넘침 검사
+```
+
+글꼴은 `Malgun Gothic`(맑은 고딕)으로 지정돼 있다. 발표 PC 에 없으면 PowerPoint 가 대체 글꼴로 바꾸므로 `make_deck.py` 의 `FONT` 값을 수정한다.
