@@ -192,6 +192,13 @@ WHERE 조건:
       go_container / go_grid 생성 시 EXCEPTIONS 절 추가.
       예외 발생 시 명확한 오류 메시지 출력 후 RETURN 처리.
 
+      [S/4HANA 특이 동작]
+      S/4HANA 환경에서는 SE51 Screen에 Custom Control이 없어도
+      CL_GUI_CUSTOM_CONTAINER 생성 시 예외가 발생하지 않고
+      화면 전체를 기본 컨테이너 영역으로 사용하는 경우가 있음.
+      ECC 환경에서는 Custom Control이 없으면 create_error 예외 발생.
+      → SE51 Custom Control 정의는 ECC 필수 / S/4HANA 선택적
+
    ③ Flow Logic에 AT EXIT-COMMAND 추가 필수
       GUI Status에서 Exit Command 타입(E)으로 설정된 버튼(BACK/EXIT/CANC)은
       일반 MODULE ... INPUT 으로 잡히지 않음.
