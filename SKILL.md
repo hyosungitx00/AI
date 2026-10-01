@@ -119,6 +119,7 @@ AI가 생성하는 모든 ABAP 코드는 다음 계약을 만족해야 한다.
 | `sessions/README.md` | 세션별 묶음 규칙 — 프로그램 1건당 폴더 1개, 게이트별 기록 파일 |
 | `practice/error-patterns.md` | 오류·교훈 패턴 — Gate 3 전 대조 필수, V-3에서 신규 승격 |
 | `practice/screen-text-detail.md` | SE51 화면·SE41 상태/타이틀·SE38 텍스트 요소 정의서의 필수 목차 — Dynpro·선택화면이 있으면 대조 필수 |
+| `practice/user-input-catalog.md` | 사용자에게만 받을 수 있는 입력 전수 (업무 지식·시스템 실측·실행 결과 3구분) + SAP 조회 경로 + 보안 금지 목록 — 요청 전 대조 |
 | `requirements/00-intake.md` | 인터뷰 전용 접수 안내 — 시작 1줄 + 인터뷰(I-0~I-8) 순서 고지 |
 | `requirements/00-intake-prompt.md` | 참고용 보관(접수 중단) — 인터뷰 문항 설계 근거, §0 접수 → §8 테스트값 9섹션 |
 | `requirements/08-demo.md` | 화면 데모 확인서 — 제공 데모 분석(경로A) 또는 AI 생성 데모(경로B) + 화면 컨펌 |
