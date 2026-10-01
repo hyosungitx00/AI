@@ -69,6 +69,7 @@ AI가 생성하는 모든 ABAP 코드는 다음 계약을 만족해야 한다.
 4. **활성화 순서 포함**: `SE11(DDIC) → SE38(프로그램, ALV) / SE37(함수, FM) → SE93(T allocation) → SU21(권한)` 같은 순서를 코드 뒤에 체크리스트로 붙인다. 상세 양식은 `HARNESS.md` 5단계 참조.
 5. **메시지 클래스·번호 약속**: `MESSAGE e001(zmymsg)` 처럼 하드코딩하지 말고, 사용할 메시지 클래스를 먼저 선언한다. 메시지 클래스가 없으면 `MESSAGE ... DISPLAY LIKE 'E'` 임시방편을 쓰고 TODO로 표시한다.
 6. **테스트 절차 동봉**: SE38 실행 → 선택화면 입력값 예시 → 기대 ALV 결과 → 비정상계(데이터 0건, 권한 없음)까지 표로 제공한다.
+7. **GUI 수작업 오브젝트는 입력값을 표로 전수 제공**: SE51 화면(요소 목록)·SE41 GUI 상태·GUI 타이틀·SE38 텍스트 요소(선택 텍스트)는 소스로 복붙할 수 없다. "SE51에서 화면을 만드십시오" 같은 요약 안내는 계약 위반이다. 필수 목차·서술 규칙은 `practice/screen-text-detail.md` 를 따른다.
 
 ### 3.4 성능·운영 규칙 (Code Rules)
 
@@ -117,6 +118,7 @@ AI가 생성하는 모든 ABAP 코드는 다음 계약을 만족해야 한다.
 | `requirements/README.md` | 어떤 템플릿을 고를지 결정하는 라우터 (신규 기본: 인터뷰 → 08-demo → 09-fieldmap → 01~07) |
 | `sessions/README.md` | 세션별 묶음 규칙 — 프로그램 1건당 폴더 1개, 게이트별 기록 파일 |
 | `practice/error-patterns.md` | 오류·교훈 패턴 — Gate 3 전 대조 필수, V-3에서 신규 승격 |
+| `practice/screen-text-detail.md` | SE51 화면·SE41 상태/타이틀·SE38 텍스트 요소 정의서의 필수 목차 — Dynpro·선택화면이 있으면 대조 필수 |
 | `requirements/00-intake.md` | 인터뷰 전용 접수 안내 — 시작 1줄 + 인터뷰(I-0~I-8) 순서 고지 |
 | `requirements/00-intake-prompt.md` | 참고용 보관(접수 중단) — 인터뷰 문항 설계 근거, §0 접수 → §8 테스트값 9섹션 |
 | `requirements/08-demo.md` | 화면 데모 확인서 — 제공 데모 분석(경로A) 또는 AI 생성 데모(경로B) + 화면 컨펌 |

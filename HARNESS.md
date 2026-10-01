@@ -193,6 +193,8 @@ AI는 코드를 만들기 전에 아래 형식의 **미니 스펙**을 먼저 �
 - [ ] 릴리스 금지 문법 없음? (기준 750/S4 모던 허용. "보수적으로" 지정 건에 한해 인라인 선언 전수 검사)
 - [ ] 메시지·권한 TODO 명시됨?
 - [ ] 주석 한국어+영문 병기 확인됨?
+- [ ] Dynpro(SE51 화면)가 생기는 산출물이면 `sessions/<세션>/screen-<화면번호>.md` 작성됨? (요소 목록 탭별 표 + GUI 상태 + GUI 타이틀 + 흐름 로직 — `practice/screen-text-detail.md` §A)
+- [ ] 선택화면이 있으면 `sessions/<세션>/text-elements.md` 에 선택 텍스트 전수 표 작성됨? (`practice/screen-text-detail.md` §B. "선택 사항" 처리 금지)
 
 ---
 
