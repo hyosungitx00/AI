@@ -251,6 +251,12 @@ TABLES: t001, t001w, t001l, mara.   "! ERR-006 선반영 — DDIC 참조 SELECT-
 
 다음 단계: Gate 4 Verify — V-1 구문·확장 검사 → V-2 T1~T3 실행 → 오류 시 V-3 회수 양식으로 전문 회수.
 
+### 11.3 V-1 구문 검사 회수 (1차)
+
+| # | 회수 오류 | 원인 | 조치 | 패턴 등록 |
+|---|---|---|---|---|
+| 1 | `Line 213 "GV_TIT1" was already declared.` | `WITH FRAME TITLE gv_tit1` 이 제목 필드를 암시적으로 선언하는데, 앞에서 `DATA: gv_tit1 ...` 로 중복 선언했다. 11.2 의 1번 조치(텍스트 요소 제거)를 넣으면서 같이 들어간 실수다 | `DATA: gv_tit1, gv_tit2` 2줄 삭제. `INITIALIZATION` 의 값 대입은 그대로 둔다 | **ERR-007** 신규 등록 |
+
 ## §12 v1 의도적 미포함 (Gate 4 이후 판단)
 
 | # | 항목 | 이유 |

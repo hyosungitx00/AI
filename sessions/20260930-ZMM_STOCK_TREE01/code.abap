@@ -206,10 +206,11 @@ ENDCLASS.
 * 블록 제목은 텍스트 요소(TEXT-xxx) 대신 변수로 넣는다.
 * 복붙만으로 동작하도록 SE38 텍스트 요소 등록을 요구하지 않는다.
 * Frame titles use variables instead of text symbols, so a plain paste works.
+*
+* ERR-007: 제목 필드(GV_TIT1·GV_TIT2)는 WITH FRAME TITLE 이 암시적으로 선언한다.
+*          DATA 로 다시 선언하면 "이미 선언됨" 오류가 난다. 이름은 8자 이내.
+* The title fields are declared implicitly; do NOT declare them with DATA.
 *----------------------------------------------------------------------*
-DATA: gv_tit1 TYPE c LENGTH 60,
-      gv_tit2 TYPE c LENGTH 60.
-
 SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE gv_tit1.
 SELECT-OPTIONS:
   s_bukrs FOR t001-bukrs,                  "! 회사코드(법인) / company code
