@@ -102,7 +102,7 @@ MODULE pai_0100 INPUT.
   CASE ok_code.
     WHEN 'BACK' OR 'EXIT' OR 'CANC'.
       PERFORM free_alv.
-      LEAVE SCREEN 0.
+      LEAVE TO SCREEN 0.
   ENDCASE.
 ENDMODULE.
 

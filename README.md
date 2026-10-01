@@ -205,6 +205,13 @@ WHERE 조건:
       PROCESS AFTER INPUT.
         MODULE pai_xxxx AT EXIT-COMMAND.
         MODULE pai_xxxx.
+
+5. 화면 종료 구문
+   LEAVE SCREEN 0       → 오류 발생 (사용 금지)
+   LEAVE TO SCREEN 0    → 올바른 구문 (모든 버전 공통)
+   예) WHEN 'BACK' OR 'EXIT' OR 'CANC'.
+         PERFORM free_alv.
+         LEAVE TO SCREEN 0.
 ```
 
 ---
