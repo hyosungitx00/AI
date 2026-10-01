@@ -111,25 +111,15 @@ ENDMODULE.
 *----------------------------------------------------------------------*
 CLASS lcl_event_handler IMPLEMENTATION.
   METHOD handle_double_click.
-    DATA: ls_output  TYPE ty_output,
-          lv_partner TYPE bu_partner.
+    DATA: ls_output TYPE ty_output.
 
     CHECK e_row-index > 0.
     READ TABLE gt_output INTO ls_output INDEX e_row-index.
     CHECK sy-subrc = 0.
     CHECK ls_output-kunnr IS NOT INITIAL.
 
-    " S/4HANA: KUNNR과 BP 번호가 다를 수 있으므로 CVI_CUST_LINK에서 실제 BP 번호 조회
-    SELECT SINGLE partner
-      FROM cvi_cust_link
-      INTO lv_partner
-     WHERE kunnr = ls_output-kunnr.
-    IF sy-subrc <> 0.
-      lv_partner = ls_output-kunnr.
-    ENDIF.
-
-    SET PARAMETER ID 'BU_PARTNER' FIELD lv_partner.
-    CALL TRANSACTION 'BP' AND SKIP FIRST SCREEN.
+    SET PARAMETER ID 'BU_PARTNER' FIELD ls_output-kunnr.
+    CALL TRANSACTION 'BP'.
   ENDMETHOD.
 ENDCLASS.
 
