@@ -256,6 +256,8 @@ TABLES: t001, t001w, t001l, mara.   "! ERR-006 선반영 — DDIC 참조 SELECT-
 | # | 회수 오류 | 원인 | 조치 | 패턴 등록 |
 |---|---|---|---|---|
 | 1 | `Line 213 "GV_TIT1" was already declared.` | `WITH FRAME TITLE gv_tit1` 이 제목 필드를 암시적으로 선언하는데, 앞에서 `DATA: gv_tit1 ...` 로 중복 선언했다. 11.2 의 1번 조치(텍스트 요소 제거)를 넣으면서 같이 들어간 실수다 | `DATA: gv_tit1, gv_tit2` 2줄 삭제. `INITIALIZATION` 의 값 대입은 그대로 둔다 | **ERR-007** 신규 등록 |
+| 2 | `Line 985 Type "LVC_S_HHDR" is unknown.` | ALV 트리는 LVC(그리드) 구조와 TREEV(트리 컨트롤) 구조를 섞어 쓴다. 계층 머리글만 `TREEV_HHDR` 인데 `LVC_` 접두어로 유추했다 | `ls_hhdr TYPE treev_hhdr` 로 변경. 필드명(`heading`·`width`)은 동일하므로 나머지 코드는 그대로 | **ERR-008** 신규 등록 |
+| 2-b | (선제 조치) 같은 유추 위험이 남아 있던 트리 생성자 | `CL_GUI_ALV_TREE` 는 `i_` 접두어, 상위 `CL_GUI_COLUMN_TREE` 는 무접두어를 쓰는데 두 관례를 섞어 썼다 | 기본값으로 충분한 `node_selection_mode`·`item_selection` 을 **생략**해 추측 3건을 1건으로 축소 | **API-001** 신규 등록 |
 
 ## §12 v1 의도적 미포함 (Gate 4 이후 판단)
 

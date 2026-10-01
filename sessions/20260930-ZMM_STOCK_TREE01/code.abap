@@ -981,8 +981,10 @@ ENDFORM.
 *&---------------------------------------------------------------------*
 FORM f_display_tree.
 
+  "! ERR-008: 계층 머리글 구조는 LVC 계열이 아니라 트리 컨트롤 계열이다
+  "! The hierarchy header structure is TREEV_HHDR, not an LVC_* type
   DATA: lt_fcat  TYPE lvc_t_fcat,
-        ls_hhdr  TYPE lvc_s_hhdr,
+        ls_hhdr  TYPE treev_hhdr,
         ls_layn  TYPE lvc_s_layn,
         ls_disp  TYPE ty_disp,
         lv_path  TYPE c LENGTH 40,
@@ -1016,16 +1018,15 @@ FORM f_display_tree.
     MESSAGE '화면 컨테이너 생성에 실패했습니다. / Container creation failed.' TYPE 'E'.
   ENDIF.
 
-  "! item_selection = false → 행 전체 더블클릭이 노드 이벤트로 들어온다
-  "! With item_selection off, a double click anywhere in the row is a node event
+  "! 선택 모드·아이템 선택은 기본값(단일 선택 / 아이템 선택 없음)이 그대로 필요하므로
+  "! 넘기지 않는다. 파라미터명 추측을 줄이기 위한 의도적 생략이다.
+  "! Defaults already match what we need, so those parameters are omitted on purpose.
   CREATE OBJECT go_tree
     EXPORTING
-      i_parent            = go_dock
-      node_selection_mode = cl_gui_column_tree=>node_sel_mode_single
-      item_selection      = abap_false
-      no_html_header      = abap_true
+      i_parent         = go_dock
+      i_no_html_header = abap_true
     EXCEPTIONS
-      OTHERS              = 1.
+      OTHERS           = 1.
   IF sy-subrc <> 0.
     MESSAGE 'ALV 트리 생성에 실패했습니다. / ALV tree creation failed.' TYPE 'E'.
   ENDIF.
