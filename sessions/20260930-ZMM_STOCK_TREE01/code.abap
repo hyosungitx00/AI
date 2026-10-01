@@ -33,13 +33,41 @@
 *&      Without the status and title, F3 does nothing and the window has no
 *&      caption; both are required for real use.
 *&      생성 절차는 아래 "화면 0100 생성 절차" 및 screen-0100.md 참조.
+*&   ⑤ SE38 텍스트 요소 — 선택 텍스트 10건 (아래 "선택 텍스트" 표)
+*&      넣지 않으면 선택화면 라벨이 S_BUKRS 처럼 필드명으로 보인다.
+*&      Without them the selection screen shows field names as labels.
 *&   SE11 구조 / SE91 메시지 클래스는 필요하지 않다 / not required
+*&---------------------------------------------------------------------*
+*& 선택 텍스트 / Selection texts — 전수 10건, 직접 입력
+*&   경로 : SE38 → 이동(Goto) → 텍스트 요소(Text elements)
+*&                → 선택 텍스트(Selection texts) → 입력 → 저장(Ctrl+S)
+*&   사전 참조(Dictionary ref.) 체크박스는 10건 전부 끈 상태로 두고
+*&   아래 텍스트를 직접 입력한다. 사전 참조는 라벨이 시스템 번역에 의존해
+*&   결과가 확정적이지 않다. P_* 4건은 DDIC 참조가 없어 사전 참조 자체가
+*&   불가능하므로 직접 입력이 유일한 방법이다.
+*&   Keep the dictionary-ref flag off for all 10 and type the texts below.
 *&
-*& 선택 텍스트 / Selection texts (선택 사항 / optional)
-*&   선택화면에 S_BUKRS 같은 필드명이 그대로 보인다. 한글 라벨을 원하면
-*&   SE38 → 이동(Goto) → 텍스트 요소 → 선택 텍스트 → "사전 참조(Dictionary
-*&   ref.)" 버튼을 누르면 DDIC 참조 항목이 한 번에 채워진다.
-*&   Field names are shown as-is; use Goto → Text elements → Selection texts
+*&     이름 Name   텍스트 Text          비고 / Note
+*&     ---------   ------------------   ----------------------------------
+*&     S_BUKRS     회사코드             필수 / mandatory
+*&     S_WERKS     플랜트
+*&     S_LGORT     저장위치
+*&     S_MATNR     자재번호
+*&     S_MTART     자재유형
+*&     S_MATKL     자재그룹
+*&     P_HIDE0     재고 0 자재 숨기기   체크박스 / checkbox
+*&     P_SPEC      특별재고 포함        체크박스 / checkbox
+*&     P_VAL       평가액 표시          체크박스 / checkbox
+*&     P_MAXROW    최대 표시 자재 행    입력 필드 / input field
+*&
+*&   프로그램 제목 / Program title (SE38 속성의 짧은 설명)
+*&     법인/플랜트별 재고 현황 트리 조회
+*&
+*&   텍스트 심볼 TEXT-xxx : 사용하지 않음 0건 / not used
+*&     선택화면 블록 제목 2개는 INITIALIZATION 에서 gv_tit1·gv_tit2 에
+*&     대입한다. 텍스트 요소가 아니므로 유지보수 화면에 나오지 않는다.
+*&   리스트 머리글 / List headings : 사용하지 않음 0건 — WRITE 출력 없음
+*&   상세는 text-elements.md 참조 / see text-elements.md
 *&
 *& DDIC 근거 / DDIC source
 *&   ZMM_DDIC_PROBE01 실행 결과(2026-10-01)로 확정된 필드만 사용한다.
@@ -52,7 +80,7 @@
 *&     MSLB : LBLAB / LBINS       , 참조 LIFNR , 보류필드 없음 / no blocked field
 *&     MBEW : LBKUM / SALK3 (BWTAR = space)
 *&---------------------------------------------------------------------*
-*& 화면 0100 생성 절차 / How to create screen 0100
+*& 화면 0100 · 텍스트 요소 생성 절차 / Creating screen 0100 and the texts
 *&   1) SE80 → 프로그램 ZMM_STOCK_TREE01 → 우클릭 → 생성 → 화면
 *&      (또는 SE51: 프로그램 ZMM_STOCK_TREE01, 화면번호 0100, 생성)
 *&   2) 속성 / Attributes
@@ -84,6 +112,9 @@
 *&        텍스트 : 재고 현황 트리 조회 - 회사코드 &1
 *&        &1 에는 프로그램이 회사코드를 넣는다 / filled by the program
 *&   7) 활성화 / Activate — 화면·상태·타이틀·프로그램 모두 활성화
+*&   8) 선택 텍스트 / Selection texts — 위 "선택 텍스트" 표 10건 입력 후 저장
+*&      프로그램 활성화 후에 들어가야 이름 10행이 채워진 상태로 열린다.
+*&      Enter after activation so that all 10 names are prefilled.
 *&
 *&   ※ 상태·타이틀을 생략하면 F3 가 먹지 않고 창 제목이 비어 실사용이 불가하다.
 *&     Omitting them makes the screen unusable in practice.
