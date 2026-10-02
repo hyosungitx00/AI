@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; width: 1000px; height: 620px;
+    font-family: "NanumGothic", "Noto Sans CJK KR", sans-serif;
+    font-size: 12px; color: #000; background: #fff;
+  }
+  .titlebar {
+    background: linear-gradient(#5a8ec4, #3f6f9f);
+    color: #fff; padding: 5px 8px; font-size: 12px; font-weight: bold;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .winbtns span {
+    display: inline-block; width: 16px; height: 14px; margin-left: 2px;
+    background: #d9e5f0; color: #26456b; text-align: center; line-height: 14px;
+    font-size: 10px; font-weight: bold; border: 1px solid #26456b;
+  }
+  .menubar {
+    background: #eef2f6; border-bottom: 1px solid #b6c4d2;
+    padding: 4px 8px; font-size: 12px;
+  }
+  .menubar span { margin-right: 16px; }
+  .toolbar {
+    background: #dde6ef; border-bottom: 1px solid #aebccb;
+    padding: 4px 6px; display: flex; align-items: center; gap: 4px;
+  }
+  .icon {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 22px; height: 20px; padding: 0 4px;
+    background: #f4f8fb; border: 1px solid #9fb3c6; border-radius: 2px;
+    font-size: 11px; color: #1d4f7c;
+  }
+  .icon.exec { background: #d6ecd6; border-color: #6a9a6a; color: #14561a; font-weight: bold; }
+  .cmdfield {
+    width: 120px; height: 20px; border: 1px solid #7f9db9; background: #fff;
+    margin-right: 6px;
+  }
+  .sep { width: 1px; height: 18px; background: #aebccb; margin: 0 3px; }
+  .screen { padding: 10px 14px; background: #f7f9fb; height: 470px; }
+  .prgtitle { font-size: 13px; font-weight: bold; margin-bottom: 10px; color: #1a3a5c; }
+  fieldset {
+    border: 1px solid #a8bccf; background: #fff; margin: 0 0 12px 0; padding: 8px 12px 10px 12px;
+  }
+  legend { font-weight: bold; color: #1a3a5c; padding: 0 5px; font-size: 12px; }
+  table.sel { border-collapse: collapse; }
+  table.sel td { padding: 2px 4px; vertical-align: middle; }
+  .lbl { width: 90px; }
+  .req { color: #b00; font-weight: bold; }
+  input.f {
+    height: 19px; border: 1px solid #7f9db9; background: #fff; padding: 0 3px;
+    font-family: "NanumGothicCoding", "Cascadia Mono", monospace; font-size: 12px;
+  }
+  input.w110 { width: 110px; }
+  .tilde { padding: 0 4px; }
+  .arrow {
+    display: inline-block; width: 18px; height: 19px; line-height: 17px; text-align: center;
+    border: 1px solid #7f9db9; background: #e8eff6; color: #1d4f7c; font-size: 10px;
+  }
+  .hint { color: #4a6b87; font-size: 11px; padding-left: 6px; }
+  .chkrow { padding: 3px 0; }
+  .chk {
+    display: inline-block; width: 13px; height: 13px; border: 1px solid #7f9db9;
+    background: #fff; text-align: center; line-height: 11px; font-size: 11px;
+    vertical-align: -2px; margin-right: 5px; color: #14561a; font-weight: bold;
+  }
+  .statusbar {
+    background: #e9eef3; border-top: 1px solid #aebccb; padding: 4px 8px;
+    font-size: 11px; color: #33475c; display: flex; justify-content: space-between;
+  }
+  .tag {
+    position: relative; float: right; background: #fffbe6; border: 1px solid #d9c26a;
+    color: #7a5b00; font-size: 10px; padding: 1px 5px; margin-top: -2px;
+  }
+</style>
+</head>
+<body>
+  <div class="titlebar">
+    <span>법인/플랜트별 재고 현황 조회 &nbsp;—&nbsp; ZMM_STOCK_TREE01</span>
+    <span class="winbtns"><span>_</span><span>□</span><span>×</span></span>
+  </div>
+  <div class="menubar">
+    <span>프로그램</span><span>편집</span><span>이동</span><span>시스템</span><span>도움말</span>
+  </div>
+  <div class="toolbar">
+    <span class="icon">✓</span>
+    <input class="cmdfield" value="" readonly>
+    <span class="icon exec">⏱ 실행 (F8)</span>
+    <span class="sep"></span>
+    <span class="icon">💾</span>
+    <span class="icon">←</span><span class="icon">⇦</span><span class="icon">✕</span>
+    <span class="sep"></span>
+    <span class="icon">변형 가져오기</span>
+    <span class="icon">변형 저장</span>
+  </div>
+
+  <div class="screen">
+    <div class="prgtitle">법인/플랜트별 재고 현황 조회 (S1 선택화면)</div>
+
+    <fieldset>
+      <legend>조회 조건</legend>
+      <table class="sel">
+        <tr>
+          <td class="lbl">회사코드 <span class="req">*</span></td>
+          <td><input class="f w110" value="1000"></td>
+          <td class="tilde">~</td>
+          <td><input class="f w110" value=""></td>
+          <td><span class="arrow">➔</span></td>
+          <td class="hint">필수 — SU3 파라미터 BUK 값이 기본으로 들어옴</td>
+        </tr>
+        <tr>
+          <td class="lbl">플랜트</td>
+          <td><input class="f w110" value=""></td>
+          <td class="tilde">~</td>
+          <td><input class="f w110" value=""></td>
+          <td><span class="arrow">➔</span></td>
+          <td class="hint">비우면 해당 법인의 전체 플랜트</td>
+        </tr>
+        <tr>
+          <td class="lbl">저장위치</td>
+          <td><input class="f w110" value=""></td>
+          <td class="tilde">~</td>
+          <td><input class="f w110" value=""></td>
+          <td><span class="arrow">➔</span></td>
+          <td class="hint"></td>
+        </tr>
+        <tr>
+          <td class="lbl">자재번호</td>
+          <td><input class="f w110" value=""></td>
+          <td class="tilde">~</td>
+          <td><input class="f w110" value=""></td>
+          <td><span class="arrow">➔</span></td>
+          <td class="hint"></td>
+        </tr>
+        <tr>
+          <td class="lbl">자재유형</td>
+          <td><input class="f w110" value=""></td>
+          <td class="tilde">~</td>
+          <td><input class="f w110" value=""></td>
+          <td><span class="arrow">➔</span></td>
+          <td class="hint">예: ROH 원자재 / HALB 반제품</td>
+        </tr>
+        <tr>
+          <td class="lbl">자재그룹</td>
+          <td><input class="f w110" value=""></td>
+          <td class="tilde">~</td>
+          <td><input class="f w110" value=""></td>
+          <td><span class="arrow">➔</span></td>
+          <td class="hint"></td>
+        </tr>
+      </table>
+    </fieldset>
+
+    <fieldset>
+      <legend>표시 옵션</legend>
+      <div class="chkrow"><span class="chk">X</span>재고 0 자재 숨기기 <span class="hint">(기본 체크 — 재고가 전부 0인 자재는 트리에서 제외)</span></div>
+      <div class="chkrow"><span class="chk">X</span>특별재고 포함 <span class="hint">(기본 체크 — 판매오더·프로젝트·고객위탁·공급업체위탁 재고를 함께 조회)</span></div>
+      <div class="chkrow"><span class="chk">&nbsp;</span>금액(재고 평가액) 표시 <span class="hint">(기본 해제 — 켜면 평가액·통화 열이 추가됨, 권한 필요)</span></div>
+    </fieldset>
+  </div>
+
+  <div class="statusbar">
+    <span>조회 조건을 입력하고 F8을 누르십시오.</span>
+    <span>ZMM_STOCK_TREE01 &nbsp;|&nbsp; DEV (100)</span>
+  </div>
+</body>
+</html>

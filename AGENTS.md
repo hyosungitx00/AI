@@ -14,10 +14,34 @@
 | `requirements/` | 접수 커버(00-intake) + 화면 데모(08) + 필드맵(09) + 유형별 템플릿 8종(00~07) | 프로그램마다 인터뷰 1건 |
 | `harness/checklists/` | 활성화·리뷰 체크리스트 | SE38 활성화 전후 |
 | `harness/prompts/` | 그대로 붙여넣는 프롬프트 조각(인터뷰 전용: `intake-demo-prompt.md` + 인터뷰 스크립트 `interview-script.md`) | AI 대화 시작 시 |
-| `sessions/` | 세션별 묶음 — 1건당 `YYYYMMDD-프로그램명/` 폴더에 intake·demo·fieldmap·spec·code·verify·handover 기록 (신규 세션은 이전 폴더 참조 금지) | 매 세션 기록 |
-| `practice/` | 오류·교훈 패턴 축적 — Gate 3 전 확인용 `error-patterns.md` + 사용 규칙 (V-3에서 신규 패턴 승격) | 코드 생성 전 확인·오류 회수 시 |
-| `.cursor/rules/sap-gui-abap-session-start.mdc` | 세션 시작 자동 질문 규칙 (Cursor 자동 적용) | 새 대화 첫 턴 자동 실행 |
+| `sessions/` | 세션별 묶음 — 1건당 `YYYYMMDD-프로그램명/` 폴더에 intake·demo·fieldmap·spec·code·verify·handover 기록. **보관은 누적, 참조는 격리**: 폴더는 계속 쌓이되 신규 세션은 이전 폴더를 참조하지 않는다(사용자 지목 시 예외). 누적 경로·수정 범위·색인 규칙은 `sessions/README.md` | 매 세션 기록 · Handover 시 색인 갱신 |
+| `practice/` | 오류·교훈 패턴 축적 — Gate 3 전 확인용 `error-patterns.md` + GUI 수작업 산출물 정의 기준 `screen-text-detail.md` + 사용자 입력 요청 기준 `user-input-catalog.md` + 사용 규칙 (V-3에서 신규 패턴 승격) | 코드 생성 전 확인·오류 회수 시·사용자에게 요청하기 전 |
+| `.cursor/rules/sap-gui-abap-session-start.mdc` | 세션 시작 자동 질문 규칙 + 자율 축적 + 설계층 수정 금지 (Cursor 자동 적용) | 새 대화 첫 턴 자동 실행 |
 | `examples/` | 출력 형식 기준 2종(ALV·FM) + 작성본 견본(`filled/` 4종) | AI 출력 형식·입력 예시 확인 |
+| `GOVERNANCE.md` | 자율 축적 규칙(요청 없이 기록·승격) + 설계층 보호(CODEOWNERS·branch protection) + 한계 | 설계자 1회 설정 · AI 규칙 근거 |
+
+## AI 필수 준수 2항 (일반 사용자 세션에서 특히 중요)
+
+사용자는 자기 프로그램만 받으면 되므로 기록·보호를 **요청하지 않는다.** 그 전제로 아래 2항을 지킨다.
+상세·근거는 `GOVERNANCE.md`, 실행 규칙은 `.cursor/rules/sap-gui-abap-session-start.mdc` 에 있다.
+
+### 1. 자율 축적 — 요청받지 않아도 쌓는다
+
+- **묻지 않고 수행한 뒤 한 줄 보고.** "practice 에 저장할까요?"라고 묻지 않는다.
+- **게이트마다 그 턴에 기록.** 마지막에 몰아서 쓰지 않는다. 특히 **Gate 3 코드 제공 턴에 `sessions/README.md` §4 색인 행을 추가**한다(상태 `진행 중 (Gate 4)`). 사용자가 코드를 받고 사라져도 기록이 남는다.
+- **패턴 승격은 트리거다.** 오류 해결 / 시그니처 실측 확정 / **사용자가 같은 종류를 2회 이상 재요청** / 설계 되돌림 / 메시지·권한 방식 지정 → 그 턴에 `practice/error-patterns.md` 에 `출처 세션` 과 함께 추가.
+- **종료 신호 감지 시 먼저 Handover 제시.** 받지 못한 테스트는 통과로 적지 않고 `완료 (미검증 n건)` 으로 남긴다.
+
+### 2. 설계층 수정 금지
+
+| 층 | 경로 | AI 권한 |
+|---|---|---|
+| 설계층 | `SKILL.md` · `HARNESS.md` · `AGENTS.md` · `README.md` · `GOVERNANCE.md` · `requirements/` · `harness/` · `examples/` · `context/*.template.md` · `.cursor/` · `.github/` | **읽기만** |
+| 학습층 | `practice/` | **추가만** |
+| 기록층 | `sessions/<자기 세션>/` · `context/*.filled.md` | 자유 |
+
+설계 개선이 필요해 보이면 직접 고치지 말고 `sessions/<세션>/proposal.md` 에 제안을 적고 보고한다.
+사용자가 "설계자" 자격으로 명시 지시할 때만 설계층을 고친다.
 
 ## 확정 사항 (사용자 답변 반영, 2026-09-22)
 

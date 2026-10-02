@@ -25,6 +25,7 @@
 8. AI 도구: [★Cursor(Rules 등록) / ChatGPT·Claude(프로젝트 지침) / 둘 다·사내 LLM / 매번 복붙(등록 안 함)]
 
 [질문 후 처리]
+- 세션 개시 점검(Gate S)을 먼저 수행하십시오: 누적 브랜치에서 분기했는지, 머지되지 않은 과거 세션 PR이 있는지 확인하고, practice/error-patterns.md 와 practice/user-input-catalog.md 를 읽으십시오. 이전 세션 폴더(sessions/<다른 세션>/)는 사용자가 지목하지 않는 한 읽지 마십시오. 상세는 sessions/README.md §1·§5.
 - 답변을 context/system-context.filled.md 초안 값으로 정리해 보여주십시오.
 - 이번 세션 적용값(릴리스·주력 유형·게이트·네이밍·주석·도구)을 한 줄로 선언하십시오.
 - 그 다음 인터뷰 전용 흐름으로 진입하십시오: [신규 프로그램 요구사항 인터뷰 시작 요청] 1줄을 받아 interview-script.md 순서(I-0 → I-8)로 질문한 뒤 Gate U → Gate D → Gate F → Gate 2 순으로 진행하십시오. 작성 틀·자유 텍스트·파일·구방식 직접 작성 입력이 오면 인터뷰로 전환하십시오.

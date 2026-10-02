@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; width: 1180px; height: 720px; padding: 14px 18px;
+    font-family: "NanumGothic", "Noto Sans CJK KR", sans-serif;
+    font-size: 12px; color: #000; background: #fff;
+  }
+  h1 { font-size: 16px; color: #1a3a5c; margin: 0 0 4px 0; }
+  .sub { font-size: 12px; color: #4a6b87; margin-bottom: 12px; }
+  .block { margin-bottom: 14px; }
+  .blockhead { font-size: 13px; font-weight: bold; color: #1a3a5c; margin-bottom: 4px; }
+  .blockhead .badge {
+    display: inline-block; background: #1a3a5c; color: #fff; font-size: 11px;
+    padding: 1px 7px; margin-right: 6px; border-radius: 2px;
+  }
+  .blockhead.rec .badge { background: #14561a; }
+  .note { font-size: 11px; color: #555; margin: 3px 0 0 2px; }
+  .note b { color: #14561a; }
+  .note i { color: #a03000; font-style: normal; }
+  table { border-collapse: collapse; width: 100%; background: #fff; }
+  th {
+    background: linear-gradient(#e4ecf4, #ccdae8); border: 1px solid #a8bccf;
+    font-size: 11px; font-weight: bold; color: #1a3a5c; padding: 3px 5px; white-space: nowrap;
+  }
+  td { border: 1px solid #d3dde6; padding: 3px 5px; white-space: nowrap; }
+  .num { text-align: right; font-family: "NanumGothicCoding", "Cascadia Mono", monospace; }
+  .ctr { text-align: center; }
+  .tw { font-family: "NanumGothicCoding", "Cascadia Mono", monospace; }
+  .lvl2 { background: #ecf2f8; font-weight: bold; }
+  .lvl3 { background: #f4f8fb; }
+  .leaf { background: #fff; }
+  .hl { background: #fff0b3 !important; }
+  .dim { color: #9aa8b4; }
+  .warn { color: #a03000; font-weight: bold; }
+  .ok { color: #14561a; font-weight: bold; }
+</style>
+</head>
+<body>
+  <h1>상위 노드 수량 소계 — A · B · C안 비교</h1>
+  <div class="sub">
+    같은 데이터(안양공장 1010: 원자재창고 KG 자재 2건 + 반제품창고 EA 자재 2건)를 세 방식으로 표시한 결과입니다.
+    노란색 행이 방식별로 달라지는 부분입니다.
+  </div>
+
+  <div class="block">
+    <div class="blockhead rec"><span class="badge">A안 · 권장</span>단위가 섞인 노드는 수량을 비우고 금액만 합산</div>
+    <table>
+      <tr>
+        <th style="width:330px">계층</th><th class="num" style="width:90px">가용재고</th>
+        <th class="num" style="width:85px">품질검사</th><th class="num" style="width:70px">보류</th>
+        <th class="num" style="width:90px">합계</th><th class="ctr" style="width:70px">단위</th>
+        <th class="num" style="width:130px">평가액</th><th class="ctr" style="width:55px">통화</th>
+      </tr>
+      <tr class="lvl2 hl">
+        <td><span class="tw">▼ 1010</span> 안양공장</td>
+        <td class="num dim">—</td><td class="num dim">—</td><td class="num dim">—</td><td class="num dim">—</td>
+        <td class="ctr dim">혼재</td><td class="num">800,000,000</td><td class="ctr">KRW</td>
+      </tr>
+      <tr class="lvl3">
+        <td style="padding-left:22px"><span class="tw">▼ 0001</span> 원자재창고</td>
+        <td class="num">2,000</td><td class="num">100</td><td class="num">50</td><td class="num">2,150</td>
+        <td class="ctr">KG</td><td class="num">500,000,000</td><td class="ctr">KRW</td>
+      </tr>
+      <tr class="lvl3">
+        <td style="padding-left:22px"><span class="tw">▼ 0002</span> 반제품창고</td>
+        <td class="num">800</td><td class="num">20</td><td class="num">0</td><td class="num">820</td>
+        <td class="ctr">EA</td><td class="num">300,000,000</td><td class="ctr">KRW</td>
+      </tr>
+    </table>
+    <div class="note"><b>장점</b> 틀린 숫자를 절대 보여주지 않음. 단위가 같은 노드(저장위치 0001·0002)에서는 수량 소계가 그대로 표시됨. &nbsp;·&nbsp; <i>단점</i> 플랜트·법인 단에서 수량 칸이 비어 보임.</div>
+  </div>
+
+  <div class="block">
+    <div class="blockhead"><span class="badge">B안</span>항상 합산하고 단위 혼재는 별표로 표시</div>
+    <table>
+      <tr>
+        <th style="width:330px">계층</th><th class="num" style="width:90px">가용재고</th>
+        <th class="num" style="width:85px">품질검사</th><th class="num" style="width:70px">보류</th>
+        <th class="num" style="width:90px">합계</th><th class="ctr" style="width:70px">단위</th>
+        <th class="num" style="width:130px">평가액</th><th class="ctr" style="width:55px">통화</th>
+      </tr>
+      <tr class="lvl2 hl">
+        <td><span class="tw">▼ 1010</span> 안양공장</td>
+        <td class="num">2,800</td><td class="num">120</td><td class="num">50</td><td class="num">2,970</td>
+        <td class="ctr warn">*</td><td class="num">800,000,000</td><td class="ctr">KRW</td>
+      </tr>
+      <tr class="lvl3">
+        <td style="padding-left:22px"><span class="tw">▼ 0001</span> 원자재창고</td>
+        <td class="num">2,000</td><td class="num">100</td><td class="num">50</td><td class="num">2,150</td>
+        <td class="ctr">KG</td><td class="num">500,000,000</td><td class="ctr">KRW</td>
+      </tr>
+      <tr class="lvl3">
+        <td style="padding-left:22px"><span class="tw">▼ 0002</span> 반제품창고</td>
+        <td class="num">800</td><td class="num">20</td><td class="num">0</td><td class="num">820</td>
+        <td class="ctr">EA</td><td class="num">300,000,000</td><td class="ctr">KRW</td>
+      </tr>
+    </table>
+    <div class="note"><b>장점</b> 모든 칸이 채워져 화면이 비어 보이지 않음. &nbsp;·&nbsp; <i>단점</i> 2,800 = KG 2,000 + EA 800 이라 물리적으로 의미 없는 값. 별표를 못 본 사용자가 오해할 위험.</div>
+  </div>
+
+  <div class="block">
+    <div class="blockhead"><span class="badge">C안</span>기준 단위(KG)로 환산해 합산</div>
+    <table>
+      <tr>
+        <th style="width:330px">계층</th><th class="num" style="width:90px">가용재고</th>
+        <th class="num" style="width:85px">품질검사</th><th class="num" style="width:70px">보류</th>
+        <th class="num" style="width:90px">합계</th><th class="ctr" style="width:70px">단위</th>
+        <th class="num" style="width:130px">평가액</th><th class="ctr" style="width:55px">통화</th>
+      </tr>
+      <tr class="lvl2 hl">
+        <td><span class="tw">▼ 1010</span> 안양공장</td>
+        <td class="num">3,600</td><td class="num">140</td><td class="num">50</td><td class="num">3,790</td>
+        <td class="ctr ok">KG</td><td class="num">800,000,000</td><td class="ctr">KRW</td>
+      </tr>
+      <tr class="lvl3">
+        <td style="padding-left:22px"><span class="tw">▼ 0001</span> 원자재창고</td>
+        <td class="num">2,000</td><td class="num">100</td><td class="num">50</td><td class="num">2,150</td>
+        <td class="ctr">KG</td><td class="num">500,000,000</td><td class="ctr">KRW</td>
+      </tr>
+      <tr class="lvl3">
+        <td style="padding-left:22px"><span class="tw">▼ 0002</span> 반제품창고 <span class="dim">(EA → KG 환산: 1 EA = 2 KG)</span></td>
+        <td class="num">1,600</td><td class="num">40</td><td class="num">0</td><td class="num">1,640</td>
+        <td class="ctr">KG</td><td class="num">300,000,000</td><td class="ctr">KRW</td>
+      </tr>
+    </table>
+    <div class="note"><b>장점</b> 합산값이 물리적으로 정확. &nbsp;·&nbsp; <i>단점</i> 자재별 단위 환산(MARM) 조회가 추가되어 조회가 느려지고, 환산계수가 없는 자재는 소계에서 제외되어 "합이 안 맞는다"는 문의가 생길 수 있음.</div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; width: 1360px; height: 810px;
+    font-family: "NanumGothic", "Noto Sans CJK KR", sans-serif;
+    font-size: 12px; color: #000; background: #fff;
+  }
+  .titlebar {
+    background: linear-gradient(#5a8ec4, #3f6f9f);
+    color: #fff; padding: 5px 8px; font-size: 12px; font-weight: bold;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .winbtns span {
+    display: inline-block; width: 16px; height: 14px; margin-left: 2px;
+    background: #d9e5f0; color: #26456b; text-align: center; line-height: 14px;
+    font-size: 10px; font-weight: bold; border: 1px solid #26456b;
+  }
+  .menubar { background: #eef2f6; border-bottom: 1px solid #b6c4d2; padding: 4px 8px; }
+  .menubar span { margin-right: 16px; }
+  .toolbar {
+    background: #dde6ef; border-bottom: 1px solid #aebccb;
+    padding: 4px 6px; display: flex; align-items: center; gap: 4px;
+  }
+  .icon {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 22px; height: 20px; padding: 0 5px;
+    background: #f4f8fb; border: 1px solid #9fb3c6; border-radius: 2px;
+    font-size: 11px; color: #1d4f7c;
+  }
+  .cmdfield { width: 110px; height: 20px; border: 1px solid #7f9db9; background: #fff; margin-right: 6px; }
+  .sep { width: 1px; height: 18px; background: #aebccb; margin: 0 3px; }
+  .screen { padding: 8px 10px; background: #f7f9fb; height: 662px; }
+  .prgtitle { font-size: 13px; font-weight: bold; margin-bottom: 4px; color: #1a3a5c; }
+  .selinfo { font-size: 11px; color: #4a6b87; margin-bottom: 8px; }
+
+  table.alv { border-collapse: collapse; width: 100%; background: #fff; }
+  table.alv th {
+    background: linear-gradient(#e4ecf4, #ccdae8); border: 1px solid #a8bccf;
+    font-size: 11px; font-weight: bold; color: #1a3a5c; padding: 4px 5px; white-space: nowrap;
+  }
+  table.alv td { border: 1px solid #d3dde6; padding: 3px 5px; font-size: 12px; white-space: nowrap; }
+  td.num, th.num { text-align: right; font-family: "NanumGothicCoding", "Cascadia Mono", monospace; }
+  td.ctr, th.ctr { text-align: center; }
+  .lvl1 { background: #d3e2f0; font-weight: bold; }
+  .lvl2 { background: #e2ecf6; font-weight: bold; }
+  .lvl3 { background: #edf3f9; font-weight: bold; }
+  .lvl4 { background: #f5f9fc; }
+  .leaf { background: #fff; }
+  .leaf.sel { background: #fff6cc; }
+  .tw { font-family: "NanumGothicCoding", "Cascadia Mono", monospace; }
+  .ind1 { padding-left: 2px; }
+  .ind2 { padding-left: 18px; }
+  .ind3 { padding-left: 34px; }
+  .ind4 { padding-left: 52px; }
+  .ind5 { padding-left: 72px; }
+  .tg { display: inline-block; width: 11px; color: #1d4f7c; }
+  .folder { color: #b8860b; }
+  .special { color: #8a4b9c; }
+  .doc { color: #4a6b87; }
+  .dim { color: #9aa8b4; font-size: 11px; }
+  .ref { font-family: "NanumGothicCoding", "Cascadia Mono", monospace; font-size: 11px; color: #33475c; }
+  .statusbar {
+    background: #e9eef3; border-top: 1px solid #aebccb; padding: 4px 8px;
+    font-size: 11px; color: #33475c; display: flex; justify-content: space-between;
+  }
+  .callout {
+    margin-top: 8px; background: #fffbe6; border: 1px solid #d9c26a; color: #6b4f00;
+    font-size: 11px; padding: 5px 8px; line-height: 1.5;
+  }
+  .callout b { color: #8a4b9c; }
+</style>
+</head>
+<body>
+  <div class="titlebar">
+    <span>재고 현황 트리 &nbsp;—&nbsp; ZMM_STOCK_TREE01</span>
+    <span class="winbtns"><span>_</span><span>□</span><span>×</span></span>
+  </div>
+  <div class="menubar">
+    <span>목록</span><span>편집</span><span>이동</span><span>설정</span><span>시스템</span><span>도움말</span>
+  </div>
+  <div class="toolbar">
+    <span class="icon">✓</span>
+    <input class="cmdfield" readonly>
+    <span class="icon">←</span><span class="icon">⇦</span><span class="icon">✕</span>
+    <span class="sep"></span>
+    <span class="icon">▼ 모두 펼치기</span>
+    <span class="icon">▶ 모두 접기</span>
+    <span class="sep"></span>
+    <span class="icon">자재 마스터 (MM03)</span>
+    <span class="sep"></span>
+    <span class="icon">내보내기</span>
+    <span class="icon">인쇄</span>
+  </div>
+
+  <div class="screen">
+    <div class="prgtitle">재고 현황 트리 (S2 결과화면) — 저장위치 재고 / 특별재고 구분, 계층 5단</div>
+    <div class="selinfo">조회 조건: 회사코드 1000 &nbsp;|&nbsp; 재고 0 자재 숨기기: 적용 &nbsp;|&nbsp; 특별재고 포함: 예 &nbsp;|&nbsp; 금액 표시: 적용 &nbsp;|&nbsp; 조회 건수 10건</div>
+
+    <table class="alv">
+      <tr>
+        <th style="width:400px">계층 (법인 / 플랜트 / 재고 구분 / 저장위치·특별재고 유형 / 자재)</th>
+        <th class="num" style="width:82px">가용재고</th>
+        <th class="num" style="width:78px">품질검사</th>
+        <th class="num" style="width:68px">보류</th>
+        <th class="num" style="width:82px">합계</th>
+        <th class="ctr" style="width:52px">단위</th>
+        <th class="num" style="width:120px">평가액</th>
+        <th class="ctr" style="width:48px">통화</th>
+        <th style="width:160px">참조 (수주·WBS·고객·공급업체)</th>
+        <th class="ctr" style="width:66px">자재유형</th>
+        <th class="ctr" style="width:66px">자재그룹</th>
+      </tr>
+
+      <!-- 법인 -->
+      <tr class="lvl1">
+        <td class="ind1"><span class="tg">▼</span><span class="folder">🗀</span> <span class="tw">1000</span> 효성 서울본사</td>
+        <td class="num dim">—</td><td class="num dim">—</td><td class="num dim">—</td><td class="num dim">—</td>
+        <td class="ctr dim">혼재</td><td class="num">1,450,000,000</td><td class="ctr">KRW</td>
+        <td></td><td></td><td></td>
+      </tr>
+
+      <!-- 플랜트 1010 -->
+      <tr class="lvl2">
+        <td class="ind2"><span class="tg">▼</span><span class="folder">🗀</span> <span class="tw">1010</span> 안양공장</td>
+        <td class="num dim">—</td><td class="num dim">—</td><td class="num dim">—</td><td class="num dim">—</td>
+        <td class="ctr dim">혼재</td><td class="num">1,000,000,000</td><td class="ctr">KRW</td>
+        <td></td><td></td><td></td>
+      </tr>
+
+      <!-- 재고구분: 저장위치 재고 -->
+      <tr class="lvl3">
+        <td class="ind3"><span class="tg">▼</span><span class="folder">🗀</span> 저장위치 재고</td>
+        <td class="num dim">—</td><td class="num dim">—</td><td class="num dim">—</td><td class="num dim">—</td>
+        <td class="ctr dim">혼재</td><td class="num">800,000,000</td><td class="ctr">KRW</td>
+        <td></td><td></td><td></td>
+      </tr>
+      <tr class="lvl4">
+        <td class="ind4"><span class="tg">▼</span><span class="folder">🗀</span> <span class="tw">0001</span> 원자재창고</td>
+        <td class="num">2,000</td><td class="num">100</td><td class="num">50</td><td class="num">2,150</td>
+        <td class="ctr">KG</td><td class="num">500,000,000</td><td class="ctr">KRW</td>
+        <td></td><td></td><td></td>
+      </tr>
+      <tr class="leaf">
+        <td class="ind5"><span class="doc">▫</span> <span class="tw">100-100</span> 폴리머 원료 A</td>
+        <td class="num">1,200</td><td class="num">100</td><td class="num">0</td><td class="num">1,300</td>
+        <td class="ctr">KG</td><td class="num">300,000,000</td><td class="ctr">KRW</td>
+        <td></td><td class="ctr">ROH</td><td class="ctr">001</td>
+      </tr>
+      <tr class="leaf sel">
+        <td class="ind5"><span class="doc">▫</span> <span class="tw">100-200</span> 폴리머 원료 B</td>
+        <td class="num">800</td><td class="num">0</td><td class="num">50</td><td class="num">850</td>
+        <td class="ctr">KG</td><td class="num">200,000,000</td><td class="ctr">KRW</td>
+        <td></td><td class="ctr">ROH</td><td class="ctr">001</td>
+      </tr>
+      <tr class="lvl4">
+        <td class="ind4"><span class="tg">▼</span><span class="folder">🗀</span> <span class="tw">0002</span> 반제품창고</td>
+        <td class="num">800</td><td class="num">20</td><td class="num">0</td><td class="num">820</td>
+        <td class="ctr">EA</td><td class="num">300,000,000</td><td class="ctr">KRW</td>
+        <td></td><td></td><td></td>
+      </tr>
+      <tr class="leaf">
+        <td class="ind5"><span class="doc">▫</span> <span class="tw">200-100</span> 반제품 A</td>
+        <td class="num">500</td><td class="num">0</td><td class="num">0</td><td class="num">500</td>
+        <td class="ctr">EA</td><td class="num">180,000,000</td><td class="ctr">KRW</td>
+        <td></td><td class="ctr">HALB</td><td class="ctr">002</td>
+      </tr>
+      <tr class="leaf">
+        <td class="ind5"><span class="doc">▫</span> <span class="tw">200-200</span> 반제품 B</td>
+        <td class="num">300</td><td class="num">20</td><td class="num">0</td><td class="num">320</td>
+        <td class="ctr">EA</td><td class="num">120,000,000</td><td class="ctr">KRW</td>
+        <td></td><td class="ctr">HALB</td><td class="ctr">002</td>
+      </tr>
+
+      <!-- 재고구분: 특별재고 -->
+      <tr class="lvl3">
+        <td class="ind3"><span class="tg">▼</span><span class="special">🗀</span> 특별재고</td>
+        <td class="num dim">—</td><td class="num dim">—</td><td class="num dim">—</td><td class="num dim">—</td>
+        <td class="ctr dim">혼재</td><td class="num">200,000,000</td><td class="ctr">KRW</td>
+        <td></td><td></td><td></td>
+      </tr>
+      <tr class="lvl4">
+        <td class="ind4"><span class="tg">▼</span><span class="special">🗀</span> <span class="tw">E</span> 판매오더 재고</td>
+        <td class="num">150</td><td class="num">0</td><td class="num">0</td><td class="num">150</td>
+        <td class="ctr">EA</td><td class="num">90,000,000</td><td class="ctr">KRW</td>
+        <td></td><td></td><td></td>
+      </tr>
+      <tr class="leaf">
+        <td class="ind5"><span class="doc">▫</span> <span class="tw">300-100</span> 완제품 A</td>
+        <td class="num">150</td><td class="num">0</td><td class="num">0</td><td class="num">150</td>
+        <td class="ctr">EA</td><td class="num">90,000,000</td><td class="ctr">KRW</td>
+        <td class="ref">수주 4500001234/10</td><td class="ctr">FERT</td><td class="ctr">003</td>
+      </tr>
+      <tr class="lvl4">
+        <td class="ind4"><span class="tg">▼</span><span class="special">🗀</span> <span class="tw">Q</span> 프로젝트 재고</td>
+        <td class="num">40</td><td class="num">0</td><td class="num">0</td><td class="num">40</td>
+        <td class="ctr">EA</td><td class="num">25,000,000</td><td class="ctr">KRW</td>
+        <td></td><td></td><td></td>
+      </tr>
+      <tr class="leaf">
+        <td class="ind5"><span class="doc">▫</span> <span class="tw">400-100</span> 프로젝트 자재</td>
+        <td class="num">40</td><td class="num">0</td><td class="num">0</td><td class="num">40</td>
+        <td class="ctr">EA</td><td class="num">25,000,000</td><td class="ctr">KRW</td>
+        <td class="ref">WBS P-2026-001</td><td class="ctr">HALB</td><td class="ctr">002</td>
+      </tr>
+      <tr class="lvl4">
+        <td class="ind4"><span class="tg">▼</span><span class="special">🗀</span> <span class="tw">V</span> 고객 위탁재고</td>
+        <td class="num">60</td><td class="num">0</td><td class="num">0</td><td class="num">60</td>
+        <td class="ctr">EA</td><td class="num">35,000,000</td><td class="ctr">KRW</td>
+        <td></td><td></td><td></td>
+      </tr>
+      <tr class="leaf">
+        <td class="ind5"><span class="doc">▫</span> <span class="tw">500-100</span> 위탁 완제품</td>
+        <td class="num">60</td><td class="num">0</td><td class="num">0</td><td class="num">60</td>
+        <td class="ctr">EA</td><td class="num">35,000,000</td><td class="ctr">KRW</td>
+        <td class="ref">고객 0000020001</td><td class="ctr">FERT</td><td class="ctr">003</td>
+      </tr>
+      <tr class="lvl4">
+        <td class="ind4"><span class="tg">▼</span><span class="special">🗀</span> <span class="tw">K</span> 공급업체 위탁재고</td>
+        <td class="num">500</td><td class="num">0</td><td class="num">0</td><td class="num">500</td>
+        <td class="ctr">KG</td><td class="num">50,000,000</td><td class="ctr">KRW</td>
+        <td></td><td></td><td></td>
+      </tr>
+      <tr class="leaf">
+        <td class="ind5"><span class="doc">▫</span> <span class="tw">100-300</span> 위탁 원료 C</td>
+        <td class="num">500</td><td class="num">0</td><td class="num">0</td><td class="num">500</td>
+        <td class="ctr">KG</td><td class="num">50,000,000</td><td class="ctr">KRW</td>
+        <td class="ref">공급업체 0000030001</td><td class="ctr">ROH</td><td class="ctr">001</td>
+      </tr>
+
+      <!-- 플랜트 1020 (접힘) -->
+      <tr class="lvl2">
+        <td class="ind2"><span class="tg">▶</span><span class="folder">🗀</span> <span class="tw">1020</span> 울산공장</td>
+        <td class="num dim">—</td><td class="num dim">—</td><td class="num dim">—</td><td class="num dim">—</td>
+        <td class="ctr dim">혼재</td><td class="num">450,000,000</td><td class="ctr">KRW</td>
+        <td></td><td></td><td></td>
+      </tr>
+    </table>
+
+    <div class="callout">
+      · 계층 5단 = 법인 → 플랜트 → <b>재고 구분(저장위치 재고 / 특별재고)</b> → 저장위치 또는 특별재고 유형 → 자재. 저장위치 재고와 특별재고가 같은 레벨에 섞이지 않는다.<br>
+      · 특별재고 구간의 자재 행은 <b>자재 + 참조</b> 조합 1건이 1행이다. 같은 자재가 수주 2건에 걸려 있으면 2행으로 나뉜다. 참조는 우측 「참조」 열에 표시한다.<br>
+      · 상위 노드 수량이 「—」인 것은 하위 단위가 섞여 합산이 의미 없는 경우다(A안 확정). 단위가 같은 노드에서는 수량 소계가 표시된다.<br>
+      · 노란색 자재 행을 더블클릭하면 해당 자재번호로 MM03 자재 마스터 조회로 이동한다.
+    </div>
+  </div>
+
+  <div class="statusbar">
+    <span>재고 10건을 조회했습니다. (저장위치 재고 4건 / 특별재고 4건)</span>
+    <span>ZMM_STOCK_TREE01 &nbsp;|&nbsp; DEV (100)</span>
+  </div>
+</body>
+</html>
