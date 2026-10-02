@@ -116,7 +116,7 @@ AI가 생성하는 모든 ABAP 코드는 다음 계약을 만족해야 한다.
 | `context/system-context.template.md` | 1회만 작성하는 시스템 정보 (릴리스, 클라이언트, 네이밍, 권한) |
 | `context/ddic-collect.template.md` | SE11/SE16N에서 테이블·필드 정보를 뽑아오는 절차 + 붙여넣기 양식 |
 | `requirements/README.md` | 어떤 템플릿을 고를지 결정하는 라우터 (신규 기본: 인터뷰 → 08-demo → 09-fieldmap → 01~07) |
-| `sessions/README.md` | 세션별 묶음 규칙 — 프로그램 1건당 폴더 1개, 게이트별 기록 파일 |
+| `sessions/README.md` | 세션별 묶음 규칙 — 프로그램 1건당 폴더 1개, 게이트별 기록 파일, **누적 경로(브랜치 운영)·수정 범위·세션 색인** |
 | `practice/error-patterns.md` | 오류·교훈 패턴 — Gate 3 전 대조 필수, V-3에서 신규 승격 |
 | `practice/screen-text-detail.md` | SE51 화면·SE41 상태/타이틀·SE38 텍스트 요소 정의서의 필수 목차 — Dynpro·선택화면이 있으면 대조 필수 |
 | `practice/user-input-catalog.md` | 사용자에게만 받을 수 있는 입력 전수 (업무 지식·시스템 실측·실행 결과 3구분) + SAP 조회 경로 + 보안 금지 목록 — 요청 전 대조 |

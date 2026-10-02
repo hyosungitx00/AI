@@ -14,7 +14,7 @@
 | `requirements/` | 접수 커버(00-intake) + 화면 데모(08) + 필드맵(09) + 유형별 템플릿 8종(00~07) | 프로그램마다 인터뷰 1건 |
 | `harness/checklists/` | 활성화·리뷰 체크리스트 | SE38 활성화 전후 |
 | `harness/prompts/` | 그대로 붙여넣는 프롬프트 조각(인터뷰 전용: `intake-demo-prompt.md` + 인터뷰 스크립트 `interview-script.md`) | AI 대화 시작 시 |
-| `sessions/` | 세션별 묶음 — 1건당 `YYYYMMDD-프로그램명/` 폴더에 intake·demo·fieldmap·spec·code·verify·handover 기록 (신규 세션은 이전 폴더 참조 금지) | 매 세션 기록 |
+| `sessions/` | 세션별 묶음 — 1건당 `YYYYMMDD-프로그램명/` 폴더에 intake·demo·fieldmap·spec·code·verify·handover 기록. **보관은 누적, 참조는 격리**: 폴더는 계속 쌓이되 신규 세션은 이전 폴더를 참조하지 않는다(사용자 지목 시 예외). 누적 경로·수정 범위·색인 규칙은 `sessions/README.md` | 매 세션 기록 · Handover 시 색인 갱신 |
 | `practice/` | 오류·교훈 패턴 축적 — Gate 3 전 확인용 `error-patterns.md` + GUI 수작업 산출물 정의 기준 `screen-text-detail.md` + 사용자 입력 요청 기준 `user-input-catalog.md` + 사용 규칙 (V-3에서 신규 패턴 승격) | 코드 생성 전 확인·오류 회수 시·사용자에게 요청하기 전 |
 | `.cursor/rules/sap-gui-abap-session-start.mdc` | 세션 시작 자동 질문 규칙 (Cursor 자동 적용) | 새 대화 첫 턴 자동 실행 |
 | `examples/` | 출력 형식 기준 2종(ALV·FM) + 작성본 견본(`filled/` 4종) | AI 출력 형식·입력 예시 확인 |
