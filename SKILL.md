@@ -113,6 +113,7 @@ AI가 생성하는 모든 ABAP 코드는 다음 계약을 만족해야 한다.
 | 파일 | 용도 |
 |---|---|
 | `HARNESS.md` | 5단계 워크플로우, 게이트, 복붙 프로토콜, 덤프 대응표 |
+| `GOVERNANCE.md` | 자율 축적(요청 없이 기록·패턴 승격) + 설계층 보호(CODEOWNERS·branch protection)·한계 — 설계층은 읽기만, 개선은 `proposal.md` 로 제안 |
 | `context/system-context.template.md` | 1회만 작성하는 시스템 정보 (릴리스, 클라이언트, 네이밍, 권한) |
 | `context/ddic-collect.template.md` | SE11/SE16N에서 테이블·필드 정보를 뽑아오는 절차 + 붙여넣기 양식 |
 | `requirements/README.md` | 어떤 템플릿을 고를지 결정하는 라우터 (신규 기본: 인터뷰 → 08-demo → 09-fieldmap → 01~07) |
