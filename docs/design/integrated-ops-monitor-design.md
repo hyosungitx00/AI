@@ -5,7 +5,7 @@
 | 문서명 | 통합 운영 모니터링 프로그램 (SM37 / ST22 / SXI_MONITOR) 상세 설계서 |
 | 대상 시스템 | SAP S/4HANA (ABAP Integration Engine 사용) |
 | 화면 환경 | SAP GUI (Classic Dynpro + OO ALV) |
-| 문서 버전 | v0.6 (Draft) |
+| 문서 버전 | v0.7 (Draft) |
 | 작성 목적 | ABAP 개발 착수 전 기능/데이터/화면/로직 확정을 위한 기술 설계 |
 | 상태 | 검토 대기 (Review) |
 
@@ -274,8 +274,9 @@ flowchart TB
 | `INCLUDE` | `INCLUDENAME` | 인클루드 |
 | `LINE` | `LINENUMBER` | 소스 라인 |
 
-#### 5.2.5 드릴다운(읽기전용)  ✅ 확정(O-3)
-- **`CALL TRANSACTION 'ST22'`** (표시 모드)로 표준 덤프 상세 화면을 호출한다. (읽기전용 진입, `ZCL_MON_NAVIGATOR`에 캡슐화)
+#### 5.2.5 드릴다운(읽기전용)  ✅ 확정(O-3) — 갱신
+- **HTML 상세 팝업**: ALV 더블클릭/핫스팟 시 `RS_ST22_GET_FT`로 Free Text를 읽어 읽기 전용 HTML dialogbox에 표시한다 (`CALL TRANSACTION 'ST22'` 미사용).
+- 키: `DATUM`/`UZEIT`/`UNAME`/`AHOST`/`MODNO`/`MANDT` (SNAP / RSDUMPINFO 매핑).
 
 ---
 
@@ -479,7 +480,7 @@ flowchart TB
 | 영역 | 이벤트 | 처리 | 호출 대상(읽기전용) |
 |------|--------|------|----------------------|
 | SM37 | `double_click` | 선택 행의 `JOBNAME`/`JOBCOUNT` 전달 | 잡 로그 표시 |
-| ST22 | `double_click` | 선택 행의 덤프 키 전달 | 덤프 상세 표시 |
+| ST22 | `double_click` / `hotspot_click` | 덤프 키(`DATUM`/`UZEIT`/`UNAME`/`AHOST`/`MODNO`/`MANDT`) | `RS_ST22_GET_FT` → HTML 상세 팝업 |
 | SXI | `double_click` | 선택 행의 `MSGGUID` 전달 | 메시지 상세 표시 |
 
 > 모든 드릴다운은 `ZCL_MON_NAVIGATOR`를 경유하여 **표시 모드** 로만 호출한다.
@@ -678,7 +679,7 @@ P_TODAT = SY-DATUM. P_TOTIM = SY-UZEIT.
 |----|------|-----------|
 | ✅ O-1 | SM37 기간 기준 | **종료시각(`ENDDATE`/`ENDTIME`) 기준** |
 | ✅ O-2 | SM37 드릴다운 | **`BP_JOBLOG_SHOW`**(+`BP_JOBLOG_READ`), 네비게이터 캡슐화 (FM 존재 확인) |
-| ✅ O-3 | ST22 조회/표시 | 조회=**`RS_ST22_GET_DUMPS`**(SNAP에 정식 필드 부재로 변경), 표시=**`CALL TRANSACTION 'ST22'`** |
+| ✅ O-3 | ST22 조회/표시 | 조회=**`RS_ST22_GET_DUMPS`**(+SNAP 폴백), 상세=**`RS_ST22_GET_FT` HTML 팝업** (`CALL TRANSACTION 'ST22'` 미사용) |
 | ✅ O-4 | SXI 조회/판별 | 판별=**`SXMSPERROR` 에러레코드 존재(방식 A)**, 기간=**`EXETIMEST`(로컬→UTC 변환)**, `SXMSPERROR`→`SXMSPMAST`/`SXMSPEMAS` `MSGGUID`(+`PID`) 조인, 표시=**`CALL TRANSACTION 'SXI_MONITOR'`**, `EXEPIPELINE` 미존재로 제거 |
 | ✅ O-5 | 화면 레이아웃/차트 | **요약 + 관점 선택형 차트 + 3분할 ALV**. 차트 기본=영역별 Top-N(가로 막대), 토글=시간대별 추이(적응형 버킷), `P_TOPN` 기본 5 |
 | ✅ O-9 | IGS/차트 렌더링 | **IGS 가용 확인** → `CL_GUI_CHART_ENGINE` 사용 |
@@ -706,3 +707,4 @@ P_TODAT = SY-DATUM. P_TOTIM = SY-UZEIT.
 | v0.4 | 2026-07-03 | **O-7 권한 객체 STAUTHTRACE 검증 완료·확정** — SM37 `S_BTCH_JOB`(`JOBGROUP='*'`/`JOBACTION='SHOW'`), ST22 **`S_ADMI_FCD`→`S_ABAPDUMP` 정정**(`ACTVT=03`/`DUMP_INFO=FULL`/`DUMP_CCLNT=ALL`/`DUMP_CUSER=ALL`), SXI `S_XMB_MONI`(`ACTVT=03`, `S_XMB_ADM` 미요구). 잔여 Open Issue 없음(전건 확정) |
 | v0.5 | 2026-08-03 | **6.4 ALV 표시 열 축소** — SM37(잡명/프로그램/사용자/시작·종료 일시), ST22(프로그램/에러유형/사용자/발생 일시), SXI(인터페이스/상태/발생 일시). 드릴다운 키는 내부 보관·미표시 |
 | v0.6 | 2026-08-04 | **데모 UX 강화** — KPI 헬스 배너·조회소요·자동갱신 표시, ALV 핫스팟/툴바/zebra, STATS/HELP 커맨드, 선택영역 동적 스플리터, Top-N↔시간추이 차트타입 전환, P_HOURS 자동 기간 재계산 |
+| v0.7 | 2026-08-11 | **O-3 ST22 드릴다운 갱신** — `CALL TRANSACTION 'ST22'` 대신 `RS_ST22_GET_FT` Free Text를 HTML dialogbox로 표시(읽기 전용) |

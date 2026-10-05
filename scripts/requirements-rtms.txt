@@ -1,0 +1,6 @@
+# RTMS AptTradeDev Seoul collector
+# .env 예시는 로컬 C:\ClaudeAI\.env 에 설정
+
+python-dotenv>=1.0.0
+requests>=2.31.0
+psycopg2-binary>=2.9.9
