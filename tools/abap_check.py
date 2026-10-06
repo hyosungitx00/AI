@@ -258,8 +258,11 @@ def check_statements(source: Source, release: str) -> list[Finding]:
             if not guarded:
                 add("CHK-003", statement.line, f"FOR ALL ENTRIES 앞에 `{name.upper()} IS NOT INITIAL` 체크가 없습니다.")
 
-        if text.startswith("call function") and not subrc_checked(index, extra=("exceptions", "importing")):
-            add("CHK-004", statement.line, "CALL FUNCTION 직후 `SY-SUBRC` 체크나 예외 처리가 없습니다.")
+        if text.startswith("call function"):
+            # EXCEPTIONS·IMPORTING은 호출문 안에 선언되므로 같은 문장도 함께 본다.
+            handled = "exceptions" in text or re.search(r"\bimporting\b", text) or subrc_checked(index)
+            if not handled:
+                add("CHK-004", statement.line, "CALL FUNCTION 직후 `SY-SUBRC` 체크나 예외 처리가 없습니다.")
 
         if text.startswith("authority-check") and not subrc_checked(index, window=2):
             add("CHK-016", statement.line, "AUTHORITY-CHECK 직후 `SY-SUBRC` 체크가 없습니다.")
