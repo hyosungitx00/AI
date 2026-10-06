@@ -19,12 +19,12 @@
         ↓ Gate D: 화면 컨펌
 [0.5 필드맵] 09-fieldmap(필드 연결 + 구현 방식) → 점검
         ↓ Gate F: 필드·구현 승인 → 유형 템플릿(01~07)으로 구조화
-[1. Context 수집] requirements/00-common + 유형 템플릿(주력 01 ALV / 03 FM) + DDIC 수집
+[1. Context 수집] requirements/00-common + 유형 템플릿(주력 01 ALV / 03 FM) + DDIC(캐시 확인 → 부족분만 수집)
         ↓ Gate 1: 빈칸율 체크 (★ 1개라도 비면 코드 금지)
 [2. Spec 확정] 테이블·조인·화면·예외 스펙 문서화 → 사용자 OK
         ↓ Gate 2: 스펙 승인
-[3. Code 생성] 복붙 계약 준수 코드 + DDIC/메시지/T-code 정의서
-        ↓ Gate 3: 정적 체크리스트
+[3. Code 생성] templates/abap 골격 복제 → 복붙 계약 준수 코드 + DDIC/메시지/T-code 정의서
+        ↓ Gate 3: 자동 점검(tools/abap_check.py 오류 0건) + 사람 판단 체크리스트
 [4. Verify 안내] 활성화 순서 + 테스트 케이스 + 덤프 대응
         ↓ Gate 4: SE38 활성화·실행 결과 회수
 [5. Handover] 권한·T-code·이송 요청서 → 운영 이관
