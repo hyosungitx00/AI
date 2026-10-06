@@ -131,7 +131,10 @@ def strip_comment(line: str) -> tuple[str, str]:
 
 
 def split_statements(code_lines: list[str]) -> list[Statement]:
-    """마침표 기준으로 문장을 자른다. 리터럴 안의 마침표는 무시한다."""
+    """마침표 기준으로 문장을 자른다. 리터럴 안의 마침표는 무시한다.
+
+    문장의 줄번호는 마침표가 아니라 **첫 글자가 나온 줄**로 기록한다 (오류 위치 안내용).
+    """
     statements: list[Statement] = []
     buffer: list[str] = []
     start_line = 0
@@ -140,19 +143,20 @@ def split_statements(code_lines: list[str]) -> list[Statement]:
         for char in line:
             if char == "'":
                 in_literal = not in_literal
-            if not buffer and char.strip():
+            if start_line == 0 and char.strip():
                 start_line = lineno
             if char == "." and not in_literal:
                 text = " ".join("".join(buffer).split()).lower()
                 if text:
                     statements.append(Statement(text=text, line=start_line or lineno))
                 buffer = []
+                start_line = 0
                 continue
             buffer.append(char)
         buffer.append(" ")
     text = " ".join("".join(buffer).split()).lower()
     if text:
-        statements.append(Statement(text=text, line=start_line))
+        statements.append(Statement(text=text, line=start_line or len(code_lines)))
     return statements
 
 
@@ -358,14 +362,20 @@ def check_source(path: Path, release: str) -> list[Finding]:
     return sorted(findings, key=lambda item: (item.path, item.line, item.rule))
 
 
+# 폴더를 훑을 때 건너뛰는 경로 — 점검기 테스트용 불량 픽스처는 일부러 규칙을 위반한다.
+SKIPPED_DIRS = {".git", "fixtures"}
+
+
 def collect_paths(targets: list[str]) -> list[Path]:
     paths: list[Path] = []
     roots = [Path(target) for target in targets] if targets else [Path(".")]
     for root in roots:
         if root.is_dir():
-            paths.extend(sorted(p for p in root.rglob("*.abap") if ".git" not in p.parts))
+            paths.extend(
+                sorted(p for p in root.rglob("*.abap") if not SKIPPED_DIRS.intersection(p.parts))
+            )
         elif root.is_file():
-            paths.append(root)
+            paths.append(root)  # 파일을 직접 지정하면 픽스처도 점검한다
         else:
             print(f"[경고] 경로를 찾을 수 없습니다: {root}", file=sys.stderr)
     return paths

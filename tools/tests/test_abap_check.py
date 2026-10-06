@@ -75,6 +75,26 @@ def test_repo_abap_has_no_errors() -> None:
         expect(not errors, f"{path.relative_to(ROOT)} 오류 없음 ({detail})")
 
 
+def test_line_numbers_point_at_statement_start() -> None:
+    print("오류 위치는 문장 시작 줄")
+    findings = abap_check.check_source(FIXTURES / "bad_report.abap", "750")
+    located = {(f.rule, f.line) for f in findings}
+    expect(("CHK-005", 3) in located, "CHK-005 → L3 (SELECT-OPTIONS 줄)")
+    expect(("CHK-001", 6) in located, "CHK-001 → L6 (SELECT * 줄)")
+    expect(("CHK-002", 10) in located, "CHK-002 → L10 (루프 내 SELECT 줄)")
+
+
+def test_fixtures_excluded_from_directory_scan() -> None:
+    print("폴더 스캔은 불량 픽스처를 건너뜀")
+    scanned = abap_check.collect_paths([])
+    expect(
+        all("fixtures" not in path.parts for path in scanned),
+        "기본 스캔에 fixtures 미포함",
+    )
+    direct = abap_check.collect_paths([str(FIXTURES / "bad_report.abap")])
+    expect(len(direct) == 1, "파일 직접 지정 시에는 픽스처도 점검")
+
+
 def test_pragma_ignore() -> None:
     print("파일 단위 예외(pragma)")
     source = abap_check.load_source(FIXTURES / "bad_report.abap")
@@ -87,7 +107,9 @@ def main() -> int:
     for test in (
         test_bad_report_detects_every_rule,
         test_good_report_is_clean,
+        test_line_numbers_point_at_statement_start,
         test_release_gate,
+        test_fixtures_excluded_from_directory_scan,
         test_pragma_ignore,
         test_repo_abap_has_no_errors,
     ):
