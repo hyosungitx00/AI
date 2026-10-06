@@ -1,0 +1,61 @@
+---
+description: ABAP 소스를 작성·수정할 때 적용하는 코드 표준 — 성능·안정성 규칙, 자동 점검 규칙표(CHK-001~017), 제출 전 필수 명령.
+globs:
+  - "**/*.abap"
+  - "templates/abap/**"
+---
+
+# ABAP 코드 표준 (`*.abap` 작성·수정 시)
+
+`SKILL.md` §3.3~3.5와 `practice/error-patterns.md`를 코드 레벨로 옮긴 규칙이다.
+**이 파일의 모든 항목은 `python3 tools/abap_check.py`로 기계 점검된다. 제출 전 오류 0건을 확인한다.**
+
+## 시작 방법
+
+1. `templates/abap/`에서 유형에 맞는 골격을 복제한다 (`01-alv-salv` / `01-alv-reuse` / `03-function-module`).
+2. `TODO(교체)` 지점을 세션 값(Gate F 필드맵 + DDIC 수집값)으로 바꾼다.
+3. `grep -n "TODO(교체)"` 결과가 0건이고 점검기 오류가 0건이면 제출한다.
+
+## 성능·안정성 (위반 시 점검기 오류)
+
+| 규칙 | 설명 | 점검 ID |
+|---|---|---|
+| `SELECT *` 금지 | 필요한 필드만 나열한다 | CHK-001 |
+| 루프 내 SELECT 금지 | 조인·`FOR ALL ENTRIES`로 선수집하고 `READ TABLE`·해시테이블로 조회한다 | CHK-002 |
+| `FOR ALL ENTRIES` 앞 빈 체크 | `IF lt_key IS NOT INITIAL.` 없으면 전건 조회가 된다 | CHK-003 |
+| DB I/O 직후 `SY-SUBRC` | 실패 시 메시지 + `RETURN`/`CONTINUE` | CHK-004 |
+| `TABLES` 선언 | `SELECT-OPTIONS ... FOR <테이블>-<필드>`에는 `TABLES <테이블>.` 필수 | CHK-005 (ERR-006) |
+| `AUTHORITY-CHECK` 직후 분기 | `IF sy-subrc <> 0.` + 메시지. 오브젝트 모르면 `TODO(GUI): SU21 확인` | CHK-016 (MSG-001) |
+| 선택화면 입력 검증 | `AT SELECTION-SCREEN`에 최소 1조건 필수·일자 범위 상한·역전 검사 | CHK-017 (ERR-005) |
+| `COMMIT WORK` 금지 | 조회 리포트에서 금지. BAPI 뒤 `BAPI_TRANSACTION_COMMIT`만 허용 | CHK-011 |
+| 하드코딩 금지 | 회사코드·플랜트·언어를 WHERE에 리터럴로 쓰지 않는다 (선택화면·커스텀 테이블에서 읽는다) | CHK-012 |
+
+## 형식·운영 (복붙 계약)
+
+| 규칙 | 설명 | 점검 ID |
+|---|---|---|
+| 헤더 릴리스 기준 | `"! 기준: SAP_BASIS 750 / S/4HANA, 모던 ABAP 허용` + 프로그램명·기능·복사 순서 | CHK-007 |
+| 부록 3종 | 복사 순서 · DDIC 정의서 · T1~T3 테스트 절차를 하단 주석으로 | CHK-008 |
+| 생략 금지 | `이하 동일`·`... 생략` 같은 플레이스홀더 금지, 항상 완전 소스 | CHK-009 |
+| 주석 병기 | 핵심 주석은 `"! 한국어 / English` 형태 | CHK-013 |
+| 메시지 정의서 | `MESSAGE e001(zsd_msg)`를 쓰면 SE91 등록값을 부록에 적는다. SE91 없이 진행이면 텍스트 리터럴(MSG-002) | CHK-014 |
+| 가정 상한 | `[확인필요]` DDIC 가정이 3건을 넘으면 Gate 1로 돌아간다 | CHK-015 |
+| 실명 사용 | `ZTEST`·`ZTEMP`·`ZZZZ` 금지. `Z+모듈약어+기능`(`ZSD_SALES_ALV01`), 함수그룹 `ZFG*`, 클래스 `ZCL_*` | CHK-006 |
+| 릴리스 문법 | 기준 750은 모던 허용. "보수적" 지정 건은 `--release classic`으로 점검 | CHK-010 |
+
+## 데모·화면 구조
+
+- 실행 리포트(SE38)는 선택화면(S1)과 ALV 결과(S2)를 **분리된 2화면**으로 설계·시연한다.
+  한 화면 합성형은 Module Pool로 오인된다 (PROC-001).
+- ALV 방식은 Gate 2 스펙에서 정한 1종만 쓴다 (`CL_SALV_TABLE` / `REUSE_ALV_GRID_DISPLAY` / `CL_GUI_ALV_GRID`).
+
+## 제출 전 명령
+
+```bash
+python3 tools/abap_check.py <파일>                 # 오류 0건 필수
+python3 tools/abap_check.py <파일> --release classic  # "보수적" 지정 건만
+grep -n "TODO(교체)" <파일>                         # 0건이어야 함
+```
+
+경고(WARNING)는 통과시킬 수 있으나, 남겨 둔 사유를 답변에 한 줄로 적는다.
+정당한 예외는 코드 주석으로 지정한다: `"! abap-check: ignore CHK-012   " 사유: ...`
