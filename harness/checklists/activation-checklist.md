@@ -15,6 +15,10 @@
 - [ ] 금지 문법 검사: 릴리스(ECC/7.40/7.50) 초과 문법 없음 (`DATA(`·`VALUE #()` 등)
 - [ ] `SELECT *` 없음, `FOR ALL ENTRIES` 앞 빈 체크 있음
 
+> 위 3·4번은 AI가 코드 제시 전에 `python3 tools/abap_check.py <파일>`로 이미 점검한 항목이다.
+> SE38에서 그래도 Syntax 에러가 나면 점검기가 못 잡는 유형이므로, V-3 회수 후
+> `practice/error-patterns.md` 승격 + `tools/abap_check.py` 규칙 추가 대상이 된다.
+
 ## 3. 실행 스모크
 
 - [ ] F8 실행 → 선택화면/첫 화면 표시
