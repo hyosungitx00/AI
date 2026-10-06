@@ -1,0 +1,13 @@
+# Python 캐시 (점검기 실행 시 생성)
+__pycache__/
+*.py[cod]
+
+# 편집기·OS 부산물
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+
+# 작성본은 커밋 대상이지만, 임시 사본은 제외
+*.tmp
+*.bak

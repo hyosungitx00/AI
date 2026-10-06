@@ -1,11 +1,5 @@
 ---
-description: SAP GUI ABAP 바이브 코딩 세션 시작 시 자동 질문 규칙. 모든 새 대화의 첫 턴에 SKILL·Harness 맞춤 질문(1번 항목)을 먼저 수행한다.
-globs:
-  - "**/*.abap"
-  - "SKILL.md"
-  - "HARNESS.md"
-  - "requirements/**"
-  - "context/**"
+description: SAP GUI ABAP 바이브 코딩 세션 시작 시 자동 질문 규칙. 프로그램 개발 요청의 첫 턴에 SKILL·Harness 맞춤 질문(1번 항목)을 먼저 수행한다.
 alwaysApply: true
 ---
 
@@ -14,6 +8,13 @@ alwaysApply: true
 이 저장소(`SKILL.md` + `HARNESS.md`)를 기준으로 ABAP 바이브 코딩 대화를 시작할 때,
 **코드·스펙 작성에 앞서 아래 질문을 첫 턴에 먼저 수행**한다.
 사용자가 "질문 생략", "기본값으로 진행"이라고 답하면 묻지 않고 기본값(★)으로 진행한다.
+
+## 적용 범위 (질문을 할 때 / 하지 않을 때)
+
+- **적용**: 신규·변경 ABAP 프로그램 개발 요청, 스펙·코드 작성 요청, SAP 오류 해결 요청.
+- **비적용**: 이 저장소 자체의 문서·도구·규칙 정비, 저장소 사용법 질문, 기존 산출물 설명·조회.
+  이때는 질문 없이 요청을 바로 수행하고, 기준값은 아래 기본값(★)으로 가정한다.
+  대화 중 사용자가 프로그램 개발을 요청하는 순간 1차 질문부터 진입한다.
 
 ## 기본값 (1번 항목 확정 사항, 2026-09-22)
 
@@ -50,7 +51,13 @@ alwaysApply: true
 1. 답변을 `context/system-context.filled.md` 초안 값으로 정리해 보여준다.
 2. `SKILL.md` §3.2(릴리스 게이트)·§4(엄격/빠른)·§3.5(네이밍)·§3.3(주석) 중 해당 절의 적용값을 선언한다.
    - 예: "이번 세션 적용값 — 릴리스 750/S4 모던, 주력 01+03, 엄격 게이트, 한+영, Cursor."
-3. 그 다음 인터뷰 전용 흐름으로 진입한다: `[신규 프로그램 요구사항 인터뷰 시작 요청]` 1줄 접수를 안내하고,
+3. 세션 폴더를 준비한다: `tools/new_session.sh <프로그램명>` (프로그램명이 정해지기 전이면 Gate U 승인 후 실행).
+4. 그 다음 인터뷰 전용 흐름으로 진입한다: `[신규 프로그램 요구사항 인터뷰 시작 요청]` 1줄 접수를 안내하고,
    `HARNESS.md` 0.5단계 순으로 진행한다 (인터뷰 I-0 → I-8 → Gate U 이해도 확인 → Gate D 08-demo 화면 컨펌 → Gate F 09-fieldmap 승인 → Gate 2 스펙 확정).
    이번 세션은 기존 요구사항을 참조하지 않는다. 작성 틀 한 번에 입력·자유 텍스트·파일 첨부·구방식(00-common + 01~07 직접 작성 시작)은 접수하지 않고 인터뷰로 전환한다.
-4. 전체 전문 스크립트는 `harness/prompts/session-start.md`, 신규 최초 프롬프트는 `harness/prompts/intake-demo-prompt.md` 참조.
+5. 전체 전문 스크립트는 `harness/prompts/session-start.md`, 신규 최초 프롬프트는 `harness/prompts/intake-demo-prompt.md` 참조.
+
+## 함께 적용되는 규칙
+
+- `.cursor/rules/sap-abap-core.mdc` — 절대 규칙 3종·게이트 순서·문서 인덱스 (상시 적용)
+- `.cursor/rules/abap-code-standards.mdc` — `*.abap` 작성·수정 시 코드 표준 + 자동 점검 규칙표

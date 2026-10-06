@@ -1,0 +1,30 @@
+# 편집기 공통 설정 — SAP GUI 복붙 시 깨짐을 막는다.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+# ABAP: SE38/SE80 편집기는 탭을 공백으로 바꾸므로 공백 2칸으로 고정한다.
+# 들여쓰기가 섞이면 복붙 후 Pretty Printer 결과가 달라진다.
+[*.abap]
+indent_style = space
+indent_size = 2
+trim_trailing_whitespace = true
+
+# Markdown: 줄 끝 공백 2칸이 줄바꿈 의미를 가지므로 보존한다.
+[*.md]
+trim_trailing_whitespace = false
+
+[*.{mdc,yml,yaml,json}]
+indent_size = 2
+
+[*.sh]
+indent_size = 2
+
+[*.py]
+indent_size = 4

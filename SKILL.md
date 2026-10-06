@@ -33,8 +33,10 @@ SAP GUI 기반 ABAP 개발은 일반 바이브 코딩과 전제가 다르다.
 
 ### 3.1 환각 금지 — DDIC 우선
 
-1. 테이블·필드·도메인·데이터엘리먼트명은 **사용자가 준 것만 사용**한다.
-2. 사용자가 필드명을 안 줬으면 코드를 추측해서 만들지 말고, 먼저 `context/ddic-collect.template.md` 절차로 **SE16N / SE11 확인을 요청**한다.
+1. 테이블·필드·도메인·데이터엘리먼트명은 **사용자가 준 것** 또는 `context/ddic-cache.md`의 **`확정` 행만 사용**한다.
+   캐시 `확정` 행은 이전 세션에서 활성화로 실재가 증명된 사실이므로 다시 묻지 않는다. `미확인` 행은 사용 금지다.
+   AI가 자기 지식으로 캐시에 행을 추가하는 것도 금지다 (승격 근거는 SE11 출력 또는 활성화 성공 기록뿐).
+2. 사용자가 필드명을 안 줬고 캐시에도 없으면 코드를 추측해서 만들지 말고, 먼저 `context/ddic-collect.template.md` 절차로 **SE16N / SE11 확인을 요청**한다.
 3. 부득이하게 표준 테이블을 가정해야 하면, 코드 상단에 아래 주석을 강제한다.
 
 ```abap
@@ -72,6 +74,9 @@ AI가 생성하는 모든 ABAP 코드는 다음 계약을 만족해야 한다.
 
 ### 3.4 성능·운영 규칙 (Code Rules)
 
+> 이 절의 항목은 `python3 tools/abap_check.py`로 기계 점검된다(규칙 `CHK-001`~`CHK-017`).
+> 코드를 사용자에게 제시하기 전에 실행해 **오류 0건**을 확인한다. 규칙표는 `tools/README.md` 참조.
+
 - `SELECT *` 금지. 필요한 필드만 `SELECT a b c ... INTO TABLE @DATA(lt_xxx).` (구문법이면 `INTO TABLE lt_xxx`).
 - `FOR ALL ENTRIES` 사용 시 **반드시 빈 테이블 체크**(`IF lt_key IS NOT INITIAL.`) 후 사용.
 - 루프 내 `SELECT SINGLE` 금지. `READ TABLE ... WITH KEY` + 해시테이블(`HASHED TABLE`) 또는 사전 수집 후 `FOR ALL ENTRIES`로 대체.
@@ -94,7 +99,7 @@ AI가 생성하는 모든 ABAP 코드는 다음 계약을 만족해야 한다.
 0.5. **Intake·데모-퍼스트** — `requirements/00-intake.md` 접수 후 Gate U 이해도 확인서("OK" 전 데모·필드맵·스펙·코드 금지) → `08-demo.md` 분기(데모 있음→경로A 분석 / 없음→경로B AI 생성) → Gate D 화면 컨펌(컨펌 전 필드맵·스펙·코드 금지) → `09-fieldmap.md`(필드 연결 + 구현 방식) → Gate F 승인 후 유형 템플릿(01~07)으로 구조화. 접수 방식은 **인터뷰 방식만 허용**한다(AI가 `harness/prompts/interview-script.md` 순서로 한 턴 최대 3문항씩 질문, `[모름]`·`건너뛰기` 허용, 단계별 확인 후 진행). 작성 틀 한 번에 입력·자유 텍스트·파일 첨부로는 접수하지 않으며, 해당 입력이 오면 인터뷰(I-0)로 전환한다.
 1. **Context 수집** — `context/system-context.template.md` + `requirements/00-common.md` + 해당 유형 템플릿(주력은 `01-alv-report` / `03-function-module`)이 모두 채워졌는지 확인. 필수(★) 1개라도 비어 있으면 코드 작성 금지, 템플릿 빈칸을 질문 리스트로 반환.
 2. **Spec 확정** — 테이블·조인·선택화면·ALV 레이아웃(FM이면 I/E/T 파라미터)·예외처리를 불릿 스펙으로 먼저 확정. 사용자 **"OK" 승인 전에는 코드 생성 금지**. "바로 코드" 요청이 와도 스펙 없이 코드를 주지 않고, 스펙 확정안을 먼저 제시한다.
-3. **Code 생성** — Output Contract(3.3) 준수. 릴리스 게이트(3.2, 750/S4 모던) 준수. ALV 방식은 스펙에서 건별로 선택(`CL_SALV_TABLE` / `REUSE_ALV_GRID_DISPLAY` / `CL_GUI_ALV_GRID`).
+3. **Code 생성** — `templates/abap/` 골격을 복제해 시작하고, Output Contract(3.3)·릴리스 게이트(3.2, 750/S4 모던)를 준수한다. ALV 방식은 스펙에서 건별로 선택(`CL_SALV_TABLE` / `REUSE_ALV_GRID_DISPLAY` / `CL_GUI_ALV_GRID`). 제시 전 `python3 tools/abap_check.py <파일>` 오류 0건 확인은 필수다.
 4. **Verify 안내** — 활성화 체크리스트 + 테스트 케이스 + 예상 덤프 대응표 제공.
 5. **Handover** — SE38/SE37 복사 순서, T-code 생성(SE93), 권한(SU21/PFCG), 이송(TR) 요청서 초안까지 제공한다.
 
@@ -112,8 +117,13 @@ AI가 생성하는 모든 ABAP 코드는 다음 계약을 만족해야 한다.
 | 파일 | 용도 |
 |---|---|
 | `HARNESS.md` | 5단계 워크플로우, 게이트, 복붙 프로토콜, 덤프 대응표 |
+| `tools/abap_check.py` | **Gate 3 자동 점검기** — 코드 제시 전 필수 실행 (규칙표는 `tools/README.md`) |
+| `tools/new_session.sh` | 세션 폴더·접수 기록 생성 스캐폴딩 |
+| `templates/abap/` | 코드 골격 3종(SALV·REUSE·FM) + 교체 체크리스트 — Gate 3 출발점 |
 | `context/system-context.template.md` | 1회만 작성하는 시스템 정보 (릴리스, 클라이언트, 네이밍, 권한) |
 | `context/ddic-collect.template.md` | SE11/SE16N에서 테이블·필드 정보를 뽑아오는 절차 + 붙여넣기 양식 |
+| `context/ddic-cache.md` | 세션 간 재사용 DDIC 확정값 — Gate 1에서 먼저 확인(재수집 비용 절감) |
+| `.cursor/rules/` | Cursor 자동 적용 규칙 3종 (코어·ABAP 코드 표준·세션 시작) |
 | `requirements/README.md` | 어떤 템플릿을 고를지 결정하는 라우터 (신규 기본: 인터뷰 → 08-demo → 09-fieldmap → 01~07) |
 | `sessions/README.md` | 세션별 묶음 규칙 — 프로그램 1건당 폴더 1개, 게이트별 기록 파일 |
 | `practice/error-patterns.md` | 오류·교훈 패턴 — Gate 3 전 대조 필수, V-3에서 신규 승격 |
@@ -159,4 +169,5 @@ AI가 생성하는 모든 ABAP 코드는 다음 계약을 만족해야 한다.
 
 코드를 줄 때:
 
+> 자동 점검 결과: `tools/abap_check.py` 오류 0건 (경고 n건 — 사유: ____).
 > 아래를 순서대로 SE38(ALV) / SE37(FM)에 복사하십시오. ① `ZX..._TOP` → ② 메인. 활성화 후 §테스트 절차의 입력값으로 실행하십시오. 오류가 나면 메시지 번호 + `SY-SUBRC` + 덤프명(`ST22`)을 그대로 붙여넣어 주세요.

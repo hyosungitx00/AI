@@ -13,6 +13,11 @@
 REPORT zsd_sales_alv01 NO STANDARD PAGE HEADING
   LINE-SIZE 220 LINE-COUNT 65.
 
+"! 테이블 선언 / Table declaration
+"! SELECT-OPTIONS ... FOR <사전필드>에는 TABLES 선언이 필수다 (ERR-006)
+"! / TABLES is mandatory for SELECT-OPTIONS on a dictionary field
+TABLES vbak.
+
 "! 타입 정의 / Type definitions
 TYPES: BEGIN OF ty_sales,
          vbeln TYPE vbak-vbeln,
@@ -30,6 +35,15 @@ SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE TEXT-001.
   PARAMETERS p_vkorg TYPE vbak-vkorg OBLIGATORY DEFAULT '1000'.
   SELECT-OPTIONS s_erdat FOR vbak-erdat DEFAULT '20240101' TO '20241231'.
 SELECTION-SCREEN END OF BLOCK b1.
+
+"! 입력 검증 / Input validation (ERR-005: 전건 조회 과부하 방지)
+AT SELECTION-SCREEN.
+  IF s_erdat-low > s_erdat-high AND s_erdat-high IS NOT INITIAL.
+    MESSAGE '시작일이 종료일보다 큽니다. / Start date is later than end date.' TYPE 'E'.
+  ENDIF.
+  IF s_erdat-high - s_erdat-low > 366.
+    MESSAGE '생성일 범위는 최대 366일입니다. / Date range is limited to 366 days.' TYPE 'E'.
+  ENDIF.
 
 START-OF-SELECTION.
   PERFORM frm_get_data.

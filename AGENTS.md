@@ -9,14 +9,20 @@
 |---|---|---|
 | `SKILL.md` | AI 행동 규칙 (환각 금지·릴리스 게이트·복붙 계약) | AI 대화 맨 앞에 지시문으로 사용 |
 | `HARNESS.md` | 5단계 워크플로우 + 게이트 + 오류 대응표 | AI와 사용자 공통 절차서 |
+| `tools/abap_check.py` | Gate 3 자동 점검기 (`CHK-001`~`CHK-017`) | 코드 제시 전 매번 (오류 0건 필수) |
+| `tools/new_session.sh` | 세션 폴더·접수 기록 생성 | 새 세션 시작 시 |
+| `templates/abap/` | 코드 골격 3종 (SALV·REUSE ALV·FM) | Gate 3 코드 작성 출발점 |
 | `context/system-context.template.md` | 시스템 정보 1부 (릴리스·패키지·네이밍) | 프로젝트당 1회 작성 |
 | `context/ddic-collect.template.md` | SE11/SE16N 값 수집 양식 | 테이블·필드가 불확실할 때 |
+| `context/ddic-cache.md` | 세션 간 재사용 DDIC 확정값 | Gate 1에서 먼저 확인 (재수집 생략) |
 | `requirements/` | 접수 커버(00-intake) + 화면 데모(08) + 필드맵(09) + 유형별 템플릿 8종(00~07) | 프로그램마다 인터뷰 1건 |
 | `harness/checklists/` | 활성화·리뷰 체크리스트 | SE38 활성화 전후 |
 | `harness/prompts/` | 그대로 붙여넣는 프롬프트 조각(인터뷰 전용: `intake-demo-prompt.md` + 인터뷰 스크립트 `interview-script.md`) | AI 대화 시작 시 |
 | `sessions/` | 세션별 묶음 — 1건당 `YYYYMMDD-프로그램명/` 폴더에 intake·demo·fieldmap·spec·code·verify·handover 기록 (신규 세션은 이전 폴더 참조 금지) | 매 세션 기록 |
 | `practice/` | 오류·교훈 패턴 축적 — Gate 3 전 확인용 `error-patterns.md` + 사용 규칙 (V-3에서 신규 패턴 승격) | 코드 생성 전 확인·오류 회수 시 |
-| `.cursor/rules/sap-gui-abap-session-start.mdc` | 세션 시작 자동 질문 규칙 (Cursor 자동 적용) | 새 대화 첫 턴 자동 실행 |
+| `.cursor/rules/sap-abap-core.mdc` | 절대 규칙 3종·게이트 순서·문서 인덱스 (Cursor 상시 적용) | 모든 대화 자동 적용 |
+| `.cursor/rules/abap-code-standards.mdc` | ABAP 코드 표준 + 자동 점검 규칙표 | `*.abap` 작성·수정 시 자동 적용 |
+| `.cursor/rules/sap-gui-abap-session-start.mdc` | 세션 시작 자동 질문 규칙 (Cursor 자동 적용) | 프로그램 개발 요청 첫 턴 자동 실행 |
 | `examples/` | 출력 형식 기준 2종(ALV·FM) + 작성본 견본(`filled/` 4종) | AI 출력 형식·입력 예시 확인 |
 
 ## 확정 사항 (사용자 답변 반영, 2026-09-22)
@@ -35,9 +41,11 @@
 2. AI 채팅에 순서대로 붙여넣기: `SKILL 지시 1줄` + `시스템 컨텍스트` + `[신규 프로그램 요구사항 인터뷰 시작 요청]` 한 줄.
    - 인터뷰 전용: 작성 틀 한 번에 입력·자유 텍스트·파일 첨부는 접수하지 않는다. 해당 형식으로 보내주셔도 인터뷰(I-0)부터 다시 진행한다.
    - 원문은 `harness/prompts/intake-demo-prompt.md`에 있다.
+3. `tools/new_session.sh <프로그램명>` 으로 세션 폴더를 준비한다 (게이트 기록을 그때그때 남길 자리).
 4. AI가 Gate U(이해도 확인서) → Gate D(08-demo 화면 컨펌, 데모 없음이면 AI 목업 생성) → Gate F(09-fieldmap 필드·구현 승인) → Gate 2(스펙 확정안) → Gate 3(코드) 순으로 준다. 각 게이트 승인 전에는 다음 산출물을 만들지 않는다.
-5. `harness/checklists/activation-checklist.md` 대로 SE38에 활성화·테스트한다.
-6. 오류는 `HARNESS.md` §4.3 양식으로 회수한다.
+5. Gate 3 코드는 `templates/abap/` 골격에서 시작하고, 제시 전에 `python3 tools/abap_check.py <파일>` 오류 0건을 확인한다.
+6. `harness/checklists/activation-checklist.md` 대로 SE38에 활성화·테스트한다.
+7. 오류는 `HARNESS.md` §4.3 양식으로 회수하고, 신규 패턴은 `practice/error-patterns.md` + 점검기 규칙으로 승격한다.
 
 ## AI 모델 공통 지시 1줄
 
@@ -47,14 +55,24 @@
 
 ## Cursor 등록 절차 (사용 도구: Cursor)
 
-1. `harness/prompts/system-prompt-fragment.md` 전문을 Cursor Settings → Rules / Custom Instructions에 등록한다.
-2. `.cursor/rules/sap-gui-abap-session-start.mdc` 는 `alwaysApply: true` 로 저장소에 포함되어 있어, Cursor 새 대화의 첫 턴에 1번 항목 맞춤 질문(8문항)이 자동으로 진행된다. 별도 붙여넣기가 필요 없다.
-3. Cursor를 쓰지 않는 도구에서는 새 대화 첫 메시지로 `harness/prompts/session-start.md` 의 전문을 붙여넣는다.
-4. 세션 적용값이 확정되면 인터뷰 전용 흐름으로 진행한다: `harness/prompts/intake-demo-prompt.md` 블록(시스템 컨텍스트 + 인터뷰 시작 요청 한 줄)을 붙여넣고 인터뷰(I-0 → I-8) → Gate U → Gate D → Gate F → Gate 2 순으로 진입한다. 작성 틀 직접 작성 시작(00-common + 01/03)·자유 텍스트·파일 첨부 접수는 받지 않는다.
-5. ALV·FM 외 유형(02, 04~07)이 필요해지면 해당 템플릿 1부를 추가로 붙여넣는다.
+**별도 등록이 필요 없다.** 아래 규칙 3종이 저장소에 포함되어 Cursor가 자동 적용한다.
+
+| 규칙 파일 | 적용 시점 | 내용 |
+|---|---|---|
+| `sap-abap-core.mdc` | 모든 대화 (상시) | 절대 규칙 3종·게이트 순서·점검 명령·문서 인덱스 |
+| `abap-code-standards.mdc` | `*.abap` 작성·수정 시 | 성능·형식 규칙 + 자동 점검 규칙표(`CHK-001`~`017`) |
+| `sap-gui-abap-session-start.mdc` | 프로그램 개발 요청 첫 턴 | 1·2차 맞춤 질문 8문항 → 세션 적용값 확정 |
+
+1. 저장소를 Cursor로 열고 바로 요청한다. 세션 적용값이 확정되면 인터뷰 전용 흐름으로 진행한다 —
+   인터뷰(I-0 → I-8) → Gate U → Gate D → Gate F → Gate 2 → Gate 3. 작성 틀 직접 작성 시작(00-common + 01/03)·자유 텍스트·파일 첨부 접수는 받지 않는다.
+2. 저장소 문서·도구 정비나 사용법 질문에는 8문항 질문을 하지 않고 바로 수행한다 (세션 시작 규칙의 "적용 범위" 참조).
+3. ALV·FM 외 유형(02, 04~07)이 필요해지면 해당 템플릿 1부를 추가로 붙여넣는다.
+4. Cursor를 쓰지 않는 도구에서는 `harness/prompts/system-prompt-fragment.md` 를 프로젝트 지침으로 등록하고,
+   새 대화 첫 메시지로 `harness/prompts/session-start.md` 전문을 붙여넣는다.
 
 ## 사용 모델별 팁
 
-- **Cursor**: 위 등록 절차대로 하면 매번 SKILL 전문을 붙여넣지 않아도 된다.
-- **SAP 용어가 약한 경우**: `context/ddic-collect.template.md` 수집값을 먼저 주고 "이 값만 써라"고 못 박는다.
+- **Cursor**: `.cursor/rules/` 자동 적용으로 매번 SKILL 전문을 붙여넣지 않아도 된다.
+- **SAP 용어가 약한 경우**: `context/ddic-collect.template.md` 수집값을 먼저 주고 "이 값만 써라"고 못 박는다. 이미 확인된 테이블은 `context/ddic-cache.md`에 쌓여 있어 다시 뽑지 않아도 된다.
+- **코드 품질이 들쭉날쭉한 경우**: `python3 tools/abap_check.py <파일>` 결과를 그대로 AI에 붙여넣고 "오류 0건까지 고쳐라"고 요청한다.
 - **긴 코드가 잘리는 경우**: "파일을 나눠서 ① TOP ② MAIN ③ FORM 순으로 각각 완전한 코드블록으로 달라"고 요청한다 (`HARNESS.md` §3.1).

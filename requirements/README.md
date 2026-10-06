@@ -21,16 +21,16 @@
 
 ## 유형 선택표 (Gate F 승인 후 구조화 대상)
 
-| 번호 | 만들고 싶은 프로그램 | 템플릿 파일 | 대표 트랜잭션 | 구분 |
-|---|---|---|---|---|
-| 공통 | 모든 유형 공통 (목적·네이밍·권한·이송) | `requirements/00-common.md` | — | 필수 |
-| 01 | 조회·출력 리포트 (ALV, 선택화면) ★주력 | `requirements/01-alv-report.md` | SE38 | 주력 |
-| 03 | 재사용 로직 (Function Module, BAPI 래퍼) ★주력 | `requirements/03-function-module.md` | SE37 | 주력 |
-| 02 | 입력·저장 화면 (전표 입력, Module Pool) | `requirements/02-module-pool.md` | SE80/SE51 | 확장 |
-| 04 | 표준 강화 (User-Exit, BAdI, Enhancement) | `requirements/04-enhancement.md` | SMOD/CMOD, SE18/SE19, SE80 | 확장 |
-| 05 | 연동 (RFC, 파일, IDoc/Proxy) | `requirements/05-interface.md` | SE37, WE31, SM59 | 확장 |
-| 06 | 대량 처리 (업로드·BDC·BAPI 배치, 배치잡) | `requirements/06-batch.md` | SE38, SM36 | 확장 |
-| 07 | 출력 서식 (SmartForms, Adobe Forms, 라벨) | `requirements/07-forms.md` | SMARTFORMS, SFP | 확장 |
+| 번호 | 만들고 싶은 프로그램 | 템플릿 파일 | 코드 골격 (Gate 3) | 대표 트랜잭션 | 구분 |
+|---|---|---|---|---|---|
+| 공통 | 모든 유형 공통 (목적·네이밍·권한·이송) | `requirements/00-common.md` | — | — | 필수 |
+| 01 | 조회·출력 리포트 (ALV, 선택화면) ★주력 | `requirements/01-alv-report.md` | `templates/abap/01-alv-salv.abap` 또는 `01-alv-reuse.abap` | SE38 | 주력 |
+| 03 | 재사용 로직 (Function Module, BAPI 래퍼) ★주력 | `requirements/03-function-module.md` | `templates/abap/03-function-module.abap` | SE37 | 주력 |
+| 02 | 입력·저장 화면 (전표 입력, Module Pool) | `requirements/02-module-pool.md` | 골격 없음 (화면 설계 선행) | SE80/SE51 | 확장 |
+| 04 | 표준 강화 (User-Exit, BAdI, Enhancement) | `requirements/04-enhancement.md` | 골격 없음 (확장점 분석 선행) | SMOD/CMOD, SE18/SE19, SE80 | 확장 |
+| 05 | 연동 (RFC, 파일, IDoc/Proxy) | `requirements/05-interface.md` | `templates/abap/03-function-module.abap` 응용 | SE37, WE31, SM59 | 확장 |
+| 06 | 대량 처리 (업로드·BDC·BAPI 배치, 배치잡) | `requirements/06-batch.md` | `templates/abap/01-alv-salv.abap` 응용 | SE38, SM36 | 확장 |
+| 07 | 출력 서식 (SmartForms, Adobe Forms, 라벨) | `requirements/07-forms.md` | 골격 없음 (서식 도구 작업) | SMARTFORMS, SFP | 확장 |
 
 ## 작성 규칙
 

@@ -2,6 +2,10 @@
 
 > 이 폴더는 기존 프로그램 예시 전용이다. 실전 세션 코드는 각 `sessions/YYYYMMDD-프로그램명/code.abap`에 저장한다.
 > 기준 릴리스: `SAP_BASIS 750 / S/4HANA, 모던 ABAP 허용` — 코드 상단에 기준 명시, 호스트변수 `@` 사용.
+>
+> **`examples/` vs `templates/abap/`**: 여기는 "완성된 출력이 어떤 모양이어야 하는가"의 기준 샘플이고,
+> 새 코드를 시작하는 골격은 `templates/abap/`에 있다. Gate 3에서는 골격을 복제해 쓴다.
+> 두 폴더 모두 `python3 tools/abap_check.py` 오류 0건을 유지한다.
 
 ## 1. AI 출력 형식 기준 (복붙 계약 준수 코드)
 

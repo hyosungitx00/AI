@@ -19,12 +19,12 @@
         ↓ Gate D: 화면 컨펌
 [0.5 필드맵] 09-fieldmap(필드 연결 + 구현 방식) → 점검
         ↓ Gate F: 필드·구현 승인 → 유형 템플릿(01~07)으로 구조화
-[1. Context 수집] requirements/00-common + 유형 템플릿(주력 01 ALV / 03 FM) + DDIC 수집
+[1. Context 수집] requirements/00-common + 유형 템플릿(주력 01 ALV / 03 FM) + DDIC(캐시 확인 → 부족분만 수집)
         ↓ Gate 1: 빈칸율 체크 (★ 1개라도 비면 코드 금지)
 [2. Spec 확정] 테이블·조인·화면·예외 스펙 문서화 → 사용자 OK
         ↓ Gate 2: 스펙 승인
-[3. Code 생성] 복붙 계약 준수 코드 + DDIC/메시지/T-code 정의서
-        ↓ Gate 3: 정적 체크리스트
+[3. Code 생성] templates/abap 골격 복제 → 복붙 계약 준수 코드 + DDIC/메시지/T-code 정의서
+        ↓ Gate 3: 자동 점검(tools/abap_check.py 오류 0건) + 사람 판단 체크리스트
 [4. Verify 안내] 활성화 순서 + 테스트 케이스 + 덤프 대응
         ↓ Gate 4: SE38 활성화·실행 결과 회수
 [5. Handover] 권한·T-code·이송 요청서 → 운영 이관
@@ -120,8 +120,11 @@
 
 ### 1.2 DDIC 수집
 
-테이블·필드가 불확실하면 `context/ddic-collect.template.md` 절차대로 SE11/SE16N 화면값을 복사해 온다.
-AI는 이 값을 기준으로만 `SELECT` 절과 구조체(`TYPES`)를 만든다.
+1. 먼저 `context/ddic-cache.md`를 확인한다. 상태가 `확정`인 테이블-필드는 **다시 묻지 않고 그대로 쓴다**
+   (이전 세션에서 활성화로 실재가 증명된 사실이다).
+2. 캐시에 없거나 `미확인`인 항목만 `context/ddic-collect.template.md` 절차대로 SE11/SE16N 화면값을 받아 온다.
+3. AI는 수집값과 캐시 확정 행을 기준으로만 `SELECT` 절과 구조체(`TYPES`)를 만든다.
+   캐시에 자기 지식으로 행을 추가하는 것은 금지다 (승격 근거는 SE11 출력 또는 활성화 성공 기록뿐).
 
 ### Gate 1 — 빈칸율 체크
 
@@ -162,6 +165,24 @@ AI는 코드를 만들기 전에 아래 형식의 **미니 스펙**을 먼저 �
 
 ## 3단계. Code 생성 (복붙 계약)
 
+### 3.0 골격 복제 (빈 화면에서 쓰지 않는다)
+
+`templates/abap/`에서 유형에 맞는 골격을 복제해 시작한다. 골격에는 `practice/error-patterns.md`의
+승격 패턴(ERR-005/006·MSG-001·PROC-001/002)이 이미 선반영되어 있다.
+
+| 유형·방식 | 골격 파일 |
+|---|---|
+| 01 ALV — `CL_SALV_TABLE` (기본) | `templates/abap/01-alv-salv.abap` |
+| 01 ALV — `REUSE_ALV_GRID_DISPLAY` | `templates/abap/01-alv-reuse.abap` |
+| 03 Function Module (SE37) | `templates/abap/03-function-module.abap` |
+
+```bash
+cp templates/abap/01-alv-salv.abap sessions/<세션폴더>/code.abap
+```
+
+골격의 예시 값(VBAK·VBAP·KNA1·ZSD_MSG)은 `TODO(교체)` 지점을 따라 세션 값으로 전부 바꾼다.
+교체 체크리스트는 `templates/abap/README.md` 참조.
+
 ### 3.1 출력 형식
 
 1. 복사 순서 번호 + 트랜잭션 명시:
@@ -185,14 +206,26 @@ AI는 코드를 만들기 전에 아래 형식의 **미니 스펙**을 먼저 �
 
 ### Gate 3 — 정적 체크 (AI 자가검증, 답변 전에 수행)
 
+**1) 자동 점검 — 오류 0건이 될 때까지 코드를 사용자에게 제시하지 않는다.**
+
+```bash
+python3 tools/abap_check.py sessions/<세션폴더>/code.abap
+grep -n "TODO(교체)" sessions/<세션폴더>/code.abap   # 0건이어야 한다
+```
+
+점검기는 아래 체크 항목 대부분(`SELECT *`·루프 내 SELECT·`FOR ALL ENTRIES` 빈 체크·`SY-SUBRC`·
+`TABLES` 선언·릴리스 문법·헤더·부록·병기 주석)을 규칙 `CHK-001`~`CHK-017`로 기계 점검한다.
+규칙표와 예외 지정 방법은 `tools/README.md` 참조. "보수적으로" 지정 건은 `--release classic`을 붙인다.
+경고를 남겨 둔 건은 사유를 답변에 한 줄로 적는다.
+
+**2) 사람 판단이 필요한 항목 — 점검기가 잡지 못하므로 직접 확인한다.**
+
 - [ ] `practice/error-patterns.md` 전수 대조 후 해당 패턴 선반영됨? (대조 없이 코드 금지)
-- [ ] `SELECT *` 없음?
-- [ ] `FOR ALL ENTRIES` 앞 빈 체크 있음?
-- [ ] 루프 내 SELECT 없음?
-- [ ] `SY-SUBRC` 체크 누락 없음?
-- [ ] 릴리스 금지 문법 없음? (기준 750/S4 모던 허용. "보수적으로" 지정 건에 한해 인라인 선언 전수 검사)
-- [ ] 메시지·권한 TODO 명시됨?
-- [ ] 주석 한국어+영문 병기 확인됨?
+- [ ] DDIC 필드명이 수집값·`context/ddic-cache.md` 확정 행과 일치함? (추측 필드에 `[확인필요]` 표기)
+- [ ] 조인 방향·WHERE가 승인된 Gate 2 스펙과 일치함?
+- [ ] 메시지 번호·전문과 권한 오브젝트가 세션 확정값임? (미확정이면 `TODO(GUI)` 명시)
+- [ ] 선택화면(S1)·결과(S2) 분리 구조가 유지됨? (PROC-001)
+- [ ] 세부 항목은 `harness/checklists/code-review-checklist.md` A~C 통과
 
 ---
 
@@ -238,6 +271,8 @@ AI는 아래 3종 세트를 답변에 포함한다.
   오류 발생 시 V-3(덤프명·메시지 전문·입력값·SY-SUBRC) 질문으로 회수하고, 덤프 대응표로 수정본을 제공한다.
 - 회수 후 AI는 `practice/error-patterns.md`를 먼저 대조한다. 기존 패턴이면 그 ID 처방으로, 신규면 새 ID로 패턴 추가 후 수정본을 제공한다.
   덤프 대응표는 `error-patterns.md` ERR 표와 동일하게 유지한다.
+- 신규 패턴이 기계 점검 가능한 형태면 `tools/abap_check.py`에 `CHK-nnn` 규칙으로도 추가한다 (추가 절차는 `tools/README.md`).
+- 활성화가 Syntax 0건으로 통과하면, 그 코드가 참조한 테이블-필드를 `context/ddic-cache.md`에 `확정`으로 승격한다.
 - "활성화 OK + T1~T3 결과"가 돌아오기 전에는 5단계(Handover)로 가지 않는다.
 - V-4 Verify 확정(`Handover로 넘어갈까요?`) 확인 후에만 Handover 산출물을 만든다.
 

@@ -1,0 +1,16 @@
+# ABAP 소스는 텍스트로 고정한다 — 복붙 전제이므로 줄바꿈이 섞이면 SE38에서 깨진다.
+*.abap text eol=lf diff=abap linguist-language=ABAP
+
+# 문서·설정
+*.md     text eol=lf
+*.mdc    text eol=lf
+*.py     text eol=lf
+*.sh     text eol=lf
+*.yml    text eol=lf
+
+# 데모 이미지는 바이너리
+*.png    binary
+*.jpg    binary
+*.gif    binary
+*.pdf    binary
+*.xlsx   binary
