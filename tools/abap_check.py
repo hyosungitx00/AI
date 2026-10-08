@@ -362,8 +362,10 @@ def check_source(path: Path, release: str) -> list[Finding]:
     return sorted(findings, key=lambda item: (item.path, item.line, item.rule))
 
 
-# 폴더를 훑을 때 건너뛰는 경로 — 점검기 테스트용 불량 픽스처는 일부러 규칙을 위반한다.
-SKIPPED_DIRS = {".git", "fixtures"}
+# 폴더를 훑을 때 건너뛰는 경로.
+# fixtures: 점검기 테스트용 불량 픽스처는 일부러 규칙을 위반한다.
+# legacy: 기존 프로그램 원본은 현행 코드 표준을 만족하지 않는 것이 정상이다.
+SKIPPED_DIRS = {".git", "fixtures", "legacy"}
 
 
 def collect_paths(targets: list[str]) -> list[Path]:
@@ -371,8 +373,10 @@ def collect_paths(targets: list[str]) -> list[Path]:
     roots = [Path(target) for target in targets] if targets else [Path(".")]
     for root in roots:
         if root.is_dir():
+            # 대상으로 직접 지정한 폴더는 건너뛰지 않는다 (기존 코드 기준선 진단용).
+            skipped = SKIPPED_DIRS - set(root.parts)
             paths.extend(
-                sorted(p for p in root.rglob("*.abap") if not SKIPPED_DIRS.intersection(p.parts))
+                sorted(p for p in root.rglob("*.abap") if not skipped.intersection(p.parts))
             )
         elif root.is_file():
             paths.append(root)  # 파일을 직접 지정하면 픽스처도 점검한다

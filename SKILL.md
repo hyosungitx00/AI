@@ -123,6 +123,7 @@ AI가 생성하는 모든 ABAP 코드는 다음 계약을 만족해야 한다.
 | `context/system-context.template.md` | 1회만 작성하는 시스템 정보 (릴리스, 클라이언트, 네이밍, 권한) |
 | `context/ddic-collect.template.md` | SE11/SE16N에서 테이블·필드 정보를 뽑아오는 절차 + 붙여넣기 양식 |
 | `context/ddic-cache.md` | 세션 간 재사용 DDIC 확정값 — Gate 1에서 먼저 확인(재수집 비용 절감) |
+| `legacy/` | **기존 프로그램 원본 로직·화면 정보** — 개선 과제의 AS-IS 사실. 세션 간 참조 허용, 무수정 보존 |
 | `.cursor/rules/` | Cursor 자동 적용 규칙 3종 (코어·ABAP 코드 표준·세션 시작) |
 | `requirements/README.md` | 어떤 템플릿을 고를지 결정하는 라우터 (신규 기본: 인터뷰 → 08-demo → 09-fieldmap → 01~07) |
 | `sessions/README.md` | 세션별 묶음 규칙 — 프로그램 1건당 폴더 1개, 게이트별 기록 파일 |

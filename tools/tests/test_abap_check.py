@@ -94,6 +94,10 @@ def test_fixtures_excluded_from_directory_scan() -> None:
     direct = abap_check.collect_paths([str(FIXTURES / "bad_report.abap")])
     expect(len(direct) == 1, "파일 직접 지정 시에는 픽스처도 점검")
 
+    named = abap_check.collect_paths([str(FIXTURES)])
+    expect(len(named) >= 2, "폴더를 직접 지정하면 제외 목록을 적용하지 않음")
+    expect("legacy" in abap_check.SKIPPED_DIRS, "기존 프로그램 원본도 기본 스캔 제외")
+
 
 def test_pragma_ignore() -> None:
     print("파일 단위 예외(pragma)")
