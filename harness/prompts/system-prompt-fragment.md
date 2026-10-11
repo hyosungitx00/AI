@@ -1,5 +1,8 @@
 # 시스템 프롬프트 조각 (Cursor Custom Instructions 등록용)
 
+> **짝 문서**: 이 파일은 *행동 규칙*이다. 시스템·업무 *사실*을 1페이지로 전달해야 하면
+> `context/work-system-onepager.md`를 쓴다. 타 AI에게 처음 인계할 때는 두 파일을 같이 준다.
+
 > **Cursor에서는 등록이 필요 없다.** `.cursor/rules/` 의 규칙 3종(`sap-abap-core.mdc`,
 > `abap-code-standards.mdc`, `sap-gui-abap-session-start.mdc`)이 저장소에 포함되어 자동 적용된다.
 > 아래 블록은 Cursor 외 도구(ChatGPT·Claude 프로젝트 지침, 사내 LLM)에 등록할 때 쓴다.
