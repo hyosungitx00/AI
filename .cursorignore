@@ -1,0 +1,7 @@
+# AI 인덱싱·참조 제외 / excluded from indexing and AI access
+#
+# 아래 경로는 하네스(harness)의 일부가 아니다. 다른 세션·다른 작업에서
+# 조회·참조되지 않도록 제외한다. 사용자가 경로를 명시적으로 지목할 때만 열람한다.
+# Not part of the harness. Excluded so that other sessions never pick it up.
+
+_private-analysis/
